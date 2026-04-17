@@ -8,7 +8,8 @@
     "node": ">=20.11.0"
   },
   "scripts": {
-    "validate:schemas": "node scripts/validate-schemas.mjs"
+    "validate:schemas": "node scripts/validate-schemas.mjs",
+    "test:golden": "node scripts/test-golden.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

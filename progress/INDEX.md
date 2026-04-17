@@ -25,7 +25,7 @@
 
 Foundation Exit 체크리스트 (`docs/14 §3.3`):
 - [ ] 단일 아바타 생성 → 프리뷰 → Cubism export 수동 테스트 성공
-- [ ] CI 에서 골든 1 아바타 회귀 자동
+- [x] CI 에서 골든 1 아바타 회귀 자동 (세션 10, `.github/workflows/ci.yml` + `pnpm run test:golden`)
 - [ ] 관측 대시보드 3종 기본 동작
 - [ ] 개발자 온보딩 1일
 
@@ -64,6 +64,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 08 | 2026-04-18 | `@geny/exporter-core` v0.0.1 — 결정론적 변환 프레임(canonicalJson/loader) + pose3 변환기 + halfbody v1.1.0·v1.2.0 golden + CLI (10 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-08-exporter-core.md) |
 | 08b | 2026-04-18 | `@geny/exporter-core` v0.1.0 — physics3 + motion3 변환기 + halfbody v1.2.0 physics3/idle.default/greet.wave golden + CLI 3 subcommand (23 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-08b-physics-motion.md) |
 | 09 | 2026-04-18 | `@geny/exporter-core` v0.2.0 — cdi3 + model3 변환기 + `assembleBundle()` + halfbody v1.2.0 cdi3/model3/bundle snapshot golden + CLI 6 subcommand (48 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-09-cdi-model-bundle.md) |
+| 10 | 2026-04-18 | `scripts/rig-template/migrate.mjs` (v1.0.0→v1.1.0→v1.2.0) + `scripts/test-golden.mjs` + root `pnpm run test:golden` + `.github/workflows/ci.yml` — Foundation Exit #2 ✅ | 완료 | [링크](./sessions/2026-04-18-session-10-migrate-ci.md) |
 
 ---
 
@@ -90,7 +91,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
-- [ ] 골든셋 회귀 통과 — 아직 골든셋 부재 (세션 03+에서 편성 예정)
+- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 8 fixture + `pnpm run test:golden` CI (세션 08/08b/09/10)
 - [ ] 성능 SLO 초과 없음 — 측정 인프라 부재
 - [ ] 보안 스캔 P0/P1 0건 — Gitleaks/Trivy 아직 미구축
 - [ ] 문서 업데이트 — 세션별로 관리
@@ -113,8 +114,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 10**: 마이그레이션 스크립트(`scripts/rig-template/migrate.mjs`) + 골든셋 회귀 CI (`pnpm test:golden`). v1.0.0/v1.1.0 → v1.2.0 자동 bump, Github Actions 에 `pnpm -r build && pnpm -r test` + `node scripts/validate-schemas.mjs` 편성. Foundation Exit 체크리스트 2번 달성.
 - **세션 11**: `samples/avatars/sample-01-aria` 재작성 + avatar 단에서 end-to-end export 스모크 (rig template + avatar refs → Cubism 번들 폴더 with moc/texture override).
 - **세션 12**: Expression(exp3) 변환기 + Web Avatar 번들 포맷 가교.
+- **세션 13**: 관측 대시보드 3종 기본 동작 (Foundation Exit #3) — 로깅 스키마·Prometheus·Grafana 뼈대.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.
