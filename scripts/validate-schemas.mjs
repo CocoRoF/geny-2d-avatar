@@ -33,6 +33,7 @@ const SCHEMA_ID = {
   deformers: "https://geny.ai/schema/v1/deformers.schema.json",
   physics: "https://geny.ai/schema/v1/physics.schema.json",
   motionPack: "https://geny.ai/schema/v1/motion-pack.schema.json",
+  expressionPack: "https://geny.ai/schema/v1/expression-pack.schema.json",
   testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
   pose: "https://geny.ai/schema/v1/pose.schema.json",
 };
@@ -103,6 +104,7 @@ async function main() {
     deformers: ajv.getSchema(SCHEMA_ID.deformers),
     physics: ajv.getSchema(SCHEMA_ID.physics),
     motionPack: ajv.getSchema(SCHEMA_ID.motionPack),
+    expressionPack: ajv.getSchema(SCHEMA_ID.expressionPack),
     testPoses: ajv.getSchema(SCHEMA_ID.testPoses),
     pose: ajv.getSchema(SCHEMA_ID.pose),
   };
@@ -572,6 +574,95 @@ async function main() {
           console.error(`[rig] manifest.compat.motion_packs declares '${id}' but no matching motion file found in ${relative(REPO_ROOT, motionsDir)}`);
         }
       }
+    }
+
+    // 2e-bis. expressions/*.expression.json (세션 12)
+    // manifest.compat.expression_packs 선언 ↔ 파일 1:1, target_id 파라미터 존재 + Cubism 매핑 존재.
+    const expressionsDirRel = manifest.expressions_dir; // optional
+    const manifestExpressionIds = new Set(
+      (manifest.compat?.expression_packs || []).map((s) => s.split("@")[0]),
+    );
+    if (expressionsDirRel) {
+      const expressionsDir = join(dir, expressionsDirRel);
+      let expressionEntries = [];
+      try {
+        expressionEntries = await readdir(expressionsDir);
+      } catch (err) {
+        if (err.code !== "ENOENT") throw err;
+      }
+      const seenExpressionIds = new Set();
+      const cubismMapping = manifest.cubism_mapping || {};
+      const paramCubism = new Map(
+        (params.parameters || []).map((p) => [p.id, p.cubism || cubismMapping[p.id] || null]),
+      );
+      for (const entry of expressionEntries) {
+        if (!entry.endsWith(".expression.json")) continue;
+        const expressionPath = join(expressionsDir, entry);
+        const pack = await readJson(expressionPath);
+        checked += 1;
+        if (!validators.expressionPack(pack)) {
+          failed += 1;
+          console.error(`[rig] INVALID expression ${relative(REPO_ROOT, expressionPath)}`);
+          console.error(fmtErrors(validators.expressionPack.errors, relative(REPO_ROOT, expressionPath)));
+          continue;
+        }
+        // expression_id stem should match filename stem (lowercase compare)
+        const expectedStem = entry.replace(/\.expression\.json$/, "");
+        const actualStem = pack.expression_id.split(".").slice(1).join("."); // 'expression.smile' → 'smile'
+        if (expectedStem !== actualStem) {
+          failed += 1;
+          console.error(
+            `[rig] expression ${relative(REPO_ROOT, expressionPath)}: expression_id stem '${actualStem}' ≠ filename stem '${expectedStem}'`,
+          );
+        }
+        if (seenExpressionIds.has(pack.expression_id)) {
+          failed += 1;
+          console.error(`[rig] duplicate expression_id '${pack.expression_id}' in ${relative(REPO_ROOT, expressionPath)}`);
+        }
+        seenExpressionIds.add(pack.expression_id);
+        if (manifestExpressionIds.size > 0 && !manifestExpressionIds.has(pack.expression_id)) {
+          failed += 1;
+          console.error(
+            `[rig] expression '${pack.expression_id}' not declared in manifest.compat.expression_packs (${relative(REPO_ROOT, expressionPath)})`,
+          );
+        }
+        // Per-blend cross-checks
+        const seenTargets = new Set();
+        for (const b of pack.blends) {
+          if (seenTargets.has(b.target_id)) {
+            failed += 1;
+            console.error(
+              `[rig] expression '${pack.expression_id}': target_id '${b.target_id}' appears in multiple blends (one entry per parameter)`,
+            );
+          }
+          seenTargets.add(b.target_id);
+          if (!paramIds.has(b.target_id)) {
+            failed += 1;
+            console.error(
+              `[rig] expression '${pack.expression_id}': target_id '${b.target_id}' not in parameters.json`,
+            );
+          } else if (!paramCubism.get(b.target_id)) {
+            failed += 1;
+            console.error(
+              `[rig] expression '${pack.expression_id}': parameter '${b.target_id}' has no Cubism mapping (parameters.json .cubism or manifest.cubism_mapping)`,
+            );
+          }
+        }
+      }
+      // Every declared expression_pack must have a matching file
+      if (manifestExpressionIds.size > 0 && seenExpressionIds.size > 0) {
+        for (const id of manifestExpressionIds) {
+          if (!seenExpressionIds.has(id)) {
+            failed += 1;
+            console.error(`[rig] manifest.compat.expression_packs declares '${id}' but no matching expression file found in ${relative(REPO_ROOT, expressionsDir)}`);
+          }
+        }
+      }
+    } else if (manifestExpressionIds.size > 0) {
+      failed += 1;
+      console.error(
+        `[rig] manifest.compat.expression_packs declared without expressions_dir in ${relative(REPO_ROOT, manifestPath)}`,
+      );
     }
 
     // 2f. test_poses/validation_set.json

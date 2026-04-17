@@ -6,7 +6,7 @@
 //
 // 동작:
 //  1) 스키마 + rig template 검증 (scripts/validate-schemas.mjs).
-//  2) @geny/exporter-core 빌드 + 단위 테스트 (58 tests, byte-equal golden).
+//  2) @geny/exporter-core 빌드 + 단위 테스트 (68 tests, byte-equal golden; 세션 12 +10).
 //  3) CLI 로 halfbody v1.2.0 번들을 임시 디렉터리에 조립, snapshot 을 기존 golden 과 byte 비교.
 //  4) CLI `avatar` 로 sample-01-aria 번들을 조립, snapshot 을 아바타 단 golden 과 byte 비교 (세션 11).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.

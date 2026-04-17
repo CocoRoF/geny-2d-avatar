@@ -6,11 +6,20 @@ import { convertPhysicsFromTemplate } from "./converters/physics.js";
 import { convertMotionFromTemplate } from "./converters/motion.js";
 import { convertCdiFromTemplate } from "./converters/cdi.js";
 import { convertModelFromTemplate } from "./converters/model.js";
+import { convertExpressionFromTemplate } from "./converters/expression.js";
 import { assembleBundle, snapshotBundle } from "./bundle.js";
 import { assembleAvatarBundle, readAvatarExportSpec } from "./avatar-bundle.js";
 import { canonicalJson } from "./util/canonical-json.js";
 
-type Command = "pose" | "physics" | "motion" | "cdi" | "model" | "bundle" | "avatar";
+type Command =
+  | "pose"
+  | "physics"
+  | "motion"
+  | "cdi"
+  | "model"
+  | "expression"
+  | "bundle"
+  | "avatar";
 
 interface Args {
   command: Command;
@@ -25,6 +34,8 @@ interface Args {
   /** bundle/avatar 전용 — 번들 출력 디렉터리. */
   outDir?: string;
   pack?: string;
+  /** expression: expression_id (e.g., 'expression.smile'). */
+  expression?: string;
   mocPath?: string;
   texturePaths?: string[];
   lipsync?: "simple" | "precise";
@@ -45,10 +56,13 @@ function parseArgs(argv: string[]): Args {
     first !== "motion" &&
     first !== "cdi" &&
     first !== "model" &&
+    first !== "expression" &&
     first !== "bundle" &&
     first !== "avatar"
   ) {
-    usage(`unknown command '${first}' (supported: pose, physics, motion, cdi, model, bundle, avatar)`);
+    usage(
+      `unknown command '${first}' (supported: pose, physics, motion, cdi, model, expression, bundle, avatar)`,
+    );
   }
   const command = first;
 
@@ -58,6 +72,7 @@ function parseArgs(argv: string[]): Args {
   let out: string | undefined;
   let outDir: string | undefined;
   let pack: string | undefined;
+  let expression: string | undefined;
   let mocPath: string | undefined;
   let texturePaths: string[] | undefined;
   let lipsync: "simple" | "precise" | undefined;
@@ -81,6 +96,9 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--pack":
         pack = argv[++i];
+        break;
+      case "--expression":
+        expression = argv[++i];
         break;
       case "--moc":
         mocPath = argv[++i];
@@ -123,6 +141,9 @@ function parseArgs(argv: string[]): Args {
       if (!out) usage("missing --out <file>");
     }
     if (command === "motion" && !pack) usage("motion: missing --pack <pack_id>");
+    if (command === "expression" && !expression) {
+      usage("expression: missing --expression <expression_id>");
+    }
   }
   return {
     command,
@@ -132,6 +153,7 @@ function parseArgs(argv: string[]): Args {
     ...(out ? { out } : {}),
     ...(outDir ? { outDir } : {}),
     ...(pack ? { pack } : {}),
+    ...(expression ? { expression } : {}),
     ...(mocPath ? { mocPath } : {}),
     ...(texturePaths ? { texturePaths } : {}),
     ...(lipsync ? { lipsync } : {}),
@@ -155,7 +177,8 @@ function printHelp(): void {
       "  motion     Convert a single motion pack → Cubism motion3.json (requires --pack)",
       "  cdi        Convert parameters + parts → Cubism cdi3.json",
       "  model      Build Cubism model3.json (bundle manifest)",
-      "  bundle     Assemble a full Cubism bundle directory (all 5 JSONs + motions/)",
+      "  expression Convert a single expression pack → Cubism exp3.json (requires --expression)",
+      "  bundle     Assemble a full Cubism bundle directory (all 5 JSONs + motions/ + expressions/)",
       "  avatar     Assemble a Cubism bundle from an avatar-export spec (session 11)",
       "",
       "common options:",
@@ -167,6 +190,7 @@ function printHelp(): void {
       "",
       "command-specific options:",
       "  --pack <pack_id>             motion: motion pack id (e.g. 'idle.default')",
+      "  --expression <id>            expression: expression id (e.g. 'expression.smile')",
       "  --moc <path>                 model/bundle: override Moc path (default 'avatar.moc3')",
       "  --texture <path>             model/bundle: repeatable; override Textures list",
       "  --lipsync simple|precise     model/bundle: LipSync group mode (default simple)",
@@ -228,6 +252,9 @@ function main(): void {
       break;
     case "cdi":
       json = convertCdiFromTemplate(tpl);
+      break;
+    case "expression":
+      json = convertExpressionFromTemplate(tpl, args.expression!);
       break;
     case "model": {
       const opts: Parameters<typeof convertModelFromTemplate>[1] = {};

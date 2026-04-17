@@ -101,8 +101,9 @@ test("assembleAvatarBundle: aria spec produces aria-prefixed files + expected co
     assert.ok(paths.includes("aria.physics3.json"));
     assert.ok(paths.includes("motions/idle_default.motion3.json"));
     assert.ok(paths.includes("motions/greet_wave.motion3.json"));
-    // halfbody v1.2.0 has 7 motion packs + 4 sibling JSONs = 11 files.
-    assert.equal(res.files.length, 11);
+    assert.ok(paths.includes("expressions/smile.exp3.json"));
+    // halfbody v1.2.0: 7 motion packs + 4 sibling JSONs + 3 expressions = 14 files.
+    assert.equal(res.files.length, 14);
     for (const f of res.files) {
       assert.ok(existsSync(join(dir, f.path)), `missing on disk: ${f.path}`);
     }

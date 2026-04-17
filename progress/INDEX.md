@@ -43,7 +43,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
 | **Platform / Infra** | K8s + CI/CD | ⚪ 미착수 |
 | **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 11종 + avatar metadata/export 샘플 + CI 자동 검증 (세션 01–05, 11), DB/S3 미착수 |
-| **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.3.0 — pose3 + physics3 + motion3 + cdi3 + model3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + halfbody v1.2.0 golden 8종 + aria 번들 golden + CLI 7 subcommand (세션 08–11). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) · 온보딩(#4) |
+| **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.4.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + halfbody v1.2.0 golden 11종 (+ smile/wink/neutral exp3) + aria 번들 golden + CLI 8 subcommand (세션 08–12). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) · 온보딩(#4) |
 | **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
 
 범례: 🟢 완료 · 🟡 진행중 · 🔴 블록 · ⚪ 미착수
@@ -66,6 +66,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 09 | 2026-04-18 | `@geny/exporter-core` v0.2.0 — cdi3 + model3 변환기 + `assembleBundle()` + halfbody v1.2.0 cdi3/model3/bundle snapshot golden + CLI 6 subcommand (48 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-09-cdi-model-bundle.md) |
 | 10 | 2026-04-18 | `scripts/rig-template/migrate.mjs` (v1.0.0→v1.1.0→v1.2.0) + `scripts/test-golden.mjs` + root `pnpm run test:golden` + `.github/workflows/ci.yml` — Foundation Exit #2 ✅ | 완료 | [링크](./sessions/2026-04-18-session-10-migrate-ci.md) |
 | 11 | 2026-04-18 | `schema/v1/avatar-export.schema.json` + aria `.export.json` + `@geny/exporter-core` v0.3.0 (`assembleAvatarBundle` + CLI `avatar`) + aria 번들 golden + `test:golden` 4단계 확장 (58 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-11-avatar-export.md) |
+| 12 | 2026-04-18 | `schema/v1/expression-pack.schema.json` + halfbody v1.2.0 smile/wink/neutral `.expression.json` 3종 + `@geny/exporter-core` v0.4.0 (`convertExpression` + `expressionSlug` + bundle expressions/ + CLI `expression`) + FileReferences.Expressions (model3) + exp3 golden 3종 + aria 번들 재생성 (14 files) (68 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-12-expressions.md) |
 
 ---
 
@@ -92,7 +93,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
-- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 9 fixture (halfbody 8 + aria 번들 1) + `pnpm run test:golden` 4 step CI (세션 08/08b/09/10/11)
+- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 12 fixture (halfbody 11 + aria 번들 1) + `pnpm run test:golden` 4 step CI (세션 08/08b/09/10/11/12)
 - [ ] 성능 SLO 초과 없음 — 측정 인프라 부재
 - [ ] 보안 스캔 P0/P1 0건 — Gitleaks/Trivy 아직 미구축
 - [ ] 문서 업데이트 — 세션별로 관리
@@ -115,8 +116,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 12**: Expression(exp3) 변환기 + Web Avatar 번들 포맷 가교.
-- **세션 13**: 관측 대시보드 3종 기본 동작 (Foundation Exit #3) — 로깅 스키마·Prometheus·Grafana 뼈대.
-- **세션 14**: 개발자 온보딩 1일 달성 (Foundation Exit #4) — README·quickstart·troubleshooting.
+- **세션 13**: Web Avatar 번들 포맷 가교 (ZIP packager + signed URL upload helper) 또는 관측 대시보드 3종 기본 동작 (Foundation Exit #3).
+- **세션 14**: 관측 미착수 시 Grafana/Prometheus 뼈대 (Foundation Exit #3).
+- **세션 15**: 개발자 온보딩 1일 달성 (Foundation Exit #4) — README·quickstart·troubleshooting.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

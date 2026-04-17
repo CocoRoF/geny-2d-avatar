@@ -29,12 +29,12 @@ test("assembleBundle: halfbody v1.2.0 snapshot matches golden byte-for-byte", ()
   }
 });
 
-test("assembleBundle: writes all 11 expected files for v1.2.0", () => {
+test("assembleBundle: writes all 14 expected files for v1.2.0 (incl. 3 expressions)", () => {
   const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir);
-    assert.equal(res.files.length, 11);
+    assert.equal(res.files.length, 14);
     const paths = res.files.map((f) => f.path);
     assert.ok(paths.includes("avatar.cdi3.json"));
     assert.ok(paths.includes("avatar.model3.json"));
@@ -42,6 +42,9 @@ test("assembleBundle: writes all 11 expected files for v1.2.0", () => {
     assert.ok(paths.includes("avatar.physics3.json"));
     assert.ok(paths.includes("motions/idle_default.motion3.json"));
     assert.ok(paths.includes("motions/greet_wave.motion3.json"));
+    assert.ok(paths.includes("expressions/smile.exp3.json"));
+    assert.ok(paths.includes("expressions/wink.exp3.json"));
+    assert.ok(paths.includes("expressions/neutral.exp3.json"));
     for (const f of res.files) {
       assert.ok(existsSync(join(dir, f.path)), `expected file on disk: ${f.path}`);
     }
@@ -61,6 +64,9 @@ test("assembleBundle: individual files byte-match their per-converter goldens", 
       ["avatar.physics3.json", "halfbody_v1.2.0.physics3.json"],
       ["motions/idle_default.motion3.json", "halfbody_v1.2.0__idle_default.motion3.json"],
       ["motions/greet_wave.motion3.json", "halfbody_v1.2.0__greet_wave.motion3.json"],
+      ["expressions/smile.exp3.json", "halfbody_v1.2.0__smile.exp3.json"],
+      ["expressions/wink.exp3.json", "halfbody_v1.2.0__wink.exp3.json"],
+      ["expressions/neutral.exp3.json", "halfbody_v1.2.0__neutral.exp3.json"],
     ];
     for (const [bundlePath, goldenName] of cases) {
       const got = readFileSync(join(dir, bundlePath), "utf8");

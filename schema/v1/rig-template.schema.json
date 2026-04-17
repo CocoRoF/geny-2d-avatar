@@ -82,6 +82,11 @@
     "deformers_file": { "type": "string", "const": "deformers.json" },
     "physics_file": { "type": "string", "const": "physics/physics.json" },
     "motions_dir": { "type": "string", "const": "motions/" },
+    "expressions_dir": {
+      "type": "string",
+      "const": "expressions/",
+      "description": "선택. 표정 팩 디렉터리(세션 12). 생략 시 템플릿은 표정 미지원으로 간주."
+    },
     "test_poses_file": { "type": "string", "const": "test_poses/validation_set.json" },
     "lipsync_mapping": {
       "type": "string",
@@ -131,6 +136,11 @@
           "type": "array",
           "items": { "type": "string", "pattern": "^[a-z][a-z0-9._-]+@.+$" },
           "description": "예: `idle.default@^1`."
+        },
+        "expression_packs": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^expression\\.[a-z][a-z0-9_]+@.+$" },
+          "description": "선택. 예: `expression.smile@^1` (세션 12 D3)."
         },
         "physics": { "type": "string", "description": "예: `physics.v1`." },
         "lipsync_mapping": { "type": "string", "description": "예: `lipsync_mapping.v1.*`." },

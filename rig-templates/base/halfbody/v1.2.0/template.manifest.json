@@ -16,6 +16,7 @@
   "deformers_file": "deformers.json",
   "physics_file": "physics/physics.json",
   "motions_dir": "motions/",
+  "expressions_dir": "expressions/",
   "test_poses_file": "test_poses/validation_set.json",
   "lipsync_mapping": "../../shared/lipsync_mapping.v1.json",
   "physics_preset": "normal",
@@ -35,6 +36,11 @@
       "nod.yes@^1",
       "shake.no@^1",
       "lipsync.mock@^1"
+    ],
+    "expression_packs": [
+      "expression.smile@^1",
+      "expression.wink@^1",
+      "expression.neutral@^1"
     ],
     "physics": "physics.v1",
     "lipsync_mapping": "lipsync_mapping.v1.*",

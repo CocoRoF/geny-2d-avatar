@@ -1,5 +1,5 @@
 {
-  "file_count": 11,
+  "file_count": 14,
   "files": [
     {
       "bytes": 7259,
@@ -7,9 +7,9 @@
       "sha256": "74bd0c74ce0655da54a13ba07d5be18799f75abab482add3375e30517830a208"
     },
     {
-      "bytes": 1801,
+      "bytes": 2094,
       "path": "aria.model3.json",
-      "sha256": "01275de7b175cf45f71cdad4ea1948b1353eadb96c9f8b190c50080c8a082dab"
+      "sha256": "abf013a601c98ee6d61e1be512a5e631f58394f3d904c3fdfcf892dc630888ac"
     },
     {
       "bytes": 15151,
@@ -20,6 +20,21 @@
       "bytes": 343,
       "path": "aria.pose3.json",
       "sha256": "1ef160383f7abc7044bb27badc33df92cf767dac28e85a15b0d46b81a2c2671a"
+    },
+    {
+      "bytes": 969,
+      "path": "expressions/neutral.exp3.json",
+      "sha256": "b056730b5468d2f9a3a936db1d29285b320418e277acb7cfea826392fd6cd212"
+    },
+    {
+      "bytes": 505,
+      "path": "expressions/smile.exp3.json",
+      "sha256": "f4b296085bee8fb520e6695a61e30f81e5275c27ecd0aed9e27188641d2ee835"
+    },
+    {
+      "bytes": 351,
+      "path": "expressions/wink.exp3.json",
+      "sha256": "ae5e17e49c85dfe26fa82f0a6bd4d838710120cb2ac0a9eea39724ded4c47c0d"
     },
     {
       "bytes": 885,
@@ -57,5 +72,5 @@
       "sha256": "920a9248251b2f32393562708391fb152ab928e43503dea07ba986e4815b16e9"
     }
   ],
-  "total_bytes": 31552
+  "total_bytes": 33670
 }

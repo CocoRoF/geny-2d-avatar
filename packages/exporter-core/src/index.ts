@@ -19,6 +19,8 @@ export type {
   ParametersDoc,
   ParameterDoc,
   ParameterGroupDoc,
+  ExpressionPackDoc,
+  ExpressionBlend,
 } from "./loader.js";
 export { convertPose, convertPoseFromTemplate } from "./converters/pose.js";
 export type { Pose3Json, Pose3Group, ConvertPoseInput } from "./converters/pose.js";
@@ -56,6 +58,16 @@ export {
   DEFAULT_MOC_PATH,
   DEFAULT_TEXTURE_PATHS,
 } from "./converters/model.js";
+export {
+  convertExpression,
+  convertExpressionFromTemplate,
+  expressionSlug,
+} from "./converters/expression.js";
+export type {
+  Expression3Json,
+  Expression3Parameter,
+  ConvertExpressionInput,
+} from "./converters/expression.js";
 export { assembleBundle, snapshotBundle } from "./bundle.js";
 export type {
   BundleFileEntry,
@@ -75,6 +87,7 @@ export type {
   Model3Group,
   Model3HitArea,
   Model3MotionEntry,
+  Model3ExpressionEntry,
   BundleFileNames,
   ConvertModelInput,
   ConvertModelOptions,

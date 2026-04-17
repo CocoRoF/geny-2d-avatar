@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "expression_id": "expression.smile",
+  "version": "1.0.0",
+  "format": 3,
+  "name": { "en": "Smile", "ko": "미소", "ja": "笑顔" },
+  "notes": "Add 모드 기반 가산 표정. 눈웃음 + 입꼬리 위로 + 눈썹 소폭 상승. docs/11 §3.2.2.",
+  "fade_in_sec": 0.5,
+  "fade_out_sec": 0.5,
+  "blends": [
+    { "target_id": "eye_smile_l", "value": 1, "blend": "Add" },
+    { "target_id": "eye_smile_r", "value": 1, "blend": "Add" },
+    { "target_id": "mouth_up", "value": 1, "blend": "Add" },
+    { "target_id": "brow_l_y", "value": 0.3, "blend": "Add" },
+    { "target_id": "brow_r_y", "value": 0.3, "blend": "Add" }
+  ]
+}

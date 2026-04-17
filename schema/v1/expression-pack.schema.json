@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/expression-pack.schema.json",
+  "title": "Expression Pack",
+  "description": "docs/11 §3.2.2 Cubism `.exp3.json` 으로 변환되는 Geny 내부 표정 팩. 시간축 없는 per-parameter offset + Blend 모드(Add/Multiply/Overwrite). docs/12 §4.10, progress session 12 참고.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "expression_id", "version", "name", "blends"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "expression_id": {
+      "type": "string",
+      "pattern": "^expression\\.[a-z][a-z0-9_]{1,40}$",
+      "description": "예: `expression.smile`. 파일 stem(`smile.expression.json`) 과 소문자 비교 일치해야 한다 (validate-schemas)."
+    },
+    "version": { "$ref": "common/ids.json#/$defs/semver" },
+    "format": {
+      "type": "integer",
+      "const": 3,
+      "default": 3,
+      "description": "Cubism exp3 Version 필드에 그대로 전파."
+    },
+    "notes": { "type": "string", "maxLength": 1000 },
+    "name": {
+      "type": "object",
+      "description": "사용자 표시용 표정 이름. Editor UI 에서 사용.",
+      "additionalProperties": false,
+      "required": ["en"],
+      "properties": {
+        "en": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "ko": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "ja": { "type": "string", "minLength": 1, "maxLength": 50 }
+      },
+      "propertyNames": { "pattern": "^(en|ko|ja)$" }
+    },
+    "fade_in_sec": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "default": 0.5,
+      "description": "Cubism exp3 FadeInTime. 생략 시 0.5 (D4)."
+    },
+    "fade_out_sec": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "default": 0.5,
+      "description": "Cubism exp3 FadeOutTime."
+    },
+    "blends": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 60,
+      "description": "파라미터별 offset + Blend 모드. 동일 target_id 를 두 번 선언하면 validate-schemas 에서 reject.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target_id", "value", "blend"],
+        "properties": {
+          "target_id": {
+            "$ref": "common/ids.json#/$defs/parameterId",
+            "description": "내부 snake_case 파라미터 ID. Cubism 매핑(parameters.json `cubism` 또는 manifest.cubism_mapping) 경유로 해석."
+          },
+          "value": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100,
+            "description": "Cubism exp3 `Value`. Blend 에 따라 의미 상이(Add 가산분·Multiply 계수·Overwrite 절대값)."
+          },
+          "blend": {
+            "type": "string",
+            "enum": ["Add", "Multiply", "Overwrite"],
+            "description": "Cubism exp3 `Blend`. docs/11 §3.2.2 표."
+          }
+        }
+      }
+    }
+  }
+}

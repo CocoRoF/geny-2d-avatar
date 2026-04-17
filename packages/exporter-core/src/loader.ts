@@ -134,6 +134,24 @@ export interface MotionPackDoc {
   user_data?: MotionUserDataEntry[];
 }
 
+export interface ExpressionBlend {
+  target_id: string;
+  value: number;
+  blend: "Add" | "Multiply" | "Overwrite";
+}
+
+export interface ExpressionPackDoc {
+  schema_version: string;
+  expression_id: string;
+  version: string;
+  format?: number;
+  name: { en: string; ko?: string; ja?: string };
+  notes?: string;
+  fade_in_sec?: number;
+  fade_out_sec?: number;
+  blends: ExpressionBlend[];
+}
+
 export interface ParameterGroupDoc {
   id: string;
   display_name: { en: string; ko?: string; ja?: string };
@@ -173,6 +191,8 @@ export interface Template {
   /** pack_id → MotionPackDoc. */
   motions: Record<string, MotionPackDoc>;
   parameters: ParametersDoc | null;
+  /** expression_id → ExpressionPackDoc. 빈 객체 = 표정 미선언 템플릿. */
+  expressions: Record<string, ExpressionPackDoc>;
 }
 
 /**
@@ -224,7 +244,23 @@ export function loadTemplate(dir: string): Template {
   const paramsPath = join(dir, paramsRel);
   const parameters = existsSync(paramsPath) ? readJson<ParametersDoc>(paramsPath) : null;
 
-  return { dir, manifest, pose, partsById, physics, motions, parameters };
+  const expressionsRel = manifest.expressions_dir as string | undefined;
+  const expressions: Record<string, ExpressionPackDoc> = {};
+  if (expressionsRel) {
+    const expressionsDir = join(dir, expressionsRel);
+    if (existsSync(expressionsDir)) {
+      for (const f of readdirSync(expressionsDir)) {
+        if (!f.endsWith(".expression.json")) continue;
+        const pack = readJson<ExpressionPackDoc>(join(expressionsDir, f));
+        if (!pack.expression_id) {
+          throw new Error(`loadTemplate: expression ${f} is missing expression_id`);
+        }
+        expressions[pack.expression_id] = pack;
+      }
+    }
+  }
+
+  return { dir, manifest, pose, partsById, physics, motions, parameters, expressions };
 }
 
 function readJson<T>(path: string): T {

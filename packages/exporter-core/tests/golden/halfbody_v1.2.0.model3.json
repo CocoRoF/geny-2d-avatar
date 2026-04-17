@@ -1,6 +1,20 @@
 {
   "FileReferences": {
     "DisplayInfo": "avatar.cdi3.json",
+    "Expressions": [
+      {
+        "File": "expressions/neutral.exp3.json",
+        "Name": "neutral"
+      },
+      {
+        "File": "expressions/smile.exp3.json",
+        "Name": "smile"
+      },
+      {
+        "File": "expressions/wink.exp3.json",
+        "Name": "wink"
+      }
+    ],
     "Moc": "avatar.moc3",
     "Motions": {
       "Blink": [

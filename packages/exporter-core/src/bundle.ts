@@ -8,6 +8,7 @@ import { convertPoseFromTemplate } from "./converters/pose.js";
 import { convertPhysicsFromTemplate } from "./converters/physics.js";
 import { convertMotion } from "./converters/motion.js";
 import { convertCdiFromTemplate } from "./converters/cdi.js";
+import { convertExpression, expressionSlug } from "./converters/expression.js";
 import {
   convertModelFromTemplate,
   DEFAULT_BUNDLE_FILE_NAMES,
@@ -38,12 +39,13 @@ export interface AssembleBundleOptions extends ConvertModelOptions {
 /**
  * 템플릿에서 Cubism 번들 디렉터리를 조립.
  *
- * 생성 파일 (세션 09 D8):
+ * 생성 파일 (세션 09 D8 + 세션 12 expressions):
  *  - `<outDir>/avatar.cdi3.json`
  *  - `<outDir>/avatar.model3.json`
  *  - `<outDir>/avatar.pose3.json`     (pose.json 이 있으면)
  *  - `<outDir>/avatar.physics3.json`  (physics.json 이 있으면)
  *  - `<outDir>/motions/<pack_slug>.motion3.json` per motion pack
+ *  - `<outDir>/expressions/<expression_slug>.exp3.json` per expression pack
  *
  * 결정론:
  *  - 모든 JSON 은 canonicalJson 경유 (키 알파벳 정렬).
@@ -88,6 +90,17 @@ export function assembleBundle(
     const pack = template.motions[packId]!;
     const motion3 = convertMotion({ motion: pack, manifest: template.manifest });
     writeJson(`${names.motionsDir}/${packSlug(packId)}.motion3.json`, motion3);
+  }
+
+  const expressionIds = Object.keys(template.expressions).sort();
+  for (const expressionId of expressionIds) {
+    const pack = template.expressions[expressionId]!;
+    const exp3 = convertExpression({
+      pack,
+      manifest: template.manifest,
+      parameters: template.parameters,
+    });
+    writeJson(`${names.expressionsDir}/${expressionSlug(expressionId)}.exp3.json`, exp3);
   }
 
   writeJson(names.model, convertModelFromTemplate(template, modelOpts(opts)));

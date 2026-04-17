@@ -1,14 +1,21 @@
 import type {
+  ExpressionPackDoc,
   MotionPackDoc,
   ParametersDoc,
   Template,
   TemplateManifest,
 } from "../loader.js";
+import { expressionSlug } from "./expression.js";
 
 export interface Model3MotionEntry {
   File: string;
   FadeInTime: number;
   FadeOutTime: number;
+}
+
+export interface Model3ExpressionEntry {
+  Name: string;
+  File: string;
 }
 
 export interface Model3FileReferences {
@@ -18,6 +25,7 @@ export interface Model3FileReferences {
   Pose?: string;
   DisplayInfo?: string;
   Motions?: Record<string, Model3MotionEntry[]>;
+  Expressions?: Model3ExpressionEntry[];
   UserData?: string;
 }
 
@@ -40,7 +48,7 @@ export interface Model3Json {
 }
 
 /**
- * 번들 내 파일 이름 규약 (세션 09 D8). 호출자가 override 가능.
+ * 번들 내 파일 이름 규약 (세션 09 D8, 세션 12 expressionsDir 추가). 호출자가 override 가능.
  */
 export interface BundleFileNames {
   model: string;
@@ -48,6 +56,7 @@ export interface BundleFileNames {
   pose: string;
   physics: string;
   motionsDir: string;
+  expressionsDir: string;
 }
 
 export const DEFAULT_BUNDLE_FILE_NAMES: BundleFileNames = {
@@ -56,6 +65,7 @@ export const DEFAULT_BUNDLE_FILE_NAMES: BundleFileNames = {
   pose: "avatar.pose3.json",
   physics: "avatar.physics3.json",
   motionsDir: "motions",
+  expressionsDir: "expressions",
 };
 
 export const DEFAULT_MOC_PATH = "avatar.moc3";
@@ -79,6 +89,8 @@ export interface ConvertModelInput {
   parameters: ParametersDoc | null;
   /** pack_id → MotionPackDoc. null 이면 Motions 생략. */
   motions: Record<string, MotionPackDoc>;
+  /** expression_id → ExpressionPackDoc. 비어 있으면 Expressions 키 생략. */
+  expressions?: Record<string, ExpressionPackDoc>;
   opts?: ConvertModelOptions;
 }
 
@@ -97,6 +109,7 @@ export function convertModel({
   manifest,
   parameters,
   motions,
+  expressions = {},
   opts = {},
 }: ConvertModelInput): Model3Json {
   const names: BundleFileNames = { ...DEFAULT_BUNDLE_FILE_NAMES, ...(opts.fileNames ?? {}) };
@@ -164,6 +177,15 @@ export function convertModel({
   };
   if (packIds.length > 0) FileReferences.Motions = Motions;
 
+  const expressionIds = Object.keys(expressions).sort();
+  if (expressionIds.length > 0) {
+    const Expressions: Model3ExpressionEntry[] = expressionIds.map((id) => {
+      const slug = expressionSlug(id);
+      return { Name: slug, File: `${names.expressionsDir}/${slug}.exp3.json` };
+    });
+    FileReferences.Expressions = Expressions;
+  }
+
   return {
     Version: 3,
     FileReferences,
@@ -180,6 +202,7 @@ export function convertModelFromTemplate(
     manifest: tpl.manifest,
     parameters: tpl.parameters,
     motions: tpl.motions,
+    expressions: tpl.expressions,
     ...(opts !== undefined ? { opts } : {}),
   });
 }
