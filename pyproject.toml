@@ -1,0 +1,32 @@
+[project]
+name = "geny-2d-avatar"
+version = "0.0.0"
+description = "표준화된 2D 리그 위에 AI가 재설계한 파츠를 얹어 캐릭터를 찍어내는 반자동 생산·커스터마이징·배포 플랫폼"
+requires-python = ">=3.12"
+
+# 루트 pyproject 는 저장소 전역 도구(ruff, mypy, pytest) 설정만 담당.
+# 실행 가능한 Python 패키지는 apps/worker-*, packages/sdk-py 등 하위에 별도 pyproject 로 둔다.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["mao_pro_ko", "**/dist", "**/build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["apps", "packages", "services"]

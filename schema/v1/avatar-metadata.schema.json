@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/avatar-metadata.schema.json",
+  "title": "Avatar Metadata",
+  "description": "docs/12 §4.5 Avatar 엔터티. DB row + export 번들 모두에서 재사용.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "prj_id",
+    "name",
+    "template_id",
+    "template_version",
+    "status",
+    "created_by",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "id": { "$ref": "common/ids.json#/$defs/avatarId" },
+    "prj_id": { "$ref": "common/ids.json#/$defs/projectId" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "template_id": { "$ref": "common/ids.json#/$defs/templateRef" },
+    "template_version": { "$ref": "common/ids.json#/$defs/semver" },
+    "style_profile_id": { "$ref": "common/ids.json#/$defs/styleProfileId" },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "generating", "review", "published", "archived"]
+    },
+    "current_version_id": { "$ref": "common/ids.json#/$defs/versionId" },
+    "created_by": { "$ref": "common/ids.json#/$defs/userId" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,30}$" },
+      "maxItems": 20,
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "passed", "issues_count"],
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "passed": { "type": "boolean" },
+        "issues_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "provenance_summary_hash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

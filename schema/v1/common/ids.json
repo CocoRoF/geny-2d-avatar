@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/common/ids.json",
+  "title": "ID 공용 정의",
+  "description": "docs/12 §3 ID 규약 — `{prefix}_{ULID}` 포맷. ULID 는 Crockford Base32 26자.",
+  "$defs": {
+    "ulidTail": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Crockford Base32 (대문자) 26자. I/L/O/U 제외."
+    },
+    "userId": { "type": "string", "pattern": "^usr_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "orgId": { "type": "string", "pattern": "^org_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "projectId": { "type": "string", "pattern": "^prj_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "avatarId": { "type": "string", "pattern": "^av_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "versionId": { "type": "string", "pattern": "^ver_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "partInstanceId": { "type": "string", "pattern": "^prt_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "styleProfileId": { "type": "string", "pattern": "^stp_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "motionPackId": { "type": "string", "pattern": "^mot_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "exportJobId": { "type": "string", "pattern": "^exp_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "jobId": { "type": "string", "pattern": "^job_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "apiKeyId": { "type": "string", "pattern": "^key_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "licenseId": { "type": "string", "pattern": "^lic_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "eventId": { "type": "string", "pattern": "^evt_[0-9A-HJKMNP-TV-Z]{26}$" },
+
+    "templateRef": {
+      "type": "string",
+      "pattern": "^tpl\\.(base|community|custom)\\.v[0-9]+\\.[a-z][a-z0-9_]{1,40}$",
+      "description": "템플릿 식별자. 예: `tpl.base.v1.halfbody`. docs/03 §7.1."
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
+      "description": "SemVer 2.0.0 — major.minor.patch[-prerelease][+build]"
+    },
+    "slotId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,40}(?:\\.[a-z0-9_]{1,20})?$",
+      "description": "파츠 슬롯 ID. docs/04 §2. `fx.*` 네임스페이스 허용."
+    },
+    "parameterId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,60}$",
+      "description": "스네이크 케이스 파라미터 ID. docs/03 §3.1. 예: `head_angle_x`."
+    },
+    "cubismParamId": {
+      "type": "string",
+      "pattern": "^Param[A-Z][A-Za-z0-9]{0,60}$",
+      "description": "Cubism 파라미터 ID. 예: `ParamAngleX`."
+    },
+    "cubismPartId": {
+      "type": "string",
+      "pattern": "^Part[A-Z0-9][A-Za-z0-9]{0,60}$",
+      "description": "Cubism 파츠 ID. 예: `PartHairFront`."
+    }
+  }
+}

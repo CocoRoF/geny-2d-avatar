@@ -1,0 +1,29 @@
+version: "3"
+
+# 저장소 전역 태스크 진입점. 앱/서비스는 자체 Taskfile 을 갖고 이 파일은 얕은 래퍼만.
+# 사용: `task <name>`. 상세 레시피는 앱별 Taskfile 에 둔다.
+
+tasks:
+  default:
+    desc: 사용 가능한 태스크 목록 출력
+    cmds:
+      - task --list
+
+  validate:schemas:
+    desc: JSON Schema 와 예제를 Ajv 로 검증
+    cmds:
+      - node scripts/validate-schemas.mjs
+
+  validate:rig-templates:
+    desc: rig-templates 내 모든 템플릿 JSON 이 schema 에 부합하는지 검증
+    cmds:
+      - node scripts/validate-schemas.mjs --include-rig-templates
+
+  install:
+    desc: 루트 dev 의존성 설치 (스키마 검증 등에 필요)
+    cmds:
+      - pnpm install --frozen-lockfile
+
+  check:
+    desc: 스키마 + 린트 등 전역 체크 (세션 진행에 따라 확장)
+    deps: [validate:schemas]

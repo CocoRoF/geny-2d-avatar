@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/rig-template.schema.json",
+  "title": "Rig Template Manifest",
+  "description": "docs/03 의 베이스 리그 템플릿 메타. parameters/parts/motions 는 별도 파일 참조.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "display_name",
+    "family",
+    "canvas",
+    "ratio",
+    "parameters_file",
+    "parts_dir",
+    "deformers_file",
+    "physics_file",
+    "motions_dir",
+    "test_poses_file",
+    "authoring",
+    "compat"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "v1",
+      "description": "이 파일이 준수하는 `schema/` major 버전."
+    },
+    "id": {
+      "$ref": "common/ids.json#/$defs/templateRef",
+      "description": "예: `tpl.base.v1.halfbody`. 주major 변경 시에만 달라진다 (03 §7.1)."
+    },
+    "version": {
+      "$ref": "common/ids.json#/$defs/semver",
+      "description": "파일 내용의 SemVer. 디렉터리명과 일치해야 한다 (ADR 0003)."
+    },
+    "display_name": {
+      "type": "object",
+      "description": "사용자 표시 이름 (로케일별).",
+      "properties": { "en": { "type": "string", "minLength": 1 } },
+      "additionalProperties": { "type": "string" },
+      "required": ["en"],
+      "propertyNames": { "pattern": "^[a-z]{2}(?:-[A-Z]{2})?$" }
+    },
+    "intended_vibe": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 1000,
+      "description": "프롬프트 엔진이 참조하는 '의도한 인상' 한 단락. docs/03 §13."
+    },
+    "family": {
+      "type": "string",
+      "enum": ["chibi", "halfbody", "fullbody", "masc_halfbody", "feline", "custom"],
+      "description": "템플릿 계열. docs/03 §2.1."
+    },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "enum": [2048, 4096] },
+        "height": { "type": "integer", "enum": [2048, 4096] }
+      }
+    },
+    "ratio": {
+      "type": "object",
+      "description": "머리:몸 비율 등. docs/03 §2.1.",
+      "additionalProperties": false,
+      "required": ["head_to_body"],
+      "properties": {
+        "head_to_body": {
+          "type": "string",
+          "pattern": "^[0-9]+(?:\\.[0-9]+)?:[0-9]+(?:\\.[0-9]+)?$",
+          "description": "예: `1:2.5`."
+        }
+      }
+    },
+    "parameters_file": { "type": "string", "const": "parameters.json" },
+    "parts_dir": { "type": "string", "const": "parts/" },
+    "deformers_file": { "type": "string", "const": "deformers.json" },
+    "physics_file": { "type": "string", "const": "physics/physics.json" },
+    "motions_dir": { "type": "string", "const": "motions/" },
+    "test_poses_file": { "type": "string", "const": "test_poses/validation_set.json" },
+    "lipsync_mapping": {
+      "type": "string",
+      "description": "언어별 모음 매핑 파일 경로(외부화). docs/03 §6.3.",
+      "default": "../../shared/lipsync_mapping.v1.json"
+    },
+    "physics_preset": {
+      "type": "string",
+      "enum": ["light", "normal", "heavy"],
+      "default": "normal",
+      "description": "docs/03 §6.2."
+    },
+    "authoring": {
+      "type": "object",
+      "description": "누가/언제/어떤 툴로 만들었는지.",
+      "additionalProperties": false,
+      "required": ["authors", "created_at"],
+      "properties": {
+        "authors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "role"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "role": {
+                "type": "string",
+                "enum": ["rigger", "artist", "reviewer", "engineer"]
+              },
+              "contact": { "type": "string" }
+            }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "tool": { "type": "string", "description": "예: `cubism@5.0.3`, `geny-internal`." }
+      }
+    },
+    "compat": {
+      "type": "object",
+      "description": "docs/03 §7.2 호환성 테이블.",
+      "additionalProperties": false,
+      "required": ["motion_packs", "export_targets_supported"],
+      "properties": {
+        "motion_packs": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9._-]+@.+$" },
+          "description": "예: `idle.default@^1`."
+        },
+        "physics": { "type": "string", "description": "예: `physics.v1`." },
+        "lipsync_mapping": { "type": "string", "description": "예: `lipsync_mapping.v1.*`." },
+        "export_targets_supported": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]+@.+$"
+          }
+        }
+      }
+    },
+    "cubism_mapping": {
+      "type": "object",
+      "description": "docs/03 §12.1 매핑 (우리 → Cubism). 키는 우리 parameterId, 값은 Cubism ParamId.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{1,60}$": {
+          "$ref": "common/ids.json#/$defs/cubismParamId"
+        }
+      }
+    },
+    "hit_areas": {
+      "type": "array",
+      "description": "HitAreaHead/HitAreaBody 등 docs/11 §3.2 참조.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "role"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^HitArea[A-Z][A-Za-z0-9]*$" },
+          "role": { "type": "string", "enum": ["head", "body", "custom"] },
+          "bound_to_part": { "$ref": "common/ids.json#/$defs/slotId" }
+        }
+      }
+    }
+  }
+}

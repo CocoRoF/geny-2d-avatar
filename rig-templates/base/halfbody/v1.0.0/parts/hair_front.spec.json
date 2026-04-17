@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "hair_front",
+  "role": "hair_front",
+  "required": true,
+  "template": "tpl.base.v1.halfbody",
+  "template_version": "^1",
+  "deformation_parent": "hair_front_warp",
+  "category": "hair",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 384, "y": 120, "w": 1280, "h": 760 },
+  "anchor": {
+    "type": "head_top_center",
+    "x_frac": 0.5,
+    "y_frac": 0.22,
+    "detect_method": "hair_parting_centroid_v1"
+  },
+  "z_order": 92,
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.5,
+    "color_context": "hair"
+  },
+  "generation": {
+    "prompt_scope": ["hair_style", "hair_color", "bangs_shape", "hair_texture"],
+    "negative_prompt": ["face", "eyes", "mouth", "background", "text", "watermark"],
+    "reference_mask": "masks/hair_front_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["face_base"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.05,
+    "max_alpha_area_frac": 0.45
+  },
+  "cubism_part_id": "PartHairFront",
+  "notes": "앞머리는 고개를 돌릴 때 얼굴보다 살짝 늦게 따라오므로 물리가 관여함. hair_front_sway 가 물리 출력 바인딩."
+}

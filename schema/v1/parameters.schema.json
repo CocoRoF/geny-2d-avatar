@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/parameters.schema.json",
+  "title": "Rig Parameters File",
+  "description": "docs/03 §3 표준 파라미터 세트. parameters.json 파일의 계약.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "parameters"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "groups": {
+      "type": "array",
+      "description": "Cubism `cdi3.json` 의 ParameterGroups 에 대응. 편집기 UI 분류.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "display_name"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,40}$" },
+          "display_name": {
+            "type": "object",
+            "properties": { "en": { "type": "string", "minLength": 1 } },
+            "additionalProperties": { "type": "string" },
+            "required": ["en"]
+          }
+        }
+      }
+    },
+    "combined_axes": {
+      "type": "array",
+      "description": "2D 조이스틱 쌍. docs/03 §12.1. 각 원소는 [paramId_x, paramId_y].",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": { "$ref": "common/ids.json#/$defs/parameterId" }
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/parameter" }
+    }
+  },
+  "$defs": {
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name", "range", "default", "required", "group", "channel"],
+      "properties": {
+        "id": { "$ref": "common/ids.json#/$defs/parameterId" },
+        "display_name": {
+          "type": "object",
+          "properties": { "en": { "type": "string", "minLength": 1 } },
+          "additionalProperties": { "type": "string" },
+          "required": ["en"]
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["normalized", "degree", "ratio"],
+          "default": "normalized"
+        },
+        "range": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number" },
+          "description": "[min, max]. docs/03 §3.1 — 기본 [-1,1] 또는 [0,1], 각도는 degree."
+        },
+        "default": { "type": "number" },
+        "required": {
+          "type": "boolean",
+          "description": "템플릿 핵심 파라미터인지. false 면 확장 파라미터."
+        },
+        "group": { "type": "string", "description": "groups[].id 참조." },
+        "channel": {
+          "type": "string",
+          "enum": ["core", "extension", "effect"],
+          "description": "core/extension 은 검수 렌더 필수, effect 는 fx 채널 (docs/03 §12.1)."
+        },
+        "cubism": { "$ref": "common/ids.json#/$defs/cubismParamId" },
+        "physics_input": {
+          "type": "boolean",
+          "default": false,
+          "description": "이 파라미터가 물리 입력으로 사용됨."
+        },
+        "physics_output": {
+          "type": "boolean",
+          "default": false,
+          "description": "이 파라미터가 물리 출력(`*_sway`, `*_phys`) 임."
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}
