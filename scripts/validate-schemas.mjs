@@ -330,10 +330,11 @@ async function main() {
               failed += 1;
               console.error(`[rig] physics.json: setting '${s.id}' output '${out.destination_param}' is not marked physics_output=true`);
             }
-            // docs/03 §6.2 — *_sway / *_phys 접미사. 좌우 분리 시 _l / _r 뒤붙임 허용.
-            if (!/_(sway|phys)(_[lr])?$/.test(out.destination_param)) {
+            // docs/03 §6.2 — *_sway / *_phys / *_fuwa 접미사. 좌우 분리 시 _l / _r 뒤붙임 허용.
+            // `_fuwa` 는 세션 07 에서 볼륨 팽창용 물리 출력으로 정식 도입 (docs/03 §12.1 #1).
+            if (!/_(sway|phys|fuwa)(_[lr])?$/.test(out.destination_param)) {
               failed += 1;
-              console.error(`[rig] physics.json: setting '${s.id}' output '${out.destination_param}' must end in _sway / _phys (optionally + _l/_r) — docs/03 §6.2`);
+              console.error(`[rig] physics.json: setting '${s.id}' output '${out.destination_param}' must end in _sway / _phys / _fuwa (optionally + _l/_r) — docs/03 §6.2`);
             }
             // vertex_index must be within the setting's vertices array
             if (out.vertex_index >= s.vertices.length) {

@@ -1,0 +1,24 @@
+{
+  "schema_version": "v1",
+  "pack_id": "shake.no",
+  "version": "1.0.0",
+  "format": 3,
+  "notes": "1초, 좌우 2회 반복. head_angle_x ±20° 사이.",
+  "meta": {
+    "duration_sec": 1.0,
+    "fps": 30,
+    "fade_in_sec": 0.1,
+    "fade_out_sec": 0.1,
+    "loop": false,
+    "curve_count": 1,
+    "total_segment_count": 5,
+    "total_point_count": 6
+  },
+  "curves": [
+    {
+      "target": "parameter",
+      "target_id": "head_angle_x",
+      "segments": [0, 0, 0, 0.2, -20, 0, 0.4, 20, 0, 0.6, -20, 0, 0.8, 20, 0, 1.0, 0]
+    }
+  ]
+}

@@ -37,7 +37,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 | 스트림 | Foundation 목표 | 현재 상태 |
 |---|---|---|
-| **Rig & Parts** | `halfbody v1` 손 리깅 완성 | 🟡 v1.0.0 풀셋 + v1.1.0 arm A/B + 첫 pose.json + greet.wave v2 (세션 02–06), Fuwa/cloth/12-physics 남음 |
+| **Rig & Parts** | `halfbody v1` 손 리깅 완성 | 🟡 v1.0.0~v1.2.0 (세션 02–07). v1.2.0 = Fuwa 5 + overall_warp 연결 + cloth_warp + 물리 9/12 Setting. 남은 3 Setting(ahoge/accessory/body_breath_phys)은 해당 파츠 도입 시 |
 | **AI Generation** | nano-banana 어댑터 | ⚪ 미착수 |
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
@@ -60,6 +60,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 04 | 2026-04-18 | halfbody v1 모션 팩 7 + test_poses 20 + motion/test-poses 스키마 | 완료 | [링크](./sessions/2026-04-18-session-04-motions.md) |
 | 05 | 2026-04-18 | avatar 샘플 + pose3 스키마 + HitArea 검증 + ADR 0004 | 완료 | [링크](./sessions/2026-04-18-session-05-avatar-pose.md) |
 | 06 | 2026-04-18 | halfbody v1.1.0 bump — arm A/B variant + 첫 pose.json + greet.wave v2 | 완료 | [링크](./sessions/2026-04-18-session-06-arm-variants.md) |
+| 07 | 2026-04-18 | halfbody v1.2.0 bump — Fuwa 5 파라미터 + overall_warp/cloth_warp + 물리 9 Setting (4 sway L/R 분리 + 5 fuwa) + docs/03 §12.1 #4 갱신 | 완료 | [링크](./sessions/2026-04-18-session-07-fuwa-physics.md) |
 
 ---
 
@@ -109,8 +110,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 07**: Fuwa/cloth 볼륨 파라미터 + `overall_*` deformer 연결 + `normal` 물리 프리셋 12 Setting 완성. halfbody v1.2.0 또는 v1.1.1 — bump 형식은 세션 시작 시 결정.
-- **세션 08**: `packages/exporter-core` 초판 — 템플릿+avatar → Cubism `.moc3/.physics3.json/.motion3.json/.pose3.json/.cdi3.json` 결정론적 변환.
-- **세션 09**: 마이그레이션 스크립트(`scripts/rig-template/migrate.mjs`) — v1.0.0 아바타 → v1.1.0 자동 업그레이드. `samples/avatars/sample-01-aria` 재작성.
+- **세션 08**: `packages/exporter-core` 초판 — 템플릿+avatar → Cubism `.moc3/.physics3.json/.motion3.json/.pose3.json/.cdi3.json` 결정론적 변환. v1.2.0 이 첫 실사용 케이스.
+- **세션 09**: 마이그레이션 스크립트(`scripts/rig-template/migrate.mjs`) — v1.0.0 → v1.2.0 아바타 자동 업그레이드. `samples/avatars/sample-01-aria` 재작성 + 골든 회귀셋 편성.
+- **세션 10**: 골든셋 회귀 CI (`pnpm test:golden`) — exporter deterministic 재현 + schema 검증 동시 실행. Foundation Exit 체크리스트 2번 달성.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

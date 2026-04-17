@@ -1,0 +1,44 @@
+{
+  "schema_version": "v1",
+  "pack_id": "lipsync.mock",
+  "version": "1.0.0",
+  "format": 3,
+  "notes": "2초 데모 립싱크. 5 모음을 0.3s 간격으로 차례로 펄스. Linear 만 사용.",
+  "meta": {
+    "duration_sec": 2.0,
+    "fps": 30,
+    "fade_in_sec": 0.1,
+    "fade_out_sec": 0.1,
+    "loop": false,
+    "curve_count": 5,
+    "total_segment_count": 20,
+    "total_point_count": 25
+  },
+  "curves": [
+    {
+      "target": "parameter",
+      "target_id": "mouth_vowel_a",
+      "segments": [0, 0, 0, 0.2, 0, 0, 0.3, 1, 0, 0.4, 0, 0, 2.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "mouth_vowel_i",
+      "segments": [0, 0, 0, 0.5, 0, 0, 0.6, 1, 0, 0.7, 0, 0, 2.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "mouth_vowel_u",
+      "segments": [0, 0, 0, 0.8, 0, 0, 0.9, 1, 0, 1.0, 0, 0, 2.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "mouth_vowel_e",
+      "segments": [0, 0, 0, 1.1, 0, 0, 1.2, 1, 0, 1.3, 0, 0, 2.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "mouth_vowel_o",
+      "segments": [0, 0, 0, 1.4, 0, 0, 1.5, 1, 0, 1.6, 0, 0, 2.0, 0]
+    }
+  ]
+}

@@ -204,7 +204,7 @@ root
 ### 6.2 물리 파일 규약
 
 - `physics3.json` 의 물리 입력은 `head_angle_*`, `body_angle_*`, `body_breath` 만 사용.
-- 출력 파라미터는 `*_sway`, `*_phys` 접미사만.
+- 출력 파라미터는 `*_sway`, `*_phys`, `*_fuwa` 접미사만. 좌우 분리 시 `_l` / `_r` 뒤붙임 허용. (`_fuwa` 는 halfbody v1.2.0 / 세션 07 부터 공식 도입 — Live2D 의 볼륨 파라미터 명칭에서 차용.)
 - 진동 감쇠(damping), 바람(wind) 프리셋 3단계 제공: `light / normal / heavy`.
 - 커스텀 물리는 템플릿 파생(fork)에서만 허용, 원본 템플릿 수정 금지.
 
@@ -222,6 +222,14 @@ mao_pro 의 `physics3.json` 은 **16개 PhysicsSetting, 43 입력 / 20 출력 / 
 | 아우터 (로브/치마) | 2 | 로브 흔들림 / 로브 볼륨 |
 
 표준 `normal` 프리셋은 이 16개 중 **머리 8 + 옷 4 = 12개** 를 기본 on 으로, 나머지는 템플릿 파생에서 활성화한다.
+
+**현재 구현 진행(halfbody v1.x)**:
+
+| 버전 | PhysicsSetting 수 | 커버 범주 | 남은 범주 |
+|---|---|---|---|
+| v1.0.0 / v1.1.0 | 3 | 머리 sway(front / side 공유 / back) | Fuwa, cloth, ahoge, accessory, body_breath_phys |
+| **v1.2.0 (세션 07)** | **9** | 머리 sway 4(side L/R 분리) + Fuwa 5(hair 4 + cloth_main) | ahoge_sway, accessory_sway, body_breath_phys (해당 파츠 도입 시) |
+| 12 목표 | 12 | 위 3종 추가 | — |
 
 ### 6.3 립싱크 표준
 
@@ -405,13 +413,19 @@ Live2D 공식 샘플 **`니지이로 마오 (Pro Version)`** 은 우리 `halfbod
 | `hair_front_sway` | `ParamHairFront` | [-1, 1] | 물리 출력 |
 | `hair_side_sway_l/r` | `ParamHairSideL` / `ParamHairSideR` | [-1, 1] | |
 | `hair_back_sway` | `ParamHairBack` | [-1, 1] | |
+| `hair_front_fuwa` | `ParamHairFrontFuwa` | [0, 1] | 볼륨(세션 07, v1.2.0~) |
+| `hair_side_fuwa_l/r` | `ParamHairSideFuwaL` / `ParamHairSideFuwaR` | [0, 1] | |
+| `hair_back_fuwa` | `ParamHairBackFuwa` | [0, 1] | |
+| `cloth_main_fuwa` | `ParamClothMainFuwa` | [0, 1] | 의상 볼륨 |
+| `overall_x/y` | `ParamOverallX` / `ParamOverallY` | [-1, 1] | 프레이밍 변환 |
+| `overall_rotate` | `ParamOverallRotate` | [-30, 30] | |
 
 #### mao_pro 에서 학습한 추가 패턴 (템플릿에 흡수)
 
 1. **파라미터 그룹(Parameter Groups)**: Cubism 은 CDI 파일로 파라미터를 UI 그룹(`얼굴`, `눈`, `눈썹`, `입`, `몸`, `왼팔A/B`, `오른팔A/B`, `전체`, `흔들림`) 으로 묶는다. 우리 `parameters.json` 에 `group_id` 필드를 추가해 동일한 그룹핑을 편집기에 노출한다.
 2. **CombinedParameters (2D 조이스틱)**: mao_pro 는 `(AngleX, AngleY)` / `(AllX, AllY)` 를 2D 짝으로 선언한다. 우리 스펙에도 `combined_axes: [["head_angle_x","head_angle_y"], ["overall_x","overall_y"]]` 필드를 추가.
 3. **A/B 팔 세트 (대체 포즈)**: mao_pro 는 왼팔/오른팔에 A/B 두 세트를 둔다 (포즈 교체용). 우리 템플릿은 `arm_l` / `arm_r` 를 두되, **`arm_pose_variant` (0=A, 1=B)** 를 도입해 향후 슬롯 `arm_l[variant=A|B]` 로 확장한다. Pose3 의 **mutex 그룹** 을 활용해 동시 노출을 막는다.
-4. **볼륨(Fuwa) 파라미터**: `ParamHairFrontFuwa`, `ParamHairSideFuwa`, `ParamHairBackFuwa`, `ParamRobeFuwa` 는 머리/옷의 볼륨을 동적으로 부풀리는 차분. 우리 확장 세트에 `hair_*_volume`, `cloth_*_volume` (범위 `[0, 1]`) 로 수용.
+4. **볼륨(Fuwa) 파라미터**: `ParamHairFrontFuwa`, `ParamHairSideFuwa`, `ParamHairBackFuwa`, `ParamRobeFuwa` 는 머리/옷의 볼륨을 동적으로 부풀리는 차분. 우리 확장 세트는 **`*_fuwa` 접미사를 그대로 채택** 하며(halfbody v1.2.0 / 세션 07 부터), 범위는 `[0, 1]`, `physics_output=true`, 주 입력은 `body_breath` + 방향 수정자. 현재 구현: `hair_front_fuwa`, `hair_side_fuwa_l/r`, `hair_back_fuwa`, `cloth_main_fuwa` (5종).
 5. **효과(FX) 파라미터 채널**: mao_pro 는 마법/잉크/폭발/토끼/아우라/빛 같은 **연출 효과** 를 별도 파라미터·파츠로 관리한다. 우리 템플릿은 **`fx.*` 네임스페이스** (예: `fx.heart.on`, `fx.aura.color1`) 를 예약하고, `parameters.json` 에서 `channel: "effect"` 로 태깅해 기본 검수 렌더에서 제외한다.
 6. **오버올(Overall) 변환**: `ParamAllX/Y/Rotate` 로 아바타 전체 이동/회전을 지원. 우리 표준에도 `overall_x`, `overall_y`, `overall_rotate` 를 공통 확장으로 추가(카메라워크 없이 런타임에서 화면 내 프레이밍).
 7. **HitAreas**: Cubism 은 `HitAreaHead`, `HitAreaBody` 같은 히트 영역 메타를 선언한다. 우리 `template.manifest.json` 에 `hit_areas: [{id, role, bound_to_part}]` 필드를 추가해 Web SDK 의 인터랙션 이벤트로 노출.

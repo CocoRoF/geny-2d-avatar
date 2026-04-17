@@ -1,0 +1,42 @@
+{
+  "schema_version": "v1",
+  "slot_id": "hair_side_l",
+  "role": "hair_side_l",
+  "required": true,
+  "template": "tpl.base.v1.halfbody",
+  "template_version": "^1",
+  "deformation_parent": "hair_side_warp_l",
+  "category": "hair",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 1344, "y": 320, "w": 384, "h": 960 },
+  "anchor": {
+    "type": "head_top_center",
+    "x_frac": 0.2,
+    "y_frac": 0.05,
+    "detect_method": "hair_parting_centroid_v1"
+  },
+  "z_order": 90,
+  "symmetry": {
+    "pair_with": "hair_side_r",
+    "mirror_uv": true
+  },
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.5,
+    "color_context": "hair"
+  },
+  "generation": {
+    "prompt_scope": ["hair_style", "hair_color", "hair_length", "hair_texture"],
+    "negative_prompt": ["face", "body", "background", "text", "watermark"],
+    "reference_mask": "masks/hair_side_l_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["face_base"],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.08,
+    "max_alpha_area_frac": 0.60
+  },
+  "cubism_part_id": "PartHairSideL",
+  "notes": "캐릭터 왼쪽(=viewer 오른쪽) 옆머리. hair_side_sway_l 가 물리 출력."
+}
