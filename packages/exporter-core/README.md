@@ -10,13 +10,13 @@
 - `progress/adr/0003` — 리그 템플릿 버저닝
 - `progress/adr/0004` — 참조형 아바타
 
-## 범위 (v0.0.1 = 세션 08a)
+## 범위 (v0.1.0 = 세션 08b)
 
-- [x] `canonicalJson()` — 공용 직렬화 유틸
-- [x] `loadTemplate(dir)` — 리그 템플릿 로더
-- [x] `pose3` 변환기
-- [ ] `physics3` 변환기 (세션 08b)
-- [ ] `motion3` 변환기 (세션 08b)
+- [x] `canonicalJson()` — 공용 직렬화 유틸 (세션 08a)
+- [x] `loadTemplate(dir)` — 리그 템플릿 로더 (pose + parts + physics + motions 로드, 세션 08a→08b)
+- [x] `pose3` 변환기 (세션 08a)
+- [x] `physics3` 변환기 (세션 08b — mao_pro 9 Setting 호환)
+- [x] `motion3` 변환기 (세션 08b — 파라미터 타깃 전용, segment 1:1 이식)
 - [ ] `cdi3` + `model3` 변환기 (세션 09)
 - [ ] `.moc3` 바이너리 — Live2D 라이선스 SDK 필요, 범위 밖
 
@@ -38,15 +38,25 @@ process.stdout.write(canonicalJson(pose3));
 
 ```bash
 pnpm -F @geny/exporter-core build
+
 node packages/exporter-core/dist/cli.js pose \
   --template rig-templates/base/halfbody/v1.2.0 \
   --out out/halfbody_v1.2.0.pose3.json
+
+node packages/exporter-core/dist/cli.js physics \
+  --template rig-templates/base/halfbody/v1.2.0 \
+  --out out/halfbody_v1.2.0.physics3.json
+
+node packages/exporter-core/dist/cli.js motion \
+  --template rig-templates/base/halfbody/v1.2.0 \
+  --pack idle.default \
+  --out out/halfbody_v1.2.0__idle_default.motion3.json
 ```
 
 또는 `bin` 심볼릭:
 
 ```bash
-exporter-core pose --template <dir> --out <file>
+exporter-core <pose|physics|motion> --template <dir> [--pack <id>] --out <file>
 ```
 
 ## 개발

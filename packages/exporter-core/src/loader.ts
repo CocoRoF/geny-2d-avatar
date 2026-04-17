@@ -27,8 +27,111 @@ export interface TemplateManifest {
   id: string;
   version: string;
   parts_dir: string;
+  physics_file?: string;
+  motions_dir?: string;
   cubism_mapping?: Record<string, string>;
   [key: string]: unknown;
+}
+
+export interface PhysicsInput {
+  source_param: string;
+  weight: number;
+  type: string;
+  reflect: boolean;
+}
+
+export interface PhysicsOutput {
+  destination_param: string;
+  vertex_index: number;
+  scale: number;
+  weight: number;
+  type: string;
+  reflect: boolean;
+}
+
+export interface PhysicsVertex {
+  position: { x: number; y: number };
+  mobility: number;
+  delay: number;
+  acceleration: number;
+  radius: number;
+}
+
+export interface PhysicsNormalizationRange {
+  minimum: number;
+  default: number;
+  maximum: number;
+}
+
+export interface PhysicsSettingDoc {
+  id: string;
+  enabled_by_default?: boolean;
+  notes?: string;
+  input: PhysicsInput[];
+  output: PhysicsOutput[];
+  vertices: PhysicsVertex[];
+  normalization: {
+    position: PhysicsNormalizationRange;
+    angle: PhysicsNormalizationRange;
+  };
+}
+
+export interface PhysicsDoc {
+  schema_version: string;
+  version: number;
+  notes?: string;
+  meta: {
+    physics_setting_count: number;
+    total_input_count: number;
+    total_output_count: number;
+    vertex_count: number;
+    fps: number;
+    effective_forces: {
+      gravity: { x: number; y: number };
+      wind: { x: number; y: number };
+    };
+  };
+  physics_dictionary: Array<{
+    id: string;
+    name: { en: string; ko?: string; ja?: string };
+  }>;
+  physics_settings: PhysicsSettingDoc[];
+  presets?: Record<string, unknown>;
+}
+
+export interface MotionCurve {
+  target: "parameter" | "part_opacity";
+  target_id: string;
+  fade_in_sec?: number;
+  fade_out_sec?: number;
+  segments: number[];
+}
+
+export interface MotionPackMeta {
+  duration_sec: number;
+  fps: 30 | 60;
+  fade_in_sec: number;
+  fade_out_sec: number;
+  loop: boolean;
+  curve_count: number;
+  total_segment_count: number;
+  total_point_count: number;
+}
+
+export interface MotionUserDataEntry {
+  time_sec: number;
+  value: string;
+}
+
+export interface MotionPackDoc {
+  schema_version: string;
+  pack_id: string;
+  version: string;
+  format?: number;
+  notes?: string;
+  meta: MotionPackMeta;
+  curves: MotionCurve[];
+  user_data?: MotionUserDataEntry[];
 }
 
 export interface Template {
@@ -37,6 +140,9 @@ export interface Template {
   pose: PoseDoc | null;
   /** slot_id → PartSpec. */
   partsById: Record<string, PartSpec>;
+  physics: PhysicsDoc | null;
+  /** pack_id → MotionPackDoc. */
+  motions: Record<string, MotionPackDoc>;
 }
 
 /**
@@ -66,7 +172,25 @@ export function loadTemplate(dir: string): Template {
   const posePath = join(dir, "pose.json");
   const pose = existsSync(posePath) ? readJson<PoseDoc>(posePath) : null;
 
-  return { dir, manifest, pose, partsById };
+  const physicsRel = manifest.physics_file ?? "physics/physics.json";
+  const physicsPath = join(dir, physicsRel);
+  const physics = existsSync(physicsPath) ? readJson<PhysicsDoc>(physicsPath) : null;
+
+  const motionsRel = manifest.motions_dir ?? "motions/";
+  const motionsDir = join(dir, motionsRel);
+  const motions: Record<string, MotionPackDoc> = {};
+  if (existsSync(motionsDir)) {
+    for (const f of readdirSync(motionsDir)) {
+      if (!f.endsWith(".motion.json")) continue;
+      const pack = readJson<MotionPackDoc>(join(motionsDir, f));
+      if (!pack.pack_id) {
+        throw new Error(`loadTemplate: motion ${f} is missing pack_id`);
+      }
+      motions[pack.pack_id] = pack;
+    }
+  }
+
+  return { dir, manifest, pose, partsById, physics, motions };
 }
 
 function readJson<T>(path: string): T {

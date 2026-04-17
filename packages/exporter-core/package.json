@@ -1,6 +1,6 @@
 {
   "name": "@geny/exporter-core",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "description": "결정론적(deterministic) Cubism 번들 변환 라이브러리 — 내부 리그 템플릿·아바타 → pose3/physics3/motion3/cdi3/model3.json",
   "type": "module",
@@ -17,6 +17,14 @@
     "./converters/pose": {
       "types": "./dist/converters/pose.d.ts",
       "import": "./dist/converters/pose.js"
+    },
+    "./converters/physics": {
+      "types": "./dist/converters/physics.d.ts",
+      "import": "./dist/converters/physics.js"
+    },
+    "./converters/motion": {
+      "types": "./dist/converters/motion.d.ts",
+      "import": "./dist/converters/motion.js"
     },
     "./util/canonical-json": {
       "types": "./dist/util/canonical-json.d.ts",

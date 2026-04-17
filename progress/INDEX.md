@@ -43,7 +43,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
 | **Platform / Infra** | K8s + CI/CD | ⚪ 미착수 |
 | **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 10종 + avatar 샘플 1 + CI 자동 검증 (세션 01–05), DB/S3 미착수 |
-| **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.0.1 — 결정론적 변환 프레임 + pose3 변환기 + golden CI 원형 (세션 08) |
+| **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.1.0 — pose3 + physics3 + motion3 변환기 + halfbody v1.2.0 golden 5종 + CLI 3 subcommand (세션 08, 08b). 남은 cdi3/model3 는 세션 09 |
 | **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
 
 범례: 🟢 완료 · 🟡 진행중 · 🔴 블록 · ⚪ 미착수
@@ -62,6 +62,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 06 | 2026-04-18 | halfbody v1.1.0 bump — arm A/B variant + 첫 pose.json + greet.wave v2 | 완료 | [링크](./sessions/2026-04-18-session-06-arm-variants.md) |
 | 07 | 2026-04-18 | halfbody v1.2.0 bump — Fuwa 5 파라미터 + overall_warp/cloth_warp + 물리 9 Setting (4 sway L/R 분리 + 5 fuwa) + docs/03 §12.1 #4 갱신 | 완료 | [링크](./sessions/2026-04-18-session-07-fuwa-physics.md) |
 | 08 | 2026-04-18 | `@geny/exporter-core` v0.0.1 — 결정론적 변환 프레임(canonicalJson/loader) + pose3 변환기 + halfbody v1.1.0·v1.2.0 golden + CLI (10 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-08-exporter-core.md) |
+| 08b | 2026-04-18 | `@geny/exporter-core` v0.1.0 — physics3 + motion3 변환기 + halfbody v1.2.0 physics3/idle.default/greet.wave golden + CLI 3 subcommand (23 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-08b-physics-motion.md) |
 
 ---
 
@@ -111,8 +112,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 08b**: `physics3.json` + `motion3.json` 변환기. physics 는 mao_pro 필드 규약(Input/Output/Vertices/Normalization) 정확성 확보, motion 은 segment 인코딩(Linear/Bezier/Stepped) 그대로 복제. v1.2.0 의 9 Setting·7 motion pack 이 골든 입력.
 - **세션 09**: `cdi3.json` + `model3.json` 변환기. parameters.json + deformers.json + parts/* + manifest.hit_areas → 단일 번들. 처음으로 "로드 가능한 Cubism 패키지" 산출 (텍스처·moc3 제외).
 - **세션 10**: 마이그레이션 스크립트(`scripts/rig-template/migrate.mjs`) + 골든셋 회귀 CI (`pnpm test:golden`). v1.0.0/v1.1.0 → v1.2.0 자동 bump, Github Actions 에 `pnpm -r build && pnpm -r test` + `node scripts/validate-schemas.mjs` 편성. Foundation Exit 체크리스트 2번 달성.
+- **세션 11**: `samples/avatars/sample-01-aria` 재작성 + avatar 단에서 end-to-end export 스모크 (rig template + avatar refs → Cubism 번들 폴더).
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

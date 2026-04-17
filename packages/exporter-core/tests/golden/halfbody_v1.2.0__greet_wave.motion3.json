@@ -1,0 +1,54 @@
+{
+  "Curves": [
+    {
+      "FadeInTime": -1,
+      "FadeOutTime": -1,
+      "Id": "ParamArmRAngle",
+      "Segments": [
+        0,
+        0,
+        0,
+        0.5,
+        20,
+        0,
+        1,
+        0,
+        0,
+        1.5,
+        20,
+        0,
+        2,
+        0
+      ],
+      "Target": "Parameter"
+    },
+    {
+      "FadeInTime": -1,
+      "FadeOutTime": -1,
+      "Id": "ParamMouthUp",
+      "Segments": [
+        0,
+        0.8,
+        0,
+        2,
+        0.8
+      ],
+      "Target": "Parameter"
+    }
+  ],
+  "Meta": {
+    "AreBeziersRestricted": false,
+    "CurveCount": 2,
+    "Duration": 2,
+    "FadeInTime": 0.3,
+    "FadeOutTime": 0.3,
+    "Fps": 30,
+    "Loop": false,
+    "TotalPointCount": 7,
+    "TotalSegmentCount": 5,
+    "TotalUserDataSize": 0,
+    "UserDataCount": 0
+  },
+  "UserData": [],
+  "Version": 3
+}
