@@ -57,6 +57,8 @@ export interface BundleFileNames {
   physics: string;
   motionsDir: string;
   expressionsDir: string;
+  /** 번들 루트 매니페스트 파일명 (세션 13). 기본 `bundle.json`. */
+  manifest: string;
 }
 
 export const DEFAULT_BUNDLE_FILE_NAMES: BundleFileNames = {
@@ -66,6 +68,7 @@ export const DEFAULT_BUNDLE_FILE_NAMES: BundleFileNames = {
   physics: "avatar.physics3.json",
   motionsDir: "motions",
   expressionsDir: "expressions",
+  manifest: "bundle.json",
 };
 
 export const DEFAULT_MOC_PATH = "avatar.moc3";

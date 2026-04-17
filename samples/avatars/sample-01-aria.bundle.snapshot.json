@@ -1,5 +1,5 @@
 {
-  "file_count": 14,
+  "file_count": 15,
   "files": [
     {
       "bytes": 7259,
@@ -20,6 +20,11 @@
       "bytes": 343,
       "path": "aria.pose3.json",
       "sha256": "1ef160383f7abc7044bb27badc33df92cf767dac28e85a15b0d46b81a2c2671a"
+    },
+    {
+      "bytes": 2452,
+      "path": "bundle.json",
+      "sha256": "e56ce4d74795ce483f863999ac123af2adac9df093e455674613da9d775cf7ac"
     },
     {
       "bytes": 969,
@@ -72,5 +77,5 @@
       "sha256": "920a9248251b2f32393562708391fb152ab928e43503dea07ba986e4815b16e9"
     }
   ],
-  "total_bytes": 33670
+  "total_bytes": 36122
 }

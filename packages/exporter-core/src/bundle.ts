@@ -31,26 +31,46 @@ export interface BundleResult {
   files: BundleFileEntry[];
 }
 
+/**
+ * 번들 루트 `bundle.json` (세션 13). schema/v1/bundle-manifest.schema.json 의 TS 투영.
+ *
+ * 자신(bundle.json)은 `files[]` 에 포함하지 않는다 (D1: self-reference 회피).
+ * 결정론을 위해 타임스탬프·서명은 포함하지 않음 (D4).
+ */
+export interface BundleManifestJson {
+  schema_version: "v1";
+  kind: "cubism-bundle";
+  format: 1;
+  template_id: string | null;
+  template_version: string | null;
+  avatar_id: string | null;
+  files: BundleFileEntry[];
+}
+
 export interface AssembleBundleOptions extends ConvertModelOptions {
   /** 파일명 override. 기본 `DEFAULT_BUNDLE_FILE_NAMES`. Forwarded to model3 converter. */
   fileNames?: Partial<BundleFileNames>;
+  /** avatar-export 경유로 조립된 번들이면 해당 avatar_id. 단독 템플릿 조립 시 생략(null 저장). */
+  avatarId?: string;
 }
 
 /**
  * 템플릿에서 Cubism 번들 디렉터리를 조립.
  *
- * 생성 파일 (세션 09 D8 + 세션 12 expressions):
+ * 생성 파일 (세션 09 D8 + 세션 12 expressions + 세션 13 bundle.json):
  *  - `<outDir>/avatar.cdi3.json`
  *  - `<outDir>/avatar.model3.json`
  *  - `<outDir>/avatar.pose3.json`     (pose.json 이 있으면)
  *  - `<outDir>/avatar.physics3.json`  (physics.json 이 있으면)
  *  - `<outDir>/motions/<pack_slug>.motion3.json` per motion pack
  *  - `<outDir>/expressions/<expression_slug>.exp3.json` per expression pack
+ *  - `<outDir>/bundle.json` (루트 매니페스트, 세션 13 — 자신 제외 모든 파일의 sha256)
  *
  * 결정론:
  *  - 모든 JSON 은 canonicalJson 경유 (키 알파벳 정렬).
- *  - `files` 배열은 path 알파벳 정렬.
+ *  - `files` 배열은 path 알파벳 정렬. `bundle.json` 도 포함.
  *  - sha256 는 쓰여진 byte 그대로에 대한 hex digest.
+ *  - bundle.json 내부 `files[]` 는 자기 자신을 제외 (세션 13 D1).
  */
 export function assembleBundle(
   template: Template,
@@ -104,6 +124,19 @@ export function assembleBundle(
   }
 
   writeJson(names.model, convertModelFromTemplate(template, modelOpts(opts)));
+
+  files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+
+  const manifest: BundleManifestJson = {
+    schema_version: "v1",
+    kind: "cubism-bundle",
+    format: 1,
+    template_id: template.manifest.id ?? null,
+    template_version: template.manifest.version ?? null,
+    avatar_id: opts.avatarId ?? null,
+    files: [...files],
+  };
+  writeJson(names.manifest, manifest);
 
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   return { outDir, files };

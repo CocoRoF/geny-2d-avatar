@@ -1,6 +1,6 @@
 {
   "name": "@geny/exporter-core",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "결정론적(deterministic) Cubism 번들 변환 라이브러리 — 내부 리그 템플릿·아바타 → pose3/physics3/motion3/cdi3/model3.json",
   "type": "module",

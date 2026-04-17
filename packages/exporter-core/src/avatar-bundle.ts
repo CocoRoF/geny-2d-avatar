@@ -87,6 +87,7 @@ export function specToBundleOptions(spec: AvatarExportSpec): AssembleBundleOptio
     },
     mocPath: spec.moc_path ?? `${name}.moc3`,
     texturePaths: spec.texture_paths ?? [`textures/${name}_00.png`],
+    avatarId: spec.avatar_id,
   };
   if (spec.lipsync !== undefined) opts.lipsync = spec.lipsync;
   return opts;

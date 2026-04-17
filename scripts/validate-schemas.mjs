@@ -34,6 +34,7 @@ const SCHEMA_ID = {
   physics: "https://geny.ai/schema/v1/physics.schema.json",
   motionPack: "https://geny.ai/schema/v1/motion-pack.schema.json",
   expressionPack: "https://geny.ai/schema/v1/expression-pack.schema.json",
+  bundleManifest: "https://geny.ai/schema/v1/bundle-manifest.schema.json",
   testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
   pose: "https://geny.ai/schema/v1/pose.schema.json",
 };

@@ -29,12 +29,12 @@ test("assembleBundle: halfbody v1.2.0 snapshot matches golden byte-for-byte", ()
   }
 });
 
-test("assembleBundle: writes all 14 expected files for v1.2.0 (incl. 3 expressions)", () => {
+test("assembleBundle: writes all 15 expected files for v1.2.0 (incl. bundle.json root manifest)", () => {
   const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir);
-    assert.equal(res.files.length, 14);
+    assert.equal(res.files.length, 15);
     const paths = res.files.map((f) => f.path);
     assert.ok(paths.includes("avatar.cdi3.json"));
     assert.ok(paths.includes("avatar.model3.json"));
@@ -45,6 +45,7 @@ test("assembleBundle: writes all 14 expected files for v1.2.0 (incl. 3 expressio
     assert.ok(paths.includes("expressions/smile.exp3.json"));
     assert.ok(paths.includes("expressions/wink.exp3.json"));
     assert.ok(paths.includes("expressions/neutral.exp3.json"));
+    assert.ok(paths.includes("bundle.json"));
     for (const f of res.files) {
       assert.ok(existsSync(join(dir, f.path)), `expected file on disk: ${f.path}`);
     }

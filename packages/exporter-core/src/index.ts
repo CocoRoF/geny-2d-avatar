@@ -73,6 +73,7 @@ export type {
   BundleFileEntry,
   BundleResult,
   AssembleBundleOptions,
+  BundleManifestJson,
 } from "./bundle.js";
 export {
   assembleAvatarBundle,
