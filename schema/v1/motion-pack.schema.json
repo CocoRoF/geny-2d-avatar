@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/motion-pack.schema.json",
+  "title": "Motion Pack",
+  "description": "docs/03 §6.1 — Cubism motion3.json 구조의 snake_case 정규화. 1 파일 = 1 모션 팩. pack_id 는 매니페스트 compat.motion_packs 에 선언된 이름과 일치(버전 범위 제외).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pack_id", "version", "meta", "curves"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "pack_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+      "description": "docs/03 §6.1 규약. 예: `idle.default`, `blink.auto`."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$",
+      "description": "SemVer. 매니페스트 compat.motion_packs 의 `^1` 범위에 들어와야 함."
+    },
+    "format": {
+      "type": "integer",
+      "const": 3,
+      "description": "Cubism motion3 포맷 버전(고정)."
+    },
+    "meta": { "$ref": "#/$defs/meta" },
+    "curves": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/curve" }
+    },
+    "user_data": {
+      "type": "array",
+      "description": "옵션. Cubism UserData 이벤트 (립싱크 phoneme 트리거 등). v1.0.0 미사용.",
+      "items": { "$ref": "#/$defs/userDataEntry" }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "duration_sec",
+        "fps",
+        "fade_in_sec",
+        "fade_out_sec",
+        "loop",
+        "curve_count",
+        "total_segment_count",
+        "total_point_count"
+      ],
+      "properties": {
+        "duration_sec": { "type": "number", "exclusiveMinimum": 0 },
+        "fps": { "type": "integer", "enum": [30, 60] },
+        "fade_in_sec": { "type": "number", "minimum": 0 },
+        "fade_out_sec": { "type": "number", "minimum": 0 },
+        "loop": { "type": "boolean" },
+        "curve_count": { "type": "integer", "minimum": 1 },
+        "total_segment_count": { "type": "integer", "minimum": 1 },
+        "total_point_count": { "type": "integer", "minimum": 2 }
+      }
+    },
+    "curve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "target_id", "segments"],
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": ["parameter", "part_opacity"],
+          "description": "parameter → target_id 는 parameters.json 의 id. part_opacity → target_id 는 파츠 slot_id."
+        },
+        "target_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "target=parameter 이면 parameterId, part_opacity 이면 slotId. 교차검증은 validator 에서."
+        },
+        "fade_in_sec": { "type": "number", "minimum": 0 },
+        "fade_out_sec": { "type": "number", "minimum": 0 },
+        "segments": {
+          "type": "array",
+          "minItems": 2,
+          "description": "Cubism segment encoding: 초기 (time, value) 페어 이후 type(0=Linear,1=Bezier,2=Stepped,3=InverseStepped) 별 가변 길이 숫자 배열. v1.0.0 모션은 Linear 만 사용.",
+          "items": { "type": "number" }
+        }
+      }
+    },
+    "userDataEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["time_sec", "value"],
+      "properties": {
+        "time_sec": { "type": "number", "minimum": 0 },
+        "value": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

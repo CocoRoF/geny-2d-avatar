@@ -31,6 +31,8 @@ const SCHEMA_ID = {
   avatarMeta: "https://geny.ai/schema/v1/avatar-metadata.schema.json",
   deformers: "https://geny.ai/schema/v1/deformers.schema.json",
   physics: "https://geny.ai/schema/v1/physics.schema.json",
+  motionPack: "https://geny.ai/schema/v1/motion-pack.schema.json",
+  testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
 };
 
 // ——— Utilities ———
@@ -97,6 +99,8 @@ async function main() {
     avatarMeta: ajv.getSchema(SCHEMA_ID.avatarMeta),
     deformers: ajv.getSchema(SCHEMA_ID.deformers),
     physics: ajv.getSchema(SCHEMA_ID.physics),
+    motionPack: ajv.getSchema(SCHEMA_ID.motionPack),
+    testPoses: ajv.getSchema(SCHEMA_ID.testPoses),
   };
   for (const [name, v] of Object.entries(validators)) {
     if (!v) throw new Error(`Could not compile validator for ${name} (id=${SCHEMA_ID[name]})`);
@@ -398,6 +402,152 @@ async function main() {
           );
         }
       }
+    }
+
+    // 2e. motions/*.motion.json
+    // Build a parameterId → { range, default } map for value-range checks.
+    const paramMeta = new Map((params.parameters || []).map((p) => [p.id, { range: p.range, default: p.default }]));
+    // Strip '@^X' / '@^X.Y' from manifest.compat.motion_packs → pack id set
+    const manifestPackIds = new Set(
+      (manifest.compat?.motion_packs || []).map((s) => s.split("@")[0]),
+    );
+    const motionsDirRel = manifest.motions_dir || "motions/";
+    const motionsDir = join(dir, motionsDirRel);
+    let motionEntries = [];
+    try {
+      motionEntries = await readdir(motionsDir);
+    } catch {
+      /* no motions dir yet */
+    }
+    const seenPackIds = new Set();
+    for (const entry of motionEntries) {
+      if (!entry.endsWith(".motion.json")) continue;
+      const motionPath = join(motionsDir, entry);
+      const motion = await readJson(motionPath);
+      checked += 1;
+      if (!validators.motionPack(motion)) {
+        failed += 1;
+        console.error(`[rig] INVALID motion ${relative(REPO_ROOT, motionPath)}`);
+        console.error(fmtErrors(validators.motionPack.errors, relative(REPO_ROOT, motionPath)));
+        continue;
+      }
+      // pack_id unique + ∈ manifest.compat.motion_packs
+      if (seenPackIds.has(motion.pack_id)) {
+        failed += 1;
+        console.error(`[rig] duplicate motion pack_id '${motion.pack_id}' in ${relative(REPO_ROOT, motionPath)}`);
+      }
+      seenPackIds.add(motion.pack_id);
+      if (manifestPackIds.size > 0 && !manifestPackIds.has(motion.pack_id)) {
+        failed += 1;
+        console.error(`[rig] motion '${motion.pack_id}' not declared in manifest.compat.motion_packs (${relative(REPO_ROOT, motionPath)})`);
+      }
+      // Curves: target_id must resolve against parameters or slots
+      let segTotal = 0;
+      let pointTotal = 0;
+      for (const c of motion.curves) {
+        if (c.target === "parameter" && !paramIds.has(c.target_id)) {
+          failed += 1;
+          console.error(`[rig] motion '${motion.pack_id}': curve target_id '${c.target_id}' not in parameters.json`);
+        }
+        if (c.target === "part_opacity" && slotIds.size > 0 && !slotIds.has(c.target_id)) {
+          failed += 1;
+          console.error(`[rig] motion '${motion.pack_id}': part_opacity curve target_id '${c.target_id}' not a known slot`);
+        }
+        // segments layout: initial (2) + Linear(3)|Stepped(3)|InverseStepped(3)|Bezier(7)
+        const s = c.segments;
+        if (s.length < 2 || (s.length - 2) === 0) {
+          failed += 1;
+          console.error(`[rig] motion '${motion.pack_id}': curve '${c.target_id}' segments too short`);
+          continue;
+        }
+        let i = 2;
+        let segCount = 0;
+        let pointCount = 1;
+        let ok = true;
+        while (i < s.length) {
+          const type = s[i];
+          const step = type === 1 ? 7 : (type === 0 || type === 2 || type === 3 ? 3 : -1);
+          if (step === -1) {
+            failed += 1;
+            console.error(`[rig] motion '${motion.pack_id}': curve '${c.target_id}' unknown segment type ${type} at index ${i}`);
+            ok = false;
+            break;
+          }
+          if (i + step > s.length) {
+            failed += 1;
+            console.error(`[rig] motion '${motion.pack_id}': curve '${c.target_id}' truncated segment at index ${i}`);
+            ok = false;
+            break;
+          }
+          i += step;
+          segCount += 1;
+          pointCount += 1;
+        }
+        if (ok) {
+          segTotal += segCount;
+          pointTotal += pointCount;
+        }
+      }
+      if (motion.meta.curve_count !== motion.curves.length) {
+        failed += 1;
+        console.error(`[rig] motion '${motion.pack_id}': meta.curve_count=${motion.meta.curve_count} vs actual=${motion.curves.length}`);
+      }
+      if (motion.meta.total_segment_count !== segTotal) {
+        failed += 1;
+        console.error(`[rig] motion '${motion.pack_id}': meta.total_segment_count=${motion.meta.total_segment_count} vs actual=${segTotal}`);
+      }
+      if (motion.meta.total_point_count !== pointTotal) {
+        failed += 1;
+        console.error(`[rig] motion '${motion.pack_id}': meta.total_point_count=${motion.meta.total_point_count} vs actual=${pointTotal}`);
+      }
+    }
+    // Every manifest-declared pack must have a file
+    if (manifestPackIds.size > 0 && seenPackIds.size > 0) {
+      for (const id of manifestPackIds) {
+        if (!seenPackIds.has(id)) {
+          failed += 1;
+          console.error(`[rig] manifest.compat.motion_packs declares '${id}' but no matching motion file found in ${relative(REPO_ROOT, motionsDir)}`);
+        }
+      }
+    }
+
+    // 2f. test_poses/validation_set.json
+    const testPosesPath = join(dir, manifest.test_poses_file || "test_poses/validation_set.json");
+    try {
+      const poses = await readJson(testPosesPath);
+      checked += 1;
+      if (!validators.testPoses(poses)) {
+        failed += 1;
+        console.error(`[rig] INVALID test_poses ${relative(REPO_ROOT, testPosesPath)}`);
+        console.error(fmtErrors(validators.testPoses.errors, relative(REPO_ROOT, testPosesPath)));
+      } else {
+        const seenPoseIds = new Set();
+        for (const pose of poses.poses) {
+          if (seenPoseIds.has(pose.id)) {
+            failed += 1;
+            console.error(`[rig] test_poses: duplicate pose id '${pose.id}'`);
+          }
+          seenPoseIds.add(pose.id);
+          for (const [pid, value] of Object.entries(pose.params || {})) {
+            const meta = paramMeta.get(pid);
+            if (!meta) {
+              failed += 1;
+              console.error(`[rig] test_poses: pose '${pose.id}' references unknown parameter '${pid}'`);
+              continue;
+            }
+            if (Array.isArray(meta.range)) {
+              const [lo, hi] = meta.range;
+              if (value < lo || value > hi) {
+                failed += 1;
+                console.error(`[rig] test_poses: pose '${pose.id}' param '${pid}'=${value} outside range [${lo}, ${hi}]`);
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      console.log(`[rig] no test_poses at ${relative(REPO_ROOT, testPosesPath)} — skipping pose checks`);
     }
   }
 

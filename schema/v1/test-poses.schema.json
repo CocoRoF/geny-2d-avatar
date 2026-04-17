@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/test-poses.schema.json",
+  "title": "Test Pose Set",
+  "description": "docs/08 §3 — 표준 테스트 포즈 세트. 검수 렌더러의 입력.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "poses"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "description": { "type": "string" },
+    "poses": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/pose" }
+    }
+  },
+  "$defs": {
+    "pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "params"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,60}$",
+          "description": "포즈 고유 id. docs/08 §3.1 에 정의된 이름 사용을 권장."
+        },
+        "description": { "type": "string" },
+        "category": {
+          "type": "string",
+          "enum": ["baseline", "eyes", "mouth", "head", "body", "brow", "combo"]
+        },
+        "params": {
+          "type": "object",
+          "description": "파라미터 id → 수치 매핑. 미지정 파라미터는 default 값을 사용.",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]{1,60}$" },
+          "additionalProperties": { "type": "number" }
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

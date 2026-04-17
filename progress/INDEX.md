@@ -37,12 +37,12 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 | 스트림 | Foundation 목표 | 현재 상태 |
 |---|---|---|
-| **Rig & Parts** | `halfbody v1` 손 리깅 완성 | 🟡 파츠 27 + 디포머 트리 + 물리 v1.0.0 초판 (세션 02–03), 모션 남음 |
+| **Rig & Parts** | `halfbody v1` 손 리깅 완성 | 🟡 파츠 27 + 디포머 + 물리 + 모션 7 + test_poses 20 (세션 02–04), 골든 아바타 회귀 남음 |
 | **AI Generation** | nano-banana 어댑터 | ⚪ 미착수 |
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
 | **Platform / Infra** | K8s + CI/CD | ⚪ 미착수 |
-| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 7종 + CI 자동 검증 (세션 01–03), DB/S3 미착수 |
+| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 9종 + CI 자동 검증 (세션 01–04), DB/S3 미착수 |
 | **Pipeline** | 단일 아바타 DAG | ⚪ 미착수 |
 | **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
 
@@ -57,6 +57,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 01 | 2026-04-17 | Foundation 착수 — 저장소 스켈레톤, Schema 초판, halfbody v1 스펙, ADR 0001–0003 | 완료 | [링크](./sessions/2026-04-17-session-01-foundation-kickoff.md) |
 | 02 | 2026-04-17 | halfbody v1 파츠 스펙 24 + 디포머 트리 + CI 스키마 검증 | 완료 | [링크](./sessions/2026-04-17-session-02-halfbody-parts.md) |
 | 03 | 2026-04-18 | halfbody v1 물리 팩 초판 + physics 스키마 + mao_pro 16 설정 매핑 | 완료 | [링크](./sessions/2026-04-18-session-03-physics.md) |
+| 04 | 2026-04-18 | halfbody v1 모션 팩 7 + test_poses 20 + motion/test-poses 스키마 | 완료 | [링크](./sessions/2026-04-18-session-04-motions.md) |
 
 ---
 
@@ -104,8 +105,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 04**: `motions/` 기본 7 팩 스키마 + `idle.default` / `blink.auto` / `lipsync.mock` 초판 + `test_poses/validation_set.json`.
-- **세션 05**: avatar-metadata 실제 샘플 1건 + Pose3 mutex · HitArea 바인딩 검증 + variant A/B 파츠 (arm).
-- **세션 06**: Fuwa/옷 파라미터 추가 → halfbody v1.1.0 bump → normal 프리셋 12 설정 완성.
+- **세션 05**: avatar-metadata 실제 샘플 1건 + Pose3 mutex · HitArea 바인딩 검증 + variant A/B 파츠(arm).
+- **세션 06**: Fuwa/옷 파라미터 추가 → halfbody v1.1.0 bump → normal 프리셋 12 설정 완성 + greet.wave 리라이트.
+- **세션 07**: export 스크립트 초판(`packages/exporter-core`) — 템플릿 JSON 을 Cubism `.moc3/.physics3.json/.motion3.json` 로 변환.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

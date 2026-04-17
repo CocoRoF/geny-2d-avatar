@@ -1,0 +1,115 @@
+{
+  "schema_version": "v1",
+  "description": "docs/08 §3.1 표준 포즈. halfbody v1 파라미터 세트에 맞춰 mouth_form→mouth_up, mouth_open→mouth_vowel_a 로 대체.",
+  "poses": [
+    {
+      "id": "neutral",
+      "category": "baseline",
+      "description": "모든 파라미터 기본값.",
+      "params": {}
+    },
+    {
+      "id": "blink_both",
+      "category": "eyes",
+      "description": "양 눈 깜빡임.",
+      "params": { "eye_open_l": 0, "eye_open_r": 0 }
+    },
+    {
+      "id": "blink_left",
+      "category": "eyes",
+      "description": "왼눈(캐릭터 기준)만 감김.",
+      "params": { "eye_open_l": 0 }
+    },
+    {
+      "id": "smile_big",
+      "category": "mouth",
+      "description": "큰 미소 — 입꼬리 + 눈 미소.",
+      "params": { "mouth_up": 1, "eye_smile_l": 1, "eye_smile_r": 1 }
+    },
+    {
+      "id": "mouth_open",
+      "category": "mouth",
+      "description": "입 크게 — v1.0.0 은 전용 파라미터 부재로 mouth_vowel_a 로 근사.",
+      "params": { "mouth_vowel_a": 1 }
+    },
+    {
+      "id": "mouth_a",
+      "category": "mouth",
+      "params": { "mouth_vowel_a": 1 }
+    },
+    {
+      "id": "mouth_i",
+      "category": "mouth",
+      "params": { "mouth_vowel_i": 1 }
+    },
+    {
+      "id": "mouth_u",
+      "category": "mouth",
+      "params": { "mouth_vowel_u": 1 }
+    },
+    {
+      "id": "mouth_e",
+      "category": "mouth",
+      "params": { "mouth_vowel_e": 1 }
+    },
+    {
+      "id": "mouth_o",
+      "category": "mouth",
+      "params": { "mouth_vowel_o": 1 }
+    },
+    {
+      "id": "head_turn_l30",
+      "category": "head",
+      "description": "캐릭터 기준 왼쪽 30° (뷰어 오른쪽).",
+      "params": { "head_angle_x": -30 }
+    },
+    {
+      "id": "head_turn_r30",
+      "category": "head",
+      "description": "캐릭터 기준 오른쪽 30°.",
+      "params": { "head_angle_x": 30 }
+    },
+    {
+      "id": "head_nod_up",
+      "category": "head",
+      "params": { "head_angle_y": 20 }
+    },
+    {
+      "id": "head_nod_down",
+      "category": "head",
+      "params": { "head_angle_y": -20 }
+    },
+    {
+      "id": "head_tilt_l",
+      "category": "head",
+      "params": { "head_angle_z": -20 }
+    },
+    {
+      "id": "head_tilt_r",
+      "category": "head",
+      "params": { "head_angle_z": 20 }
+    },
+    {
+      "id": "breath_peak",
+      "category": "body",
+      "params": { "body_breath": 1 }
+    },
+    {
+      "id": "eyes_look_up_r",
+      "category": "eyes",
+      "description": "시선 우상. x/y 모두 +1.",
+      "params": { "eye_ball_x": 1, "eye_ball_y": 1 }
+    },
+    {
+      "id": "brows_up",
+      "category": "brow",
+      "params": { "brow_l_y": 1, "brow_r_y": 1 }
+    },
+    {
+      "id": "brows_frown",
+      "category": "brow",
+      "description": "찌푸림 — 안쪽으로 꺾임.",
+      "params": { "brow_l_angle": -1, "brow_r_angle": 1 }
+    }
+  ]
+}

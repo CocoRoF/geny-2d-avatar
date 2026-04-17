@@ -1,0 +1,29 @@
+{
+  "schema_version": "v1",
+  "pack_id": "greet.wave",
+  "version": "1.0.0",
+  "format": 3,
+  "notes": "v1.0.0 은 arm 파라미터 부재로 body 스윙 + 미소 조합으로 대체. v1.1.0 에서 실제 hand wave 로 교체 예정. D3(session-04).",
+  "meta": {
+    "duration_sec": 2.0,
+    "fps": 30,
+    "fade_in_sec": 0.3,
+    "fade_out_sec": 0.3,
+    "loop": false,
+    "curve_count": 2,
+    "total_segment_count": 6,
+    "total_point_count": 8
+  },
+  "curves": [
+    {
+      "target": "parameter",
+      "target_id": "body_angle_x",
+      "segments": [0, 0, 0, 0.4, 10, 0, 0.8, -10, 0, 1.2, 10, 0, 1.6, -10, 0, 2.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "mouth_up",
+      "segments": [0, 0.8, 0, 2.0, 0.8]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "v1",
+  "pack_id": "blink.auto",
+  "version": "1.0.0",
+  "format": 3,
+  "notes": "0.3초 트리거 blink. 런타임이 3–6초 랜덤 간격으로 재생. loop=false.",
+  "meta": {
+    "duration_sec": 0.3,
+    "fps": 30,
+    "fade_in_sec": 0.05,
+    "fade_out_sec": 0.05,
+    "loop": false,
+    "curve_count": 2,
+    "total_segment_count": 6,
+    "total_point_count": 8
+  },
+  "curves": [
+    {
+      "target": "parameter",
+      "target_id": "eye_open_l",
+      "segments": [0, 1, 0, 0.1, 0, 0, 0.2, 0, 0, 0.3, 1]
+    },
+    {
+      "target": "parameter",
+      "target_id": "eye_open_r",
+      "segments": [0, 1, 0, 0.1, 0, 0, 0.2, 0, 0, 0.3, 1]
+    }
+  ]
+}
