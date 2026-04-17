@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "neck",
+  "role": "neck",
+  "required": true,
+  "template": "tpl.base.v1.halfbody",
+  "template_version": "^1",
+  "deformation_parent": "neck_warp",
+  "category": "face",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 864, "y": 1248, "w": 320, "h": 256 },
+  "anchor": {
+    "type": "neck_top_center",
+    "x_frac": 0.5,
+    "y_frac": 0.12,
+    "detect_method": "keypoint_model_head_v1"
+  },
+  "z_order": 50,
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.0,
+    "color_context": "skin"
+  },
+  "generation": {
+    "prompt_scope": ["skin_tone"],
+    "negative_prompt": ["collar", "cloth", "text", "watermark"],
+    "reference_mask": "masks/neck_mask.png",
+    "max_iter": 2
+  },
+  "dependencies": [],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.20,
+    "max_alpha_area_frac": 0.90
+  },
+  "cubism_part_id": "PartNeck",
+  "notes": "neck_warp 의 자식. face_base 와 torso 사이 브리지 — 색 문맥은 skin."
+}

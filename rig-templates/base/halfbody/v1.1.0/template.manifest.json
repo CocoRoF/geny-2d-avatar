@@ -1,0 +1,92 @@
+{
+  "schema_version": "v1",
+  "id": "tpl.base.v1.halfbody",
+  "version": "1.1.0",
+  "display_name": {
+    "en": "Half Body Standard",
+    "ko": "하프바디 표준",
+    "ja": "ハーフボディ標準"
+  },
+  "intended_vibe": "VTuber·버튜버 방송에 적합한 상반신 표준 템플릿. 정면 중심, 넓은 얼굴 가동 범위, 손 제스처 일부, 립싱크 5 모음 전체. 장르 중립적인 인상을 기본으로 하고 스타일 프로파일로 개성을 부여한다.",
+  "family": "halfbody",
+  "canvas": { "width": 2048, "height": 2048 },
+  "ratio": { "head_to_body": "1:2.5" },
+  "parameters_file": "parameters.json",
+  "parts_dir": "parts/",
+  "deformers_file": "deformers.json",
+  "physics_file": "physics/physics.json",
+  "motions_dir": "motions/",
+  "test_poses_file": "test_poses/validation_set.json",
+  "lipsync_mapping": "../../shared/lipsync_mapping.v1.json",
+  "physics_preset": "normal",
+  "authoring": {
+    "authors": [
+      { "name": "geny-core", "role": "engineer", "contact": "core@geny.ai" }
+    ],
+    "created_at": "2026-04-17T00:00:00Z",
+    "tool": "geny-internal@0.0.0"
+  },
+  "compat": {
+    "motion_packs": [
+      "idle.default@^1",
+      "idle.sleepy@^1",
+      "blink.auto@^1",
+      "greet.wave@^1",
+      "nod.yes@^1",
+      "shake.no@^1",
+      "lipsync.mock@^1"
+    ],
+    "physics": "physics.v1",
+    "lipsync_mapping": "lipsync_mapping.v1.*",
+    "export_targets_supported": [
+      "cubism@5",
+      "vtube_studio@1",
+      "web-sdk@0.1",
+      "psd@1"
+    ]
+  },
+  "cubism_mapping": {
+    "head_angle_x": "ParamAngleX",
+    "head_angle_y": "ParamAngleY",
+    "head_angle_z": "ParamAngleZ",
+    "body_angle_x": "ParamBodyAngleX",
+    "body_angle_y": "ParamBodyAngleY",
+    "body_angle_z": "ParamBodyAngleZ",
+    "body_breath": "ParamBreath",
+    "arm_pose_variant": "ParamArmPoseVariant",
+    "arm_l_angle": "ParamArmLAngle",
+    "arm_r_angle": "ParamArmRAngle",
+    "eye_open_l": "ParamEyeLOpen",
+    "eye_open_r": "ParamEyeROpen",
+    "eye_smile_l": "ParamEyeLSmile",
+    "eye_smile_r": "ParamEyeRSmile",
+    "eye_form_l": "ParamEyeLForm",
+    "eye_form_r": "ParamEyeRForm",
+    "eye_ball_x": "ParamEyeBallX",
+    "eye_ball_y": "ParamEyeBallY",
+    "eye_ball_form": "ParamEyeBallForm",
+    "brow_l_y": "ParamBrowLY",
+    "brow_r_y": "ParamBrowRY",
+    "brow_l_x": "ParamBrowLX",
+    "brow_r_x": "ParamBrowRX",
+    "brow_l_angle": "ParamBrowLAngle",
+    "brow_r_angle": "ParamBrowRAngle",
+    "brow_l_form": "ParamBrowLForm",
+    "brow_r_form": "ParamBrowRForm",
+    "mouth_vowel_a": "ParamA",
+    "mouth_vowel_i": "ParamI",
+    "mouth_vowel_u": "ParamU",
+    "mouth_vowel_e": "ParamE",
+    "mouth_vowel_o": "ParamO",
+    "mouth_up": "ParamMouthUp",
+    "mouth_down": "ParamMouthDown",
+    "hair_front_sway": "ParamHairFront",
+    "hair_side_sway_l": "ParamHairSideL",
+    "hair_side_sway_r": "ParamHairSideR",
+    "hair_back_sway": "ParamHairBack"
+  },
+  "hit_areas": [
+    { "id": "HitAreaHead", "role": "head", "bound_to_part": "face_base" },
+    { "id": "HitAreaBody", "role": "body", "bound_to_part": "torso" }
+  ]
+}

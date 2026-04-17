@@ -1,0 +1,177 @@
+{
+  "schema_version": "v1",
+  "version": 3,
+  "notes": "halfbody v1.0.0 최소 물리 팩. 머리 sway 3 설정(front, side, back) / 4 출력(front, side_l+side_r, back). mao_pro PhysicsSetting 1-3 값을 그대로 차용, body_breath 입력 미사용. docs/03 §6.2.",
+  "meta": {
+    "physics_setting_count": 3,
+    "total_input_count": 12,
+    "total_output_count": 4,
+    "vertex_count": 6,
+    "fps": 30,
+    "effective_forces": {
+      "gravity": { "x": 0, "y": -1 },
+      "wind": { "x": 0, "y": 0 }
+    }
+  },
+  "physics_dictionary": [
+    {
+      "id": "PhysicsSetting1",
+      "name": { "en": "Hair Front Sway", "ko": "앞머리 흔들림", "ja": "前髪 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting2",
+      "name": { "en": "Hair Side Sway", "ko": "옆머리 흔들림", "ja": "側髪 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting3",
+      "name": { "en": "Hair Back Sway", "ko": "뒷머리 흔들림", "ja": "後髪 揺れ" }
+    }
+  ],
+  "physics_settings": [
+    {
+      "id": "PhysicsSetting1",
+      "enabled_by_default": true,
+      "notes": "앞머리 흔들림. mao_pro PhysicsSetting1 1:1 이식.",
+      "input": [
+        { "source_param": "head_angle_x", "weight": 60, "type": "X", "reflect": false },
+        { "source_param": "head_angle_z", "weight": 60, "type": "Angle", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_front_sway",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 10 },
+          "mobility": 0.95,
+          "delay": 0.8,
+          "acceleration": 1.12,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -10, "default": 0, "maximum": 10 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting2",
+      "enabled_by_default": true,
+      "notes": "옆머리 흔들림. 좌우 공용 단일 시뮬레이션 — 두 출력이 동일 Vertices 체인 참조.",
+      "input": [
+        { "source_param": "head_angle_x", "weight": 60, "type": "X", "reflect": false },
+        { "source_param": "head_angle_z", "weight": 60, "type": "Angle", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_side_sway_l",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "destination_param": "hair_side_sway_r",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 10 },
+          "mobility": 0.95,
+          "delay": 0.8,
+          "acceleration": 1.12,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -10, "default": 0, "maximum": 10 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting3",
+      "enabled_by_default": true,
+      "notes": "뒷머리 흔들림. deformers.hair_back_warp 는 root 직속이라 회전 지연 효과가 더 크다 (docs/03 §4.2).",
+      "input": [
+        { "source_param": "head_angle_x", "weight": 60, "type": "X", "reflect": false },
+        { "source_param": "head_angle_z", "weight": 60, "type": "Angle", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_back_sway",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 10 },
+          "mobility": 0.9,
+          "delay": 0.7,
+          "acceleration": 1.2,
+          "radius": 12
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -10, "default": 0, "maximum": 10 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    }
+  ],
+  "presets": {
+    "normal": {
+      "damping_multiplier": 1.0,
+      "wind": { "x": 0, "y": 0 }
+    },
+    "light": {
+      "damping_multiplier": 0.7,
+      "wind": { "x": 0, "y": 0 }
+    },
+    "heavy": {
+      "damping_multiplier": 1.4,
+      "wind": { "x": 0, "y": 0 }
+    }
+  }
+}

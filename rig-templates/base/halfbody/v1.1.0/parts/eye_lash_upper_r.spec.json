@@ -1,0 +1,42 @@
+{
+  "schema_version": "v1",
+  "slot_id": "eye_lash_upper_r",
+  "role": "eye_lash_upper_r",
+  "required": true,
+  "template": "tpl.base.v1.halfbody",
+  "template_version": "^1",
+  "deformation_parent": "eye_r_warp",
+  "category": "eye",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 768, "y": 672, "w": 240, "h": 112 },
+  "anchor": {
+    "type": "eye_pupil_center_r",
+    "x_frac": 0.5,
+    "y_frac": 0.85,
+    "detect_method": "keypoint_model_iris_v1"
+  },
+  "z_order": 78,
+  "symmetry": {
+    "pair_with": "eye_lash_upper_l",
+    "mirror_uv": true
+  },
+  "visual": {
+    "alpha_edge_policy": "hard",
+    "line_weight_hint_px": 3.0,
+    "color_context": "hair"
+  },
+  "generation": {
+    "prompt_scope": ["lash_length", "lash_color", "line_style"],
+    "negative_prompt": ["eyeball", "iris", "background", "text", "watermark"],
+    "reference_mask": "masks/eye_lash_upper_r_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["face_base", "eye_white_r"],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.05,
+    "max_alpha_area_frac": 0.60
+  },
+  "cubism_part_id": "PartEyeLashUpperR",
+  "notes": "eye_lash_upper_l 의 대칭."
+}

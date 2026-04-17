@@ -1,0 +1,42 @@
+{
+  "schema_version": "v1",
+  "slot_id": "eye_lash_lower_l",
+  "role": "eye_lash_lower_l",
+  "required": false,
+  "template": "tpl.base.v1.halfbody",
+  "template_version": "^1",
+  "deformation_parent": "eye_l_warp",
+  "category": "eye",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 1040, "y": 832, "w": 240, "h": 80 },
+  "anchor": {
+    "type": "eye_pupil_center_l",
+    "x_frac": 0.5,
+    "y_frac": 0.2,
+    "detect_method": "keypoint_model_iris_v1"
+  },
+  "z_order": 77,
+  "symmetry": {
+    "pair_with": "eye_lash_lower_r",
+    "mirror_uv": true
+  },
+  "visual": {
+    "alpha_edge_policy": "hard",
+    "line_weight_hint_px": 2.0,
+    "color_context": "hair"
+  },
+  "generation": {
+    "prompt_scope": ["lash_length", "lash_color", "line_style"],
+    "negative_prompt": ["eyeball", "iris", "background", "text", "watermark"],
+    "reference_mask": "masks/eye_lash_lower_l_mask.png",
+    "max_iter": 2
+  },
+  "dependencies": ["face_base", "eye_white_l"],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.02,
+    "max_alpha_area_frac": 0.40
+  },
+  "cubism_part_id": "PartEyeLashLowerL",
+  "notes": "아래 속눈썹은 옵션. 스타일 프로파일에 따라 생략 가능."
+}
