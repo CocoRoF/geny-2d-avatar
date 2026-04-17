@@ -1,0 +1,129 @@
+# === Reference Samples (local only, license-restricted) ===
+# Live2D 공식 샘플·3rd-party 프리셋은 저장소에 포함하지 않는다.
+# 용도는 명세 확인/회귀 테스트 입력 한정. 재배포 금지.
+mao_pro_ko/
+mao_pro/
+**/samples/live2d/
+**/samples/cubism/
+**/samples/spine/
+
+# === macOS / OS noise ===
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# === Editor / IDE ===
+.vscode/
+!.vscode/settings.example.json
+.idea/
+*.swp
+*.swo
+*~
+.vim/
+.nvimlog
+*.sublime-project
+*.sublime-workspace
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# === Node / JavaScript ===
+node_modules/
+.npm
+.pnpm-store/
+.yarn/
+.yarn-integrity
+dist/
+build/
+out/
+.next/
+.nuxt/
+.turbo/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.egg-info/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# === Env / Secrets ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secret
+credentials.json
+serviceAccount*.json
+
+# === Testing / Coverage ===
+coverage/
+.nyc_output/
+allure-results/
+playwright-report/
+test-results/
+
+# === Build artifacts / Binary ===
+*.moc3
+*.cmo3
+*.can3
+*.psd
+!docs/assets/**/*.psd
+*.fbx
+*.blend1
+*.blend2
+
+# === Temporary / scratch ===
+tmp/
+temp/
+scratch/
+.cache/
+.artifacts/
+
+# === Docker / Infra ===
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terragrunt-cache/
+
+# === ML / Model weights ===
+*.ckpt
+*.safetensors
+*.onnx
+models/weights/
+checkpoints/
