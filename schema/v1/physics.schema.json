@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/physics.schema.json",
+  "title": "Physics Config",
+  "description": "docs/03 §6.2 물리 파일 규약. Cubism `physics3.json` 구조와 1:1 대응되지만 파라미터 id 는 템플릿 id 를 사용하고 snake_case 로 정규화. Cubism export 시 manifest.cubism_mapping 으로 변환.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "version", "meta", "physics_dictionary", "physics_settings"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "version": {
+      "type": "integer",
+      "const": 3,
+      "description": "Cubism physics3.json 포맷 버전. v1 스키마는 Cubism v3 만 지원."
+    },
+    "meta": { "$ref": "#/$defs/meta" },
+    "physics_dictionary": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/dictionaryEntry" }
+    },
+    "physics_settings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/physicsSetting" }
+    },
+    "presets": {
+      "type": "object",
+      "description": "docs/03 §6.2 — light/normal/heavy 프리셋. 각 프리셋은 다른 global damping/wind 배율. v1.0.0 은 normal 만 채움, 나머지는 v1.1.0 이후.",
+      "additionalProperties": false,
+      "properties": {
+        "light": { "$ref": "#/$defs/preset" },
+        "normal": { "$ref": "#/$defs/preset" },
+        "heavy": { "$ref": "#/$defs/preset" }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physics_setting_count",
+        "total_input_count",
+        "total_output_count",
+        "vertex_count",
+        "fps",
+        "effective_forces"
+      ],
+      "properties": {
+        "physics_setting_count": { "type": "integer", "minimum": 1 },
+        "total_input_count": { "type": "integer", "minimum": 1 },
+        "total_output_count": { "type": "integer", "minimum": 1 },
+        "vertex_count": { "type": "integer", "minimum": 2 },
+        "fps": { "type": "integer", "enum": [30, 60] },
+        "effective_forces": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gravity", "wind"],
+          "properties": {
+            "gravity": { "$ref": "#/$defs/vec2" },
+            "wind": { "$ref": "#/$defs/vec2" }
+          }
+        }
+      }
+    },
+    "vec2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "dictionaryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^PhysicsSetting[0-9]+$",
+          "description": "Cubism 규약과 일치. export 시 그대로 사용."
+        },
+        "name": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ko"],
+          "properties": {
+            "en": { "type": "string", "minLength": 1 },
+            "ko": { "type": "string", "minLength": 1 },
+            "ja": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "physicsSetting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "input", "output", "vertices", "normalization"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^PhysicsSetting[0-9]+$" },
+        "enabled_by_default": {
+          "type": "boolean",
+          "default": true,
+          "description": "normal 프리셋 on/off. 표준 팩에서 일부 설정을 디폴트 비활성화할 때 false."
+        },
+        "input": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inputEntry" }
+        },
+        "output": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/outputEntry" }
+        },
+        "vertices": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/vertex" }
+        },
+        "normalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["position", "angle"],
+          "properties": {
+            "position": { "$ref": "#/$defs/normRange" },
+            "angle": { "$ref": "#/$defs/normRange" }
+          }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "inputEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_param", "weight", "type", "reflect"],
+      "properties": {
+        "source_param": {
+          "$ref": "common/ids.json#/$defs/parameterId",
+          "description": "docs/03 §6.2 — head_angle_*, body_angle_*, body_breath 만 허용(교차검증에서 강제)."
+        },
+        "weight": { "type": "number", "minimum": 0, "maximum": 100 },
+        "type": { "type": "string", "enum": ["X", "Y", "Angle"] },
+        "reflect": { "type": "boolean" }
+      }
+    },
+    "outputEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["destination_param", "vertex_index", "scale", "weight", "type", "reflect"],
+      "properties": {
+        "destination_param": {
+          "$ref": "common/ids.json#/$defs/parameterId",
+          "description": "docs/03 §6.2 — *_sway / *_phys 접미사만 허용(교차검증에서 강제)."
+        },
+        "vertex_index": { "type": "integer", "minimum": 0 },
+        "scale": { "type": "number" },
+        "weight": { "type": "number", "minimum": 0, "maximum": 100 },
+        "type": { "type": "string", "enum": ["X", "Y", "Angle"] },
+        "reflect": { "type": "boolean" }
+      }
+    },
+    "vertex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "mobility", "delay", "acceleration", "radius"],
+      "properties": {
+        "position": { "$ref": "#/$defs/vec2" },
+        "mobility": { "type": "number", "minimum": 0, "maximum": 1 },
+        "delay": { "type": "number", "minimum": 0, "maximum": 1 },
+        "acceleration": { "type": "number", "minimum": 0 },
+        "radius": { "type": "number", "minimum": 0 }
+      }
+    },
+    "normRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "default", "maximum"],
+      "properties": {
+        "minimum": { "type": "number" },
+        "default": { "type": "number" },
+        "maximum": { "type": "number" }
+      }
+    },
+    "preset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["damping_multiplier", "wind"],
+      "properties": {
+        "damping_multiplier": { "type": "number", "minimum": 0, "maximum": 4 },
+        "wind": { "$ref": "#/$defs/vec2" }
+      }
+    }
+  }
+}

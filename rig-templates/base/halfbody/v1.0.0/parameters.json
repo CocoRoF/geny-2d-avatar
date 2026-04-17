@@ -23,7 +23,8 @@
       "required": true,
       "group": "face",
       "channel": "core",
-      "cubism": "ParamAngleX"
+      "cubism": "ParamAngleX",
+      "physics_input": true
     },
     {
       "id": "head_angle_y",
@@ -45,7 +46,8 @@
       "required": true,
       "group": "face",
       "channel": "core",
-      "cubism": "ParamAngleZ"
+      "cubism": "ParamAngleZ",
+      "physics_input": true
     },
     {
       "id": "body_angle_x",
@@ -56,7 +58,8 @@
       "required": true,
       "group": "body",
       "channel": "core",
-      "cubism": "ParamBodyAngleX"
+      "cubism": "ParamBodyAngleX",
+      "physics_input": true
     },
     {
       "id": "body_angle_y",
@@ -78,7 +81,8 @@
       "required": true,
       "group": "body",
       "channel": "core",
-      "cubism": "ParamBodyAngleZ"
+      "cubism": "ParamBodyAngleZ",
+      "physics_input": true
     },
     {
       "id": "body_breath",

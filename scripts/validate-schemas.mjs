@@ -30,6 +30,7 @@ const SCHEMA_ID = {
   partSpec: "https://geny.ai/schema/v1/part-spec.schema.json",
   avatarMeta: "https://geny.ai/schema/v1/avatar-metadata.schema.json",
   deformers: "https://geny.ai/schema/v1/deformers.schema.json",
+  physics: "https://geny.ai/schema/v1/physics.schema.json",
 };
 
 // ——— Utilities ———
@@ -95,6 +96,7 @@ async function main() {
     partSpec: ajv.getSchema(SCHEMA_ID.partSpec),
     avatarMeta: ajv.getSchema(SCHEMA_ID.avatarMeta),
     deformers: ajv.getSchema(SCHEMA_ID.deformers),
+    physics: ajv.getSchema(SCHEMA_ID.physics),
   };
   for (const [name, v] of Object.entries(validators)) {
     if (!v) throw new Error(`Could not compile validator for ${name} (id=${SCHEMA_ID[name]})`);
@@ -235,6 +237,104 @@ async function main() {
     } catch (err) {
       if (err.code !== "ENOENT") throw err;
       console.log(`[rig] no deformers.json yet at ${relative(REPO_ROOT, deformersPath)} — skipping deformer cross-checks`);
+    }
+
+    // 2c-bis. physics/physics.json (if present)
+    // docs/03 §6.2: input ⊂ {head_angle_*, body_angle_*, body_breath} (physics_input=true), output ⊂ *_sway / *_phys (physics_output=true).
+    const physicsPath = join(dir, manifest.physics_file || "physics/physics.json");
+    const physicsInputAllowed = new Set(
+      (params.parameters || []).filter((p) => p.physics_input === true).map((p) => p.id),
+    );
+    const physicsOutputAllowed = new Set(
+      (params.parameters || []).filter((p) => p.physics_output === true).map((p) => p.id),
+    );
+    try {
+      const physics = await readJson(physicsPath);
+      checked += 1;
+      if (!validators.physics(physics)) {
+        failed += 1;
+        console.error(`[rig] INVALID physics ${relative(REPO_ROOT, physicsPath)}`);
+        console.error(fmtErrors(validators.physics.errors, relative(REPO_ROOT, physicsPath)));
+      } else {
+        // Cross-checks
+        const settings = physics.physics_settings;
+        // Dictionary ids match setting ids 1:1
+        const dictIds = new Set(physics.physics_dictionary.map((d) => d.id));
+        const settingIds = new Set(settings.map((s) => s.id));
+        for (const id of settingIds) {
+          if (!dictIds.has(id)) {
+            failed += 1;
+            console.error(`[rig] physics.json: setting '${id}' missing in physics_dictionary`);
+          }
+        }
+        for (const id of dictIds) {
+          if (!settingIds.has(id)) {
+            failed += 1;
+            console.error(`[rig] physics.json: dictionary '${id}' has no matching physics_settings entry`);
+          }
+        }
+        // Duplicate setting ids
+        if (settingIds.size !== settings.length) {
+          failed += 1;
+          console.error(`[rig] physics.json: duplicate physics_settings.id in ${relative(REPO_ROOT, physicsPath)}`);
+        }
+        // Meta counts must match reality
+        const totalInputs = settings.reduce((acc, s) => acc + s.input.length, 0);
+        const totalOutputs = settings.reduce((acc, s) => acc + s.output.length, 0);
+        const totalVertices = settings.reduce((acc, s) => acc + s.vertices.length, 0);
+        if (physics.meta.physics_setting_count !== settings.length) {
+          failed += 1;
+          console.error(`[rig] physics.json: meta.physics_setting_count=${physics.meta.physics_setting_count} vs actual=${settings.length}`);
+        }
+        if (physics.meta.total_input_count !== totalInputs) {
+          failed += 1;
+          console.error(`[rig] physics.json: meta.total_input_count=${physics.meta.total_input_count} vs actual=${totalInputs}`);
+        }
+        if (physics.meta.total_output_count !== totalOutputs) {
+          failed += 1;
+          console.error(`[rig] physics.json: meta.total_output_count=${physics.meta.total_output_count} vs actual=${totalOutputs}`);
+        }
+        if (physics.meta.vertex_count !== totalVertices) {
+          failed += 1;
+          console.error(`[rig] physics.json: meta.vertex_count=${physics.meta.vertex_count} vs actual=${totalVertices}`);
+        }
+        // Per-setting checks
+        for (const s of settings) {
+          // Inputs must be physics_input-flagged params
+          for (const inp of s.input) {
+            if (!paramIds.has(inp.source_param)) {
+              failed += 1;
+              console.error(`[rig] physics.json: setting '${s.id}' input source_param '${inp.source_param}' not in parameters.json`);
+            } else if (!physicsInputAllowed.has(inp.source_param)) {
+              failed += 1;
+              console.error(`[rig] physics.json: setting '${s.id}' input '${inp.source_param}' is not marked physics_input=true (docs/03 §6.2)`);
+            }
+          }
+          // Outputs must be physics_output-flagged params and suffix must match *_sway / *_phys
+          for (const out of s.output) {
+            if (!paramIds.has(out.destination_param)) {
+              failed += 1;
+              console.error(`[rig] physics.json: setting '${s.id}' output destination_param '${out.destination_param}' not in parameters.json`);
+            } else if (!physicsOutputAllowed.has(out.destination_param)) {
+              failed += 1;
+              console.error(`[rig] physics.json: setting '${s.id}' output '${out.destination_param}' is not marked physics_output=true`);
+            }
+            // docs/03 §6.2 — *_sway / *_phys 접미사. 좌우 분리 시 _l / _r 뒤붙임 허용.
+            if (!/_(sway|phys)(_[lr])?$/.test(out.destination_param)) {
+              failed += 1;
+              console.error(`[rig] physics.json: setting '${s.id}' output '${out.destination_param}' must end in _sway / _phys (optionally + _l/_r) — docs/03 §6.2`);
+            }
+            // vertex_index must be within the setting's vertices array
+            if (out.vertex_index >= s.vertices.length) {
+              failed += 1;
+              console.error(`[rig] physics.json: setting '${s.id}' output vertex_index=${out.vertex_index} out of range (vertices=${s.vertices.length})`);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      console.log(`[rig] no physics.json yet at ${relative(REPO_ROOT, physicsPath)} — skipping physics cross-checks`);
     }
 
     // 2d. parts/*.spec.json
