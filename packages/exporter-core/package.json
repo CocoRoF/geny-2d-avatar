@@ -1,0 +1,48 @@
+{
+  "name": "@geny/exporter-core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "결정론적(deterministic) Cubism 번들 변환 라이브러리 — 내부 리그 템플릿·아바타 → pose3/physics3/motion3/cdi3/model3.json",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./converters/pose": {
+      "types": "./dist/converters/pose.d.ts",
+      "import": "./dist/converters/pose.js"
+    },
+    "./util/canonical-json": {
+      "types": "./dist/util/canonical-json.d.ts",
+      "import": "./dist/util/canonical-json.js"
+    },
+    "./loader": {
+      "types": "./dist/loader.d.ts",
+      "import": "./dist/loader.js"
+    }
+  },
+  "bin": {
+    "exporter-core": "./bin/exporter-core.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}
