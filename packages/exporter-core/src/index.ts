@@ -62,6 +62,13 @@ export type {
   BundleResult,
   AssembleBundleOptions,
 } from "./bundle.js";
+export {
+  assembleAvatarBundle,
+  specToBundleOptions,
+  resolveTemplateDir,
+  readAvatarExportSpec,
+} from "./avatar-bundle.js";
+export type { AvatarExportSpec } from "./avatar-bundle.js";
 export type {
   Model3Json,
   Model3FileReferences,

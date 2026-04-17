@@ -1,0 +1,13 @@
+{
+  "schema_version": "v1",
+  "avatar_id": "av_01JBMBTC8W5FQ0RTYAX38P7Z5K",
+  "template_id": "tpl.base.v1.halfbody",
+  "template_version": "1.2.0",
+  "bundle_name": "aria",
+  "moc_path": "aria.moc3",
+  "texture_paths": [
+    "textures/aria_00.png"
+  ],
+  "lipsync": "precise",
+  "notes": "Foundation 샘플. 실제 moc3/텍스처는 Editor 저작 시 채워짐. bundle_name=aria 로 기본 avatar 중립 prefix 오버라이드 (세션 11 D4)."
+}

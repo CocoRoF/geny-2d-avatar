@@ -1,0 +1,61 @@
+{
+  "file_count": 11,
+  "files": [
+    {
+      "bytes": 7259,
+      "path": "aria.cdi3.json",
+      "sha256": "74bd0c74ce0655da54a13ba07d5be18799f75abab482add3375e30517830a208"
+    },
+    {
+      "bytes": 1801,
+      "path": "aria.model3.json",
+      "sha256": "01275de7b175cf45f71cdad4ea1948b1353eadb96c9f8b190c50080c8a082dab"
+    },
+    {
+      "bytes": 15151,
+      "path": "aria.physics3.json",
+      "sha256": "af9a639b056ae5659145b3df27b08aecb98dd7d7d17e9bcb20bf671bbc8950da"
+    },
+    {
+      "bytes": 343,
+      "path": "aria.pose3.json",
+      "sha256": "1ef160383f7abc7044bb27badc33df92cf767dac28e85a15b0d46b81a2c2671a"
+    },
+    {
+      "bytes": 885,
+      "path": "motions/blink_auto.motion3.json",
+      "sha256": "d7c1d47ff5c7fd13d110a8dec52fa48d3aa688ef16222c31441bddf2dd7142a3"
+    },
+    {
+      "bytes": 846,
+      "path": "motions/greet_wave.motion3.json",
+      "sha256": "d3cd6c1e3177880f3f603a4799e70f18f804d7f319061cc790ec1d906931ab01"
+    },
+    {
+      "bytes": 1134,
+      "path": "motions/idle_default.motion3.json",
+      "sha256": "6e799ba2fa7b205bf12c55c16a9f453a9d4c8d2e08ecf1a3ded8d1fa91fd200e"
+    },
+    {
+      "bytes": 977,
+      "path": "motions/idle_sleepy.motion3.json",
+      "sha256": "57cfa740e2c69514b7b0a60e8cf87e312513b6a0d5ba73a22648600ba3f82d1d"
+    },
+    {
+      "bytes": 1833,
+      "path": "motions/lipsync_mock.motion3.json",
+      "sha256": "b11000fa4d6ab01c856e5b151c71f0b971c8a3e2c9afb5a0428b77dda8ebe522"
+    },
+    {
+      "bytes": 644,
+      "path": "motions/nod_yes.motion3.json",
+      "sha256": "ade8ea4cc2a0da853dbd4f256eecd5b09998ee76f989cd81a3e6bbdd7d9067e9"
+    },
+    {
+      "bytes": 679,
+      "path": "motions/shake_no.motion3.json",
+      "sha256": "920a9248251b2f32393562708391fb152ab928e43503dea07ba986e4815b16e9"
+    }
+  ],
+  "total_bytes": 31552
+}

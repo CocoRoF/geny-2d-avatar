@@ -19,6 +19,7 @@ schema/
 │   ├── rig-template.schema.json        # docs/03 전체
 │   ├── part-spec.schema.json           # docs/04 §3
 │   ├── avatar-metadata.schema.json     # docs/12 §4.5
+│   ├── avatar-export.schema.json       # docs/11 §3.5 — 번들 조립 입력 (세션 11)
 │   ├── style-profile.schema.json       # docs/10 §3 (미작성)
 │   ├── export-job.schema.json          # docs/12 §4.9 (미작성)
 │   └── common/

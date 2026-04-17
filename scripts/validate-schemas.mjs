@@ -29,6 +29,7 @@ const SCHEMA_ID = {
   parameters: "https://geny.ai/schema/v1/parameters.schema.json",
   partSpec: "https://geny.ai/schema/v1/part-spec.schema.json",
   avatarMeta: "https://geny.ai/schema/v1/avatar-metadata.schema.json",
+  avatarExport: "https://geny.ai/schema/v1/avatar-export.schema.json",
   deformers: "https://geny.ai/schema/v1/deformers.schema.json",
   physics: "https://geny.ai/schema/v1/physics.schema.json",
   motionPack: "https://geny.ai/schema/v1/motion-pack.schema.json",
@@ -98,6 +99,7 @@ async function main() {
     parameters: ajv.getSchema(SCHEMA_ID.parameters),
     partSpec: ajv.getSchema(SCHEMA_ID.partSpec),
     avatarMeta: ajv.getSchema(SCHEMA_ID.avatarMeta),
+    avatarExport: ajv.getSchema(SCHEMA_ID.avatarExport),
     deformers: ajv.getSchema(SCHEMA_ID.deformers),
     physics: ajv.getSchema(SCHEMA_ID.physics),
     motionPack: ajv.getSchema(SCHEMA_ID.motionPack),
@@ -645,6 +647,7 @@ async function main() {
       console.log("[samples] no samples/avatars — skipping avatar sample validation");
       return;
     }
+    const avatarIds = new Set();
     for (const entry of files) {
       if (!entry.endsWith(".avatar.json")) continue;
       const p = join(avatarsDir, entry);
@@ -656,11 +659,38 @@ async function main() {
         console.error(fmtErrors(validators.avatarMeta.errors, relative(REPO_ROOT, p)));
         continue;
       }
+      avatarIds.add(avatar.id);
       const ref = `${avatar.template_id}@${avatar.template_version}`;
       if (!knownTemplates.has(ref)) {
         failed += 1;
         console.error(
           `[samples] avatar '${avatar.id}' references unknown template '${ref}' (${relative(REPO_ROOT, p)})`,
+        );
+      }
+    }
+    // avatar-export 스펙(세션 11): metadata 와 짝으로 저장. avatar_id 가 metadata 에 존재해야 한다.
+    for (const entry of files) {
+      if (!entry.endsWith(".export.json")) continue;
+      const p = join(avatarsDir, entry);
+      const spec = await readJson(p);
+      checked += 1;
+      if (!validators.avatarExport(spec)) {
+        failed += 1;
+        console.error(`[samples] INVALID avatar-export ${relative(REPO_ROOT, p)}`);
+        console.error(fmtErrors(validators.avatarExport.errors, relative(REPO_ROOT, p)));
+        continue;
+      }
+      if (!avatarIds.has(spec.avatar_id)) {
+        failed += 1;
+        console.error(
+          `[samples] avatar-export '${relative(REPO_ROOT, p)}' references unknown avatar_id '${spec.avatar_id}' (no matching .avatar.json in samples/avatars)`,
+        );
+      }
+      const ref = `${spec.template_id}@${spec.template_version}`;
+      if (!knownTemplates.has(ref)) {
+        failed += 1;
+        console.error(
+          `[samples] avatar-export '${relative(REPO_ROOT, p)}' references unknown template '${ref}'`,
         );
       }
     }

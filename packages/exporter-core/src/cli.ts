@@ -7,16 +7,22 @@ import { convertMotionFromTemplate } from "./converters/motion.js";
 import { convertCdiFromTemplate } from "./converters/cdi.js";
 import { convertModelFromTemplate } from "./converters/model.js";
 import { assembleBundle, snapshotBundle } from "./bundle.js";
+import { assembleAvatarBundle, readAvatarExportSpec } from "./avatar-bundle.js";
 import { canonicalJson } from "./util/canonical-json.js";
 
-type Command = "pose" | "physics" | "motion" | "cdi" | "model" | "bundle";
+type Command = "pose" | "physics" | "motion" | "cdi" | "model" | "bundle" | "avatar";
 
 interface Args {
   command: Command;
-  template: string;
-  /** JSON 출력 경로 (pose/physics/motion/cdi/model). bundle 은 `--out-dir` 사용. */
+  /** pose/physics/motion/cdi/model/bundle: template dir. avatar: unused. */
+  template?: string;
+  /** avatar: avatar-export spec file. */
+  spec?: string;
+  /** avatar: rig-templates root directory. */
+  rigTemplatesRoot?: string;
+  /** JSON 출력 경로 (pose/physics/motion/cdi/model). bundle/avatar 은 `--out-dir` 사용. */
   out?: string;
-  /** bundle 전용 — 번들 출력 디렉터리. */
+  /** bundle/avatar 전용 — 번들 출력 디렉터리. */
   outDir?: string;
   pack?: string;
   mocPath?: string;
@@ -39,13 +45,16 @@ function parseArgs(argv: string[]): Args {
     first !== "motion" &&
     first !== "cdi" &&
     first !== "model" &&
-    first !== "bundle"
+    first !== "bundle" &&
+    first !== "avatar"
   ) {
-    usage(`unknown command '${first}' (supported: pose, physics, motion, cdi, model, bundle)`);
+    usage(`unknown command '${first}' (supported: pose, physics, motion, cdi, model, bundle, avatar)`);
   }
   const command = first;
 
   let template: string | undefined;
+  let spec: string | undefined;
+  let rigTemplatesRoot: string | undefined;
   let out: string | undefined;
   let outDir: string | undefined;
   let pack: string | undefined;
@@ -57,6 +66,12 @@ function parseArgs(argv: string[]): Args {
     switch (arg) {
       case "--template":
         template = argv[++i];
+        break;
+      case "--spec":
+        spec = argv[++i];
+        break;
+      case "--rig-templates-root":
+        rigTemplatesRoot = argv[++i];
         break;
       case "--out":
         out = argv[++i];
@@ -91,16 +106,29 @@ function parseArgs(argv: string[]): Args {
         usage(`unknown argument '${arg}'`);
     }
   }
-  if (!template) usage("missing --template <dir>");
-  if (command === "bundle") {
-    if (!outDir) usage("bundle: missing --out-dir <dir>");
+  if (command === "avatar") {
+    if (!spec) usage("avatar: missing --spec <path>");
+    if (!rigTemplatesRoot) usage("avatar: missing --rig-templates-root <dir>");
+    if (!outDir) usage("avatar: missing --out-dir <dir>");
+    if (mocPath || texturePaths || lipsync) {
+      usage(
+        "avatar: --moc / --texture / --lipsync are not accepted; set them inside the export spec (session 11 D7)",
+      );
+    }
   } else {
-    if (!out) usage("missing --out <file>");
+    if (!template) usage("missing --template <dir>");
+    if (command === "bundle") {
+      if (!outDir) usage("bundle: missing --out-dir <dir>");
+    } else {
+      if (!out) usage("missing --out <file>");
+    }
+    if (command === "motion" && !pack) usage("motion: missing --pack <pack_id>");
   }
-  if (command === "motion" && !pack) usage("motion: missing --pack <pack_id>");
   return {
     command,
-    template,
+    ...(template ? { template } : {}),
+    ...(spec ? { spec } : {}),
+    ...(rigTemplatesRoot ? { rigTemplatesRoot } : {}),
     ...(out ? { out } : {}),
     ...(outDir ? { outDir } : {}),
     ...(pack ? { pack } : {}),
@@ -128,11 +156,14 @@ function printHelp(): void {
       "  cdi        Convert parameters + parts → Cubism cdi3.json",
       "  model      Build Cubism model3.json (bundle manifest)",
       "  bundle     Assemble a full Cubism bundle directory (all 5 JSONs + motions/)",
+      "  avatar     Assemble a Cubism bundle from an avatar-export spec (session 11)",
       "",
       "common options:",
-      "  --template <dir>   Path to rig template directory (template.manifest.json at root)",
-      "  --out <file>       Output path for the generated JSON (pose/physics/motion/cdi/model)",
-      "  --out-dir <dir>    Output directory for bundle (bundle only)",
+      "  --template <dir>               Path to rig template directory (pose/physics/motion/cdi/model/bundle)",
+      "  --spec <path>                  Avatar export spec path (avatar only)",
+      "  --rig-templates-root <dir>     rig-templates/ root (avatar only)",
+      "  --out <file>                   Output path for the generated JSON (pose/physics/motion/cdi/model)",
+      "  --out-dir <dir>                Output directory (bundle, avatar)",
       "",
       "command-specific options:",
       "  --pack <pack_id>             motion: motion pack id (e.g. 'idle.default')",
@@ -140,13 +171,32 @@ function printHelp(): void {
       "  --texture <path>             model/bundle: repeatable; override Textures list",
       "  --lipsync simple|precise     model/bundle: LipSync group mode (default simple)",
       "",
+      "note: avatar takes overrides only via the spec file; --moc/--texture/--lipsync are rejected there (session 11 D7).",
+      "",
     ].join("\n"),
   );
 }
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
-  const tpl = loadTemplate(resolve(args.template));
+
+  if (args.command === "avatar") {
+    const specPath = resolve(args.spec!);
+    const spec = readAvatarExportSpec(specPath);
+    const root = resolve(args.rigTemplatesRoot!);
+    const outDir = resolve(args.outDir!);
+    const res = assembleAvatarBundle(spec, root, outDir);
+    const snap = snapshotBundle(res);
+    process.stdout.write(snap);
+    process.stderr.write(
+      `exporter-core: wrote avatar bundle at ${outDir} — ${res.files.length} files, ${
+        res.files.reduce((a, f) => a + f.bytes, 0)
+      } bytes (bundle_name=${spec.bundle_name})\n`,
+    );
+    return;
+  }
+
+  const tpl = loadTemplate(resolve(args.template!));
 
   if (args.command === "bundle") {
     const outDir = resolve(args.outDir!);

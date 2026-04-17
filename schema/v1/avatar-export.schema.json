@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/avatar-export.schema.json",
+  "title": "Avatar Export Spec",
+  "description": "docs/11 §3.5 — 아바타 단의 번들 조립 입력. avatar metadata(DB row) 와 분리해서 저장하여, 파이프라인 재현성·권한 모델을 단순화한다. metadata 복제 없이 `avatar_id` 참조 + 번들 설정만 보유. progress/session 11 D1/D2/D3 참고.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "avatar_id",
+    "template_id",
+    "template_version",
+    "bundle_name"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "v1"
+    },
+    "avatar_id": {
+      "$ref": "common/ids.json#/$defs/avatarId",
+      "description": "번들링 대상 아바타. metadata(`.avatar.json`) 파일의 `id` 와 동일."
+    },
+    "template_id": {
+      "$ref": "common/ids.json#/$defs/templateRef",
+      "description": "템플릿 식별자. 예: `tpl.base.v1.halfbody`. 런타임은 `rigTemplatesRoot/base/halfbody/v{template_version}/` 로 해석 (세션 11 D5)."
+    },
+    "template_version": {
+      "$ref": "common/ids.json#/$defs/semver",
+      "description": "템플릿 SemVer. 리그 템플릿 디렉터리 이름(`v1.2.0`) 과 일치해야 한다 (ADR 0003)."
+    },
+    "bundle_name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,40}$",
+      "description": "번들 파일명 prefix. 예: `aria` → `aria.model3.json`, `aria.cdi3.json`, … (세션 11 D4). 파일시스템·URL 안전 문자만."
+    },
+    "moc_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "번들 내 moc3 상대 경로. 생략 시 `{bundle_name}.moc3`. model3.json 의 FileReferences.Moc 에 직접 기록."
+    },
+    "texture_paths": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "description": "번들 내 텍스처 상대 경로 목록. 생략 시 `[\"textures/{bundle_name}_00.png\"]`. model3.json FileReferences.Textures 순서 보존."
+    },
+    "lipsync": {
+      "type": "string",
+      "enum": ["simple", "precise"],
+      "default": "simple",
+      "description": "Groups.LipSync 전략. `simple` = `mouth_vowel_a` 단일, `precise` = 5 모음 (`mouth_vowel_a/i/u/e/o`). docs/11 §3.2.2."
+    },
+    "extra_file_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "model3.json FileReferences 하위 덮어쓰기(UserData/Expressions 등). 현재 세션 범위는 선언만 — 미사용 필드는 생략.",
+      "properties": {
+        "user_data": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "운영 메모. 번들 산출물에는 포함되지 않는다."
+    }
+  }
+}
