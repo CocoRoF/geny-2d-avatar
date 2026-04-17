@@ -33,6 +33,7 @@ const SCHEMA_ID = {
   physics: "https://geny.ai/schema/v1/physics.schema.json",
   motionPack: "https://geny.ai/schema/v1/motion-pack.schema.json",
   testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
+  pose: "https://geny.ai/schema/v1/pose.schema.json",
 };
 
 // ——— Utilities ———
@@ -101,6 +102,7 @@ async function main() {
     physics: ajv.getSchema(SCHEMA_ID.physics),
     motionPack: ajv.getSchema(SCHEMA_ID.motionPack),
     testPoses: ajv.getSchema(SCHEMA_ID.testPoses),
+    pose: ajv.getSchema(SCHEMA_ID.pose),
   };
   for (const [name, v] of Object.entries(validators)) {
     if (!v) throw new Error(`Could not compile validator for ${name} (id=${SCHEMA_ID[name]})`);
@@ -110,6 +112,8 @@ async function main() {
   let failed = 0;
   let checked = 0;
   const versionDirRe = /^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+  // Collected across all template dirs → used later to cross-check avatar sample template refs.
+  const knownTemplates = new Set();
 
   async function validateTemplateVersionDir(dir) {
     const dirName = dir.split("/").pop();
@@ -134,6 +138,9 @@ async function main() {
       console.error(
         `[rig] VERSION MISMATCH ${relative(REPO_ROOT, manifestPath)} — dir=${dirName} manifest.version=${manifest.version} (ADR 0003)`,
       );
+    }
+    if (manifest.id && manifest.version) {
+      knownTemplates.add(`${manifest.id}@${manifest.version}`);
     }
 
     // 2b. parameters.json
@@ -404,6 +411,59 @@ async function main() {
       }
     }
 
+    // 2d-bis. manifest.hit_areas[].bound_to_part ∈ slotIds (docs/03 §12.1 #7, docs/11 §3.2)
+    for (const ha of manifest.hit_areas || []) {
+      if (ha.bound_to_part && slotIds.size > 0 && !slotIds.has(ha.bound_to_part)) {
+        failed += 1;
+        console.error(
+          `[rig] manifest.hit_areas[id=${ha.id}].bound_to_part '${ha.bound_to_part}' not found as a slot in ${relative(REPO_ROOT, manifestPath)}`,
+        );
+      }
+    }
+
+    // 2d-ter. optional pose.json — docs/11 §3.2.1 mutex groups.
+    // v1.0.0 의 halfbody 는 파일이 없으므로 ENOENT 는 skip. 존재 시 스키마 + slot 교차검증.
+    const posePath = join(dir, "pose.json");
+    try {
+      const pose = await readJson(posePath);
+      checked += 1;
+      if (!validators.pose(pose)) {
+        failed += 1;
+        console.error(`[rig] INVALID pose ${relative(REPO_ROOT, posePath)}`);
+        console.error(fmtErrors(validators.pose.errors, relative(REPO_ROOT, posePath)));
+      } else {
+        const seenInGroup = new Set();
+        for (const group of pose.groups) {
+          for (const item of group) {
+            if (seenInGroup.has(item.slot_id)) {
+              failed += 1;
+              console.error(
+                `[rig] pose: slot '${item.slot_id}' appears in multiple mutex groups (${relative(REPO_ROOT, posePath)})`,
+              );
+            }
+            seenInGroup.add(item.slot_id);
+            if (slotIds.size > 0 && !slotIds.has(item.slot_id)) {
+              failed += 1;
+              console.error(
+                `[rig] pose: slot '${item.slot_id}' not defined in parts/ (${relative(REPO_ROOT, posePath)})`,
+              );
+            }
+            for (const linked of item.link || []) {
+              if (slotIds.size > 0 && !slotIds.has(linked)) {
+                failed += 1;
+                console.error(
+                  `[rig] pose: link target '${linked}' not a slot (${relative(REPO_ROOT, posePath)})`,
+                );
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      // silent skip — not all templates declare alt-pose groups
+    }
+
     // 2e. motions/*.motion.json
     // Build a parameterId → { range, default } map for value-range checks.
     const paramMeta = new Map((params.parameters || []).map((p) => [p.id, { range: p.range, default: p.default }]));
@@ -572,7 +632,41 @@ async function main() {
 
   await walkRigRoot();
 
-  // 3. Summary
+  // 3. Validate sample data (samples/{domain}/...)
+  // docs/12 §4.5 — avatars/ 의 avatar-metadata 인스턴스. template 참조는 walkRigRoot 에서 수집한 set 과 대조.
+  async function validateAvatarSamples() {
+    const avatarsDir = join(REPO_ROOT, "samples", "avatars");
+    let files = [];
+    try {
+      files = await readdir(avatarsDir);
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      console.log("[samples] no samples/avatars — skipping avatar sample validation");
+      return;
+    }
+    for (const entry of files) {
+      if (!entry.endsWith(".avatar.json")) continue;
+      const p = join(avatarsDir, entry);
+      const avatar = await readJson(p);
+      checked += 1;
+      if (!validators.avatarMeta(avatar)) {
+        failed += 1;
+        console.error(`[samples] INVALID avatar ${relative(REPO_ROOT, p)}`);
+        console.error(fmtErrors(validators.avatarMeta.errors, relative(REPO_ROOT, p)));
+        continue;
+      }
+      const ref = `${avatar.template_id}@${avatar.template_version}`;
+      if (!knownTemplates.has(ref)) {
+        failed += 1;
+        console.error(
+          `[samples] avatar '${avatar.id}' references unknown template '${ref}' (${relative(REPO_ROOT, p)})`,
+        );
+      }
+    }
+  }
+  await validateAvatarSamples();
+
+  // 4. Summary
   console.log("");
   console.log(`[validate] checked=${checked} failed=${failed}`);
   if (failed > 0) {

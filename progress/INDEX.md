@@ -37,12 +37,12 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 | 스트림 | Foundation 목표 | 현재 상태 |
 |---|---|---|
-| **Rig & Parts** | `halfbody v1` 손 리깅 완성 | 🟡 파츠 27 + 디포머 + 물리 + 모션 7 + test_poses 20 (세션 02–04), 골든 아바타 회귀 남음 |
+| **Rig & Parts** | `halfbody v1` 손 리깅 완성 | 🟡 파츠 27 + 디포머 + 물리 + 모션 7 + test_poses 20 + HitArea 검증 (세션 02–05), arm variant / 골든 아바타 남음 |
 | **AI Generation** | nano-banana 어댑터 | ⚪ 미착수 |
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
 | **Platform / Infra** | K8s + CI/CD | ⚪ 미착수 |
-| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 9종 + CI 자동 검증 (세션 01–04), DB/S3 미착수 |
+| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 10종 + avatar 샘플 1 + CI 자동 검증 (세션 01–05), DB/S3 미착수 |
 | **Pipeline** | 단일 아바타 DAG | ⚪ 미착수 |
 | **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
 
@@ -58,6 +58,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 02 | 2026-04-17 | halfbody v1 파츠 스펙 24 + 디포머 트리 + CI 스키마 검증 | 완료 | [링크](./sessions/2026-04-17-session-02-halfbody-parts.md) |
 | 03 | 2026-04-18 | halfbody v1 물리 팩 초판 + physics 스키마 + mao_pro 16 설정 매핑 | 완료 | [링크](./sessions/2026-04-18-session-03-physics.md) |
 | 04 | 2026-04-18 | halfbody v1 모션 팩 7 + test_poses 20 + motion/test-poses 스키마 | 완료 | [링크](./sessions/2026-04-18-session-04-motions.md) |
+| 05 | 2026-04-18 | avatar 샘플 + pose3 스키마 + HitArea 검증 + ADR 0004 | 완료 | [링크](./sessions/2026-04-18-session-05-avatar-pose.md) |
 
 ---
 
@@ -74,6 +75,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | `apps/` | 실행 가능한 앱 (web, worker-*, api) | 02, 13 |
 | `packages/` | 재사용 가능한 라이브러리 (sdk-ts, sdk-py, web-avatar…) | 11, 13 |
 | `services/` | 장기 실행 서비스(orchestrator, exporter) | 02, 11 |
+| `samples/` | 스키마 인스턴스 픽스처(avatars/, …) | 12 |
 | `infra/` | Terraform, Helm | 13 §7 |
 | `scripts/` | 개발 편의 스크립트 | 13 §12 |
 
@@ -100,13 +102,14 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 | [0001](./adr/0001-monorepo-layout.md) | 저장소 레이아웃 (monorepo, docs/13 §13 채택) | 2026-04-17 | Accepted |
 | [0002](./adr/0002-schema-first-contract.md) | 스키마-우선 계약 (JSON Schema 를 단일 진실 공급원으로) | 2026-04-17 | Accepted |
 | [0003](./adr/0003-rig-template-versioning.md) | 리그 템플릿 버저닝 (SemVer, `tpl.base.v{major}.*`) | 2026-04-17 | Accepted |
+| [0004](./adr/0004-avatar-as-data.md) | 참조형 아바타 (meta + part_instance 참조, pose3 템플릿 측) | 2026-04-18 | Accepted |
 
 ---
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 05**: avatar-metadata 실제 샘플 1건 + Pose3 mutex · HitArea 바인딩 검증 + variant A/B 파츠(arm).
-- **세션 06**: Fuwa/옷 파라미터 추가 → halfbody v1.1.0 bump → normal 프리셋 12 설정 완성 + greet.wave 리라이트.
-- **세션 07**: export 스크립트 초판(`packages/exporter-core`) — 템플릿 JSON 을 Cubism `.moc3/.physics3.json/.motion3.json` 로 변환.
+- **세션 06**: Fuwa/옷 파라미터 + arm A/B variant → halfbody v1.1.0 bump → 첫 `pose.json` + normal 프리셋 12 설정 완성 + greet.wave 리라이트.
+- **세션 07**: export 스크립트 초판(`packages/exporter-core`) — 템플릿 JSON 을 Cubism `.moc3/.physics3.json/.motion3.json/.pose3.json/.cdi3.json` 로 변환.
+- **세션 08**: `samples/part_instances/` 개시 + docs/12 §5 S3 key 규약 구현 초안.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

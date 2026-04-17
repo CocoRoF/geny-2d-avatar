@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/pose.schema.json",
+  "title": "Pose3 (Mutex Groups)",
+  "description": "docs/11 §3.2.1 — Cubism pose3.json 의 snake_case 내부 계약. 동일 그룹 내 파츠는 mutex (동시 노출 금지).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "format", "type", "groups"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "format": {
+      "type": "integer",
+      "const": 3,
+      "description": "Cubism Pose3 형식 버전. 현재 3 고정."
+    },
+    "type": {
+      "type": "string",
+      "const": "live2d_pose",
+      "description": "Cubism 원본 Type='Live2D Pose' 의 snake_case 상수."
+    },
+    "fade_in_time": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 5,
+      "default": 0.5,
+      "description": "그룹 내 파츠 전환 시 페이드인 시간(초). 미지정 시 런타임 기본 0.5."
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "description": "각 원소는 하나의 mutex 그룹. 그룹 내 항목이 동시에 1 opacity 를 가질 수 없다.",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 16,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["slot_id"],
+          "properties": {
+            "slot_id": { "$ref": "common/ids.json#/$defs/slotId" },
+            "link": {
+              "type": "array",
+              "items": { "$ref": "common/ids.json#/$defs/slotId" },
+              "uniqueItems": true,
+              "default": [],
+              "description": "동일 opacity 로 연동되는 종속 슬롯(예: 팔 본체 ↔ 소매). Cubism Link[] 와 1:1."
+            }
+          }
+        }
+      }
+    }
+  }
+}
