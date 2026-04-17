@@ -29,6 +29,7 @@ const SCHEMA_ID = {
   parameters: "https://geny.ai/schema/v1/parameters.schema.json",
   partSpec: "https://geny.ai/schema/v1/part-spec.schema.json",
   avatarMeta: "https://geny.ai/schema/v1/avatar-metadata.schema.json",
+  deformers: "https://geny.ai/schema/v1/deformers.schema.json",
 };
 
 // ——— Utilities ———
@@ -93,6 +94,7 @@ async function main() {
     parameters: ajv.getSchema(SCHEMA_ID.parameters),
     partSpec: ajv.getSchema(SCHEMA_ID.partSpec),
     avatarMeta: ajv.getSchema(SCHEMA_ID.avatarMeta),
+    deformers: ajv.getSchema(SCHEMA_ID.deformers),
   };
   for (const [name, v] of Object.entries(validators)) {
     if (!v) throw new Error(`Could not compile validator for ${name} (id=${SCHEMA_ID[name]})`);
@@ -162,7 +164,80 @@ async function main() {
       }
     }
 
-    // 2c. parts/*.spec.json
+    // 2c. deformers.json (if present)
+    const deformersPath = join(dir, manifest.deformers_file || "deformers.json");
+    let deformerIds = null; // null → deformers.json not yet present (session pre-02)
+    try {
+      const deformers = await readJson(deformersPath);
+      checked += 1;
+      if (!validators.deformers(deformers)) {
+        failed += 1;
+        console.error(`[rig] INVALID deformers ${relative(REPO_ROOT, deformersPath)}`);
+        console.error(fmtErrors(validators.deformers.errors, relative(REPO_ROOT, deformersPath)));
+      } else {
+        // Cross-checks
+        deformerIds = new Set(deformers.nodes.map((n) => n.id));
+        // root_id exists and its node has parent=null
+        if (!deformerIds.has(deformers.root_id)) {
+          failed += 1;
+          console.error(`[rig] deformers.json: root_id '${deformers.root_id}' not in nodes — ${relative(REPO_ROOT, deformersPath)}`);
+        } else {
+          const rootNode = deformers.nodes.find((n) => n.id === deformers.root_id);
+          if (rootNode.parent !== null) {
+            failed += 1;
+            console.error(`[rig] deformers.json: root node '${deformers.root_id}' must have parent=null (got ${JSON.stringify(rootNode.parent)})`);
+          }
+        }
+        // Duplicate id detection
+        if (deformerIds.size !== deformers.nodes.length) {
+          failed += 1;
+          console.error(`[rig] deformers.json: duplicate node ids in ${relative(REPO_ROOT, deformersPath)}`);
+        }
+        // Every parent (if not null) must be a known id
+        for (const n of deformers.nodes) {
+          if (n.parent !== null && !deformerIds.has(n.parent)) {
+            failed += 1;
+            console.error(`[rig] deformers.json: node '${n.id}' references unknown parent '${n.parent}'`);
+          }
+          // params_in must reference valid params
+          for (const pid of n.params_in || []) {
+            if (!paramIds.has(pid)) {
+              failed += 1;
+              console.error(`[rig] deformers.json: node '${n.id}' params_in references unknown parameter '${pid}'`);
+            }
+          }
+        }
+        // Cycle detection (walk ancestors; every node must reach root in ≤ nodes.length hops)
+        const nodeById = new Map(deformers.nodes.map((n) => [n.id, n]));
+        for (const n of deformers.nodes) {
+          let cur = n;
+          const seen = new Set();
+          let hops = 0;
+          while (cur.parent !== null) {
+            if (seen.has(cur.id)) {
+              failed += 1;
+              console.error(`[rig] deformers.json: cycle detected at '${n.id}' (via '${cur.id}')`);
+              break;
+            }
+            seen.add(cur.id);
+            hops += 1;
+            if (hops > deformers.nodes.length) {
+              failed += 1;
+              console.error(`[rig] deformers.json: ancestor chain too long at '${n.id}' — likely cycle`);
+              break;
+            }
+            const next = nodeById.get(cur.parent);
+            if (!next) break;
+            cur = next;
+          }
+        }
+      }
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      console.log(`[rig] no deformers.json yet at ${relative(REPO_ROOT, deformersPath)} — skipping deformer cross-checks`);
+    }
+
+    // 2d. parts/*.spec.json
     const partsDirRel = manifest.parts_dir || "parts/";
     const partsDir = join(dir, partsDirRel);
     let partsEntries = [];
@@ -171,6 +246,8 @@ async function main() {
     } catch {
       /* no parts dir yet */
     }
+    const slotIds = new Set();
+    const parts = [];
     for (const entry of partsEntries) {
       if (!entry.endsWith(".spec.json")) continue;
       const partPath = join(partsDir, entry);
@@ -193,6 +270,33 @@ async function main() {
       if (part.template && !part.template.startsWith("tpl.")) {
         failed += 1;
         console.error(`[rig] part spec template must start with 'tpl.': ${relative(REPO_ROOT, partPath)}`);
+      }
+      // Cross-check: deformation_parent must exist in deformers.json (if loaded)
+      if (deformerIds && part.deformation_parent && !deformerIds.has(part.deformation_parent)) {
+        failed += 1;
+        console.error(
+          `[rig] part '${part.slot_id}' deformation_parent '${part.deformation_parent}' not in deformers.json`,
+        );
+      }
+      // Cross-check: symmetry.pair_with exists as a slot (collected below after all parts loaded)
+      slotIds.add(part.slot_id);
+      parts.push({ path: partPath, part });
+    }
+    // Second pass: validate symmetry.pair_with + dependencies
+    for (const { path: partPath, part } of parts) {
+      if (part.symmetry && part.symmetry.pair_with && !slotIds.has(part.symmetry.pair_with)) {
+        failed += 1;
+        console.error(
+          `[rig] part '${part.slot_id}' symmetry.pair_with '${part.symmetry.pair_with}' not found as a slot`,
+        );
+      }
+      for (const dep of part.dependencies || []) {
+        if (!slotIds.has(dep)) {
+          failed += 1;
+          console.error(
+            `[rig] part '${part.slot_id}' dependency '${dep}' not found as a slot`,
+          );
+        }
       }
     }
   }

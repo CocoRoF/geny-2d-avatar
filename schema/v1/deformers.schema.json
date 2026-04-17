@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/deformers.schema.json",
+  "title": "Deformers Tree",
+  "description": "docs/03 §4 디포머 계층. 평탄 배열 + parent 링크 구조 — 중첩 JSON 보다 diff 가 깨끗하다(ADR-by-session-02).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "root_id", "nodes"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "root_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,60}$",
+      "description": "루트 노드의 id. 이 노드는 parent=null 이어야 한다."
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/node" }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "parent", "params_in"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,60}$",
+          "description": "디포머 고유 id. part.deformation_parent 가 이 id 를 참조한다."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["warp", "rotation", "glue"],
+          "description": "docs/03 §4.3 — warp / rotation / glue."
+        },
+        "parent": {
+          "description": "부모 노드의 id. 루트는 null.",
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,60}$" }
+          ]
+        },
+        "params_in": {
+          "type": "array",
+          "items": { "$ref": "common/ids.json#/$defs/parameterId" },
+          "description": "이 디포머의 입력 파라미터 id. 빈 배열 가능(컨테이너)."
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+name: validate-schemas
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "schema/**"
+      - "rig-templates/**"
+      - "scripts/validate-schemas.mjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/validate-schemas.yml"
+  pull_request:
+    paths:
+      - "schema/**"
+      - "rig-templates/**"
+      - "scripts/validate-schemas.mjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/validate-schemas.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate schemas + rig templates
+        run: pnpm run validate:schemas

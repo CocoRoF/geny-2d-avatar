@@ -37,12 +37,12 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 | 스트림 | Foundation 목표 | 현재 상태 |
 |---|---|---|
-| **Rig & Parts** | `halfbody v1` 손 리깅 완성 | 🟡 템플릿 스켈레톤 초안 (세션 01) |
+| **Rig & Parts** | `halfbody v1` 손 리깅 완성 | 🟡 파츠 27 + 디포머 트리 완료 (세션 02), 물리·모션 남음 |
 | **AI Generation** | nano-banana 어댑터 | ⚪ 미착수 |
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
 | **Platform / Infra** | K8s + CI/CD | ⚪ 미착수 |
-| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 초판 (세션 01) |
+| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 6종 + CI 자동 검증 (세션 01–02), DB/S3 미착수 |
 | **Pipeline** | 단일 아바타 DAG | ⚪ 미착수 |
 | **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
 
@@ -55,6 +55,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | # | 날짜 | 주제 | 상태 | 링크 |
 |---|---|---|---|---|
 | 01 | 2026-04-17 | Foundation 착수 — 저장소 스켈레톤, Schema 초판, halfbody v1 스펙, ADR 0001–0003 | 완료 | [링크](./sessions/2026-04-17-session-01-foundation-kickoff.md) |
+| 02 | 2026-04-17 | halfbody v1 파츠 스펙 24 + 디포머 트리 + CI 스키마 검증 | 완료 | [링크](./sessions/2026-04-17-session-02-halfbody-parts.md) |
 
 ---
 
@@ -102,8 +103,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 02**: `halfbody v1` 파츠 스펙 24개 모두 작성 + JSON Schema 검증 스크립트 + 최초 `justfile`/`Taskfile`.
-- **세션 03**: AI Adapter Protocol (Python) 스켈레톤 + `nano-banana` 어댑터 스텁(키 없으면 mock), prompt builder v0.
-- **세션 04**: Post-processing Stage 1 (Alpha Sanitation) Python 구현 + 단위 테스트 + 골든 1 아바타 입력 준비.
+- **세션 03**: 물리(`physics.json`) 초판 + mao_pro 벤치마크 12 Setting 매핑 + 물리 파일 스키마 + 검증기 확장.
+- **세션 04**: `motions/` 기본 7 팩 (`idle.default`, `blink.auto`, 립싱크 등) + `test_poses/validation_set.json`.
+- **세션 05**: arm variant A/B · Pose3 mutex · HitArea 바인딩 검증 · avatar-metadata 실제 샘플 1건.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

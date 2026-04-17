@@ -1,0 +1,104 @@
+{
+  "schema_version": "v1",
+  "root_id": "root",
+  "nodes": [
+    {
+      "id": "root",
+      "type": "warp",
+      "parent": null,
+      "params_in": [],
+      "notes": "아바타 루트. overall_x/y/rotate 는 런타임(Web SDK / Cubism Pose) 에서 루트 변환으로 주입."
+    },
+    {
+      "id": "breath_warp",
+      "type": "warp",
+      "parent": "root",
+      "params_in": ["body_breath"],
+      "notes": "호흡 루프. idle.default 의 주 입력."
+    },
+    {
+      "id": "body_pose_warp",
+      "type": "warp",
+      "parent": "breath_warp",
+      "params_in": ["body_angle_x", "body_angle_y", "body_angle_z"],
+      "notes": "상반신 3축 회전."
+    },
+    {
+      "id": "body_visual",
+      "type": "warp",
+      "parent": "body_pose_warp",
+      "params_in": [],
+      "notes": "상반신 파츠 묶음(컨테이너). 자식 파츠: torso, arm_l, arm_r, cloth_main."
+    },
+    {
+      "id": "neck_warp",
+      "type": "warp",
+      "parent": "body_pose_warp",
+      "params_in": [],
+      "notes": "목 컨테이너. 자식 파츠: neck."
+    },
+    {
+      "id": "head_pose_rot",
+      "type": "warp",
+      "parent": "neck_warp",
+      "params_in": ["head_angle_x", "head_angle_y", "head_angle_z"],
+      "notes": "머리 3축 회전. 자식 파츠: face_base, face_shadow, cheek_blush, brow_l, brow_r, nose. CombinedParam (head_angle_x, head_angle_y) 2D 조이스틱 대응."
+    },
+    {
+      "id": "eye_l_warp",
+      "type": "warp",
+      "parent": "head_pose_rot",
+      "params_in": ["eye_open_l", "eye_smile_l", "eye_form_l", "eye_ball_x", "eye_ball_y", "eye_ball_form"],
+      "notes": "캐릭터 왼눈. 자식 파츠: eye_white_l, eye_iris_l, eye_lash_upper_l, eye_lash_lower_l."
+    },
+    {
+      "id": "eye_r_warp",
+      "type": "warp",
+      "parent": "head_pose_rot",
+      "params_in": ["eye_open_r", "eye_smile_r", "eye_form_r", "eye_ball_x", "eye_ball_y", "eye_ball_form"],
+      "notes": "캐릭터 오른눈. eye_ball_x/y/form 은 양 눈 공용."
+    },
+    {
+      "id": "mouth_warp",
+      "type": "warp",
+      "parent": "head_pose_rot",
+      "params_in": ["mouth_vowel_a", "mouth_vowel_i", "mouth_vowel_u", "mouth_vowel_e", "mouth_vowel_o", "mouth_up", "mouth_down"],
+      "notes": "입. 립싱크 5 모음 + 입꼬리 2. 자식 파츠: mouth_base, mouth_inner."
+    },
+    {
+      "id": "hair_front_warp",
+      "type": "warp",
+      "parent": "head_pose_rot",
+      "params_in": ["hair_front_sway"],
+      "notes": "앞머리. 물리 출력(hair_front_sway) 바인딩. 자식 파츠: hair_front."
+    },
+    {
+      "id": "hair_side_warp_l",
+      "type": "warp",
+      "parent": "head_pose_rot",
+      "params_in": ["hair_side_sway_l"],
+      "notes": "캐릭터 왼쪽 옆머리."
+    },
+    {
+      "id": "hair_side_warp_r",
+      "type": "warp",
+      "parent": "head_pose_rot",
+      "params_in": ["hair_side_sway_r"],
+      "notes": "캐릭터 오른쪽 옆머리."
+    },
+    {
+      "id": "accessories_layer",
+      "type": "warp",
+      "parent": "head_pose_rot",
+      "params_in": [],
+      "notes": "머리 움직임을 따라가는 액세서리 레이어(모자, 헤드폰 등). 자식 파츠: accessory_front, accessory_back. v1.0.0 은 단일 컨테이너 — body-level 액세서리는 v1.1.0 에서 분리 검토."
+    },
+    {
+      "id": "hair_back_warp",
+      "type": "warp",
+      "parent": "root",
+      "params_in": ["hair_back_sway"],
+      "notes": "docs/03 §4.2 — 뒷머리는 머리 pose warp 의 자식이 아니다. 별도 물리로 회전 시 지연 효과."
+    }
+  ]
+}

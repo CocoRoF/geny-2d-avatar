@@ -124,7 +124,7 @@
         "line_weight_hint_px": { "type": "number", "minimum": 0 },
         "color_context": {
           "type": "string",
-          "enum": ["skin", "hair", "eye", "cloth_main", "cloth_accent", "accessory", "metal", "glass", "fx"],
+          "enum": ["skin", "hair", "eye", "mouth", "shadow", "cloth_main", "cloth_accent", "accessory", "metal", "glass", "fx"],
           "description": "docs/04 §5 색 문맥 그룹."
         }
       }
