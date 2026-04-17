@@ -134,6 +134,35 @@ export interface MotionPackDoc {
   user_data?: MotionUserDataEntry[];
 }
 
+export interface ParameterGroupDoc {
+  id: string;
+  display_name: { en: string; ko?: string; ja?: string };
+}
+
+export interface ParameterDoc {
+  id: string;
+  display_name: { en: string; ko?: string; ja?: string };
+  unit?: string;
+  range: [number, number];
+  default: number;
+  required?: boolean;
+  group: string;
+  channel?: string;
+  /** Cubism parameter ID (`ParamAngleX`). Inline override; manifest.cubism_mapping 이 fallback. */
+  cubism?: string;
+  physics_input?: boolean;
+  physics_output?: boolean;
+  notes?: string;
+}
+
+export interface ParametersDoc {
+  schema_version: string;
+  groups: ParameterGroupDoc[];
+  /** `[[axisH_id, axisV_id], ...]` — cdi3 CombinedParameters 의 원본. */
+  combined_axes: string[][];
+  parameters: ParameterDoc[];
+}
+
 export interface Template {
   dir: string;
   manifest: TemplateManifest;
@@ -143,11 +172,12 @@ export interface Template {
   physics: PhysicsDoc | null;
   /** pack_id → MotionPackDoc. */
   motions: Record<string, MotionPackDoc>;
+  parameters: ParametersDoc | null;
 }
 
 /**
  * 리그 템플릿 디렉터리를 읽어 메모리 표현으로 변환.
- * v0.0.1: manifest + pose + parts 만 로드. parameters/deformers/physics/motions 는 세션 08b+.
+ * v0.2.0: manifest + pose + parts + physics + motions + parameters 로드 (세션 09 확장).
  */
 export function loadTemplate(dir: string): Template {
   const manifestPath = join(dir, "template.manifest.json");
@@ -190,7 +220,11 @@ export function loadTemplate(dir: string): Template {
     }
   }
 
-  return { dir, manifest, pose, partsById, physics, motions };
+  const paramsRel = (manifest.parameters_file as string | undefined) ?? "parameters.json";
+  const paramsPath = join(dir, paramsRel);
+  const parameters = existsSync(paramsPath) ? readJson<ParametersDoc>(paramsPath) : null;
+
+  return { dir, manifest, pose, partsById, physics, motions, parameters };
 }
 
 function readJson<T>(path: string): T {

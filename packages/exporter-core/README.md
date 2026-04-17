@@ -10,14 +10,16 @@
 - `progress/adr/0003` — 리그 템플릿 버저닝
 - `progress/adr/0004` — 참조형 아바타
 
-## 범위 (v0.1.0 = 세션 08b)
+## 범위 (v0.2.0 = 세션 09)
 
 - [x] `canonicalJson()` — 공용 직렬화 유틸 (세션 08a)
-- [x] `loadTemplate(dir)` — 리그 템플릿 로더 (pose + parts + physics + motions 로드, 세션 08a→08b)
+- [x] `loadTemplate(dir)` — 리그 템플릿 로더 (pose + parts + physics + motions + parameters 로드, 세션 08a→09)
 - [x] `pose3` 변환기 (세션 08a)
 - [x] `physics3` 변환기 (세션 08b — mao_pro 9 Setting 호환)
 - [x] `motion3` 변환기 (세션 08b — 파라미터 타깃 전용, segment 1:1 이식)
-- [ ] `cdi3` + `model3` 변환기 (세션 09)
+- [x] `cdi3` 변환기 (세션 09 — Parameters/ParameterGroups/Parts/CombinedParameters)
+- [x] `model3` 변환기 (세션 09 — FileReferences/Groups/HitAreas, Moc/Textures placeholder)
+- [x] `assembleBundle()` — 5 개 Cubism JSON + motions/ 를 번들 디렉터리에 기록, 결정론적 파일 목록 반환 (세션 09)
 - [ ] `.moc3` 바이너리 — Live2D 라이선스 SDK 필요, 범위 밖
 
 ## 사용
@@ -51,12 +53,25 @@ node packages/exporter-core/dist/cli.js motion \
   --template rig-templates/base/halfbody/v1.2.0 \
   --pack idle.default \
   --out out/halfbody_v1.2.0__idle_default.motion3.json
+
+node packages/exporter-core/dist/cli.js cdi \
+  --template rig-templates/base/halfbody/v1.2.0 \
+  --out out/halfbody_v1.2.0.cdi3.json
+
+node packages/exporter-core/dist/cli.js model \
+  --template rig-templates/base/halfbody/v1.2.0 \
+  --out out/halfbody_v1.2.0.model3.json
+
+node packages/exporter-core/dist/cli.js bundle \
+  --template rig-templates/base/halfbody/v1.2.0 \
+  --out-dir out/halfbody_v1.2.0_bundle
+# stdout 은 번들 snapshot JSON (파일 목록 + sha256)
 ```
 
 또는 `bin` 심볼릭:
 
 ```bash
-exporter-core <pose|physics|motion> --template <dir> [--pack <id>] --out <file>
+exporter-core <pose|physics|motion|cdi|model|bundle> --template <dir> [...] { --out <file> | --out-dir <dir> }
 ```
 
 ## 개발

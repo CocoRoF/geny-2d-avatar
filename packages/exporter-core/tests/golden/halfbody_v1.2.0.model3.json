@@ -1,0 +1,88 @@
+{
+  "FileReferences": {
+    "DisplayInfo": "avatar.cdi3.json",
+    "Moc": "avatar.moc3",
+    "Motions": {
+      "Blink": [
+        {
+          "FadeInTime": 0.05,
+          "FadeOutTime": 0.05,
+          "File": "motions/blink_auto.motion3.json"
+        }
+      ],
+      "Greet": [
+        {
+          "FadeInTime": 0.3,
+          "FadeOutTime": 0.3,
+          "File": "motions/greet_wave.motion3.json"
+        }
+      ],
+      "Idle": [
+        {
+          "FadeInTime": 1,
+          "FadeOutTime": 1,
+          "File": "motions/idle_default.motion3.json"
+        },
+        {
+          "FadeInTime": 1.5,
+          "FadeOutTime": 1.5,
+          "File": "motions/idle_sleepy.motion3.json"
+        }
+      ],
+      "Lipsync": [
+        {
+          "FadeInTime": 0.1,
+          "FadeOutTime": 0.1,
+          "File": "motions/lipsync_mock.motion3.json"
+        }
+      ],
+      "Nod": [
+        {
+          "FadeInTime": 0.1,
+          "FadeOutTime": 0.1,
+          "File": "motions/nod_yes.motion3.json"
+        }
+      ],
+      "Shake": [
+        {
+          "FadeInTime": 0.1,
+          "FadeOutTime": 0.1,
+          "File": "motions/shake_no.motion3.json"
+        }
+      ]
+    },
+    "Physics": "avatar.physics3.json",
+    "Pose": "avatar.pose3.json",
+    "Textures": [
+      "textures/texture_00.png"
+    ]
+  },
+  "Groups": [
+    {
+      "Ids": [
+        "ParamEyeLOpen",
+        "ParamEyeROpen"
+      ],
+      "Name": "EyeBlink",
+      "Target": "Parameter"
+    },
+    {
+      "Ids": [
+        "ParamA"
+      ],
+      "Name": "LipSync",
+      "Target": "Parameter"
+    }
+  ],
+  "HitAreas": [
+    {
+      "Id": "HitAreaHead",
+      "Name": "Head"
+    },
+    {
+      "Id": "HitAreaBody",
+      "Name": "Body"
+    }
+  ],
+  "Version": 3
+}
