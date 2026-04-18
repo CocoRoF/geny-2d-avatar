@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "accessory_back",
+  "role": "accessory_back",
+  "required": false,
+  "template": "tpl.base.v1.halfbody",
+  "template_version": "^1",
+  "deformation_parent": "accessory_back_warp",
+  "category": "accessory",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 256, "y": 112, "w": 1536, "h": 1936 },
+  "anchor": {
+    "type": "bbox_center",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "alpha_bbox_center_v1"
+  },
+  "z_order": 15,
+  "visual": {
+    "alpha_edge_policy": "feather_1px",
+    "line_weight_hint_px": 2.0,
+    "color_context": "accessory"
+  },
+  "generation": {
+    "prompt_scope": ["accessory_type", "accessory_color", "accessory_material"],
+    "negative_prompt": ["face", "hair", "background", "text", "watermark"],
+    "reference_mask": "masks/accessory_back_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": [],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.01,
+    "max_alpha_area_frac": 0.70
+  },
+  "cubism_part_id": "PartAccessoryBack",
+  "notes": "hair_back 과 torso 사이. 배낭/망토/리본 꼬리 등."
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "cloth_main",
+  "role": "cloth_main",
+  "required": true,
+  "template": "tpl.base.v1.halfbody",
+  "template_version": "^1",
+  "deformation_parent": "cloth_warp",
+  "category": "cloth",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 256, "y": 1344, "w": 1536, "h": 704 },
+  "anchor": {
+    "type": "neck_top_center",
+    "x_frac": 0.5,
+    "y_frac": 0.08,
+    "detect_method": "keypoint_model_body_v1"
+  },
+  "z_order": 30,
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.5,
+    "color_context": "cloth_main"
+  },
+  "generation": {
+    "prompt_scope": ["cloth_style", "cloth_color", "cloth_pattern", "neckline"],
+    "negative_prompt": ["face", "skin", "hair", "background", "text", "watermark"],
+    "reference_mask": "masks/cloth_main_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["torso"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.25,
+    "max_alpha_area_frac": 0.90
+  },
+  "cubism_part_id": "PartClothMain",
+  "notes": "상반신 주요 의상. cloth_warp(params_in=cloth_main_fuwa) 하위. body_breath 에 의한 볼륨 팽창 연출 가능. 하위 의상(cloth_outer 등) 은 파생 템플릿에서."
+}

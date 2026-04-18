@@ -229,8 +229,8 @@ mao_pro 의 `physics3.json` 은 **16개 PhysicsSetting, 43 입력 / 20 출력 / 
 |---|---|---|---|
 | v1.0.0 / v1.1.0 | 3 | 머리 sway(front / side 공유 / back) | Fuwa, cloth, ahoge, accessory, body_breath_phys |
 | **v1.2.0 (세션 07)** | **9** | 머리 sway 4(side L/R 분리) + Fuwa 5(hair 4 + cloth_main) | ahoge_sway, accessory_sway, body_breath_phys |
-| **v1.3.0 migrator (세션 27)** | 9 → **12 목표** | 자동 parameters/cubism_mapping 확장 (`ahoge_sway`, `accessory_back_sway`, `accessory_front_sway`) | 실 PhysicsSetting 저작 + `ahoge.spec.json` + deformers — `MIGRATION_REPORT.md` TODO |
-| 12 목표 | 12 | 위 3종 추가 | — |
+| v1.3.0 migrator (세션 27) | 9 → 12 목표 | 자동 parameters/cubism_mapping 확장 (`ahoge_sway`, `accessory_back_sway`, `accessory_front_sway`) | 실 PhysicsSetting 저작 + `ahoge.spec.json` + deformers — `MIGRATION_REPORT.md` TODO |
+| **v1.3.0 authored (세션 31)** | **12** ✅ | + `ahoge_sway_phys` / `accessory_sway_phys`(출력 2 공유) / `body_breath_phys`. `ahoge` 파츠 + `ahoge_warp` + `accessory_{back,front}_warp` 분기 + `body_breath_phys` 파라미터 추가 | — (mao_pro 12/12 달성) |
 
 ### 6.3 립싱크 표준
 

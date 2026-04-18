@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "accessory_front",
+  "role": "accessory_front",
+  "required": false,
+  "template": "tpl.base.v1.halfbody",
+  "template_version": "^1",
+  "deformation_parent": "accessory_front_warp",
+  "category": "accessory",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 256, "y": 112, "w": 1536, "h": 1936 },
+  "anchor": {
+    "type": "bbox_center",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "alpha_bbox_center_v1"
+  },
+  "z_order": 95,
+  "visual": {
+    "alpha_edge_policy": "feather_1px",
+    "line_weight_hint_px": 2.0,
+    "color_context": "accessory"
+  },
+  "generation": {
+    "prompt_scope": ["accessory_type", "accessory_color", "accessory_material"],
+    "negative_prompt": ["face", "hair", "background", "text", "watermark"],
+    "reference_mask": "masks/accessory_front_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": [],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.01,
+    "max_alpha_area_frac": 0.70
+  },
+  "cubism_part_id": "PartAccessoryFront",
+  "notes": "모자/헤드폰/초커 등 상위 오버레이. 서브타입(headwear/neckwear/glasses…) 은 generation.prompt_scope 로 구분."
+}
