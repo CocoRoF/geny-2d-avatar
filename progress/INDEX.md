@@ -27,7 +27,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 - [ ] 단일 아바타 생성 → 프리뷰 → Cubism export 수동 테스트 성공
 - [x] CI 에서 골든 1 아바타 회귀 자동 (세션 10, `.github/workflows/ci.yml` + `pnpm run test:golden`)
 - [ ] 관측 대시보드 3종 기본 동작
-- [ ] 개발자 온보딩 1일
+- [x] 개발자 온보딩 1일 (세션 16 — 루트 README quickstart·9 CLI 표·troubleshooting 7종·scripts/Taskfile 갱신)
 
 ---
 
@@ -71,6 +71,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 13b | 2026-04-18 | CI Node 20.11 → 22.11 pin bump (`.github/workflows/*.yml`, `.nvmrc`, engines) — `node --test` positional glob 미지원으로 세션 12/13 commits 에서 테스트 단계 실패 → 해결 (commit `f331022`) | 완료 | [링크](./sessions/2026-04-18-session-13b-ci-node22.md) |
 | 14 | 2026-04-18 | `schema/v1/license.schema.json` (+ `provenance.schema.json`) — docs/11 §9 계약 (bundle_manifest_sha256 로 번들 결합, Ed25519 signer_key_id + signature) + `scripts/sign-fixture.mjs` (RFC 8032 Test 1 서명 헬퍼) + aria `.license.json` · `.provenance.json` 샘플 + validate-schemas 에 sha 교차확인 · 서명 검증 내장 (checked 130) | 완료 | [링크](./sessions/2026-04-18-session-14-license-provenance.md) |
 | 15 | 2026-04-18 | Web Avatar 번들 stage 1 — `schema/v1/web-avatar.schema.json` + bundle-manifest kind 확장(+`web-avatar-bundle`) + `@geny/exporter-core` v0.6.0 (`convertWebAvatar` + `assembleWebAvatarBundle` + CLI `web-avatar`) + halfbody v1.2.0 web-avatar golden 2종 + `packages/web-avatar/` 스켈레톤 + `test:golden` step 5 (88 tests pass, checked 131) | 완료 | [링크](./sessions/2026-04-18-session-15-web-avatar.md) |
+| 16 | 2026-04-18 | 개발자 온보딩 1일 (Foundation Exit #4) — 루트 `README.md` 9 섹션 (prereqs, 5분 quickstart, 레포 구조, 9 CLI 표, 샘플 서명 검증, 마이그레이션, CI, troubleshooting 7종) + `scripts/README.md` 4 엔트리 + `Taskfile.yml` `test:golden` task 추가 | 완료 | [링크](./sessions/2026-04-18-session-16-onboarding.md) |
 
 ---
 
@@ -120,8 +121,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 16**: 개발자 온보딩 1일 달성 (Foundation Exit #4) — 루트 README·quickstart·troubleshooting. license 인지 + web-avatar CLI 사용 예 포함.
 - **세션 17**: 관측 대시보드 3종 (Foundation Exit #3) — Prometheus/Grafana 뼈대. 또는 발급자 공개키 레지스트리 + license.verify 엔드포인트.
 - **세션 18**: Web Avatar stage 2 — 텍스처 PNG/WebP 번들 + atlas 메타. 실제 런타임 `<geny-avatar>` 스켈레톤 시작.
+- **세션 19**: Foundation Exit #1 (단일 아바타 생성→프리뷰→export 수동 테스트) — 최소 web UI 스켈레톤 or CLI-only 워크플로 문서화.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

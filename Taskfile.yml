@@ -19,6 +19,11 @@ tasks:
     cmds:
       - node scripts/validate-schemas.mjs --include-rig-templates
 
+  test:golden:
+    desc: 골든 5-step 회귀 러너 (schemas → exporter-core tests → bundle/avatar/web-avatar CLI diff)
+    cmds:
+      - node scripts/test-golden.mjs
+
   install:
     desc: 루트 dev 의존성 설치 (스키마 검증 등에 필요)
     cmds:
@@ -26,4 +31,4 @@ tasks:
 
   check:
     desc: 스키마 + 린트 등 전역 체크 (세션 진행에 따라 확장)
-    deps: [validate:schemas]
+    deps: [validate:schemas, test:golden]
