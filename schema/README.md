@@ -26,6 +26,7 @@ schema/
 │   ├── provenance.schema.json          # docs/11 §9.2 — 파츠 계보 + 후처리 이력 (세션 14)
 │   ├── web-avatar.schema.json          # docs/11 §4.5 — `@geny/web-avatar` 런타임 전용 경량 번들 메타 (세션 15; 세션 18 stage 2 — textures[].{width,height,bytes,sha256} + atlas 필드 확정)
 │   ├── atlas.schema.json               # docs/11 §4.5 — 텍스처 UV/치수 매핑 (세션 18 stage 2)
+│   ├── signer-registry.schema.json     # docs/11 §9.3 — 발급자 공개키 레지스트리 (세션 21, `@geny/license-verifier` 소비)
 │   ├── style-profile.schema.json       # docs/10 §3 (미작성)
 │   ├── export-job.schema.json          # docs/12 §4.9 (미작성)
 │   └── common/

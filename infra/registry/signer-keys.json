@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "registry_version": "2026.04.18",
+  "keys": [
+    {
+      "key_id": "geny.fixture.rfc8032-test1",
+      "algorithm": "ed25519",
+      "public_key": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+      "status": "active",
+      "trust_scope": "fixture",
+      "not_before": "2026-04-01T00:00:00Z",
+      "not_after": null,
+      "issuer": "Geny Platform (test fixtures)",
+      "note": "RFC 8032 §7.1 Test 1 공개 벡터. 저장소 내 샘플 서명 전용. production verify 는 이 키를 기본 거절."
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/signer-registry.schema.json",
+  "title": "Signer Registry",
+  "description": "발급자 공개키 레지스트리 (세션 14 blocker — docs/11 §9.3 `license.verify`). 각 `signer_key_id` → Ed25519 공개키(hex) + 상태 + 유효 기간 매핑. license.json / provenance.json 의 `signer_key_id` 를 이 레지스트리로 조회해 검증. 키 로테이션을 위해 복수 활성 키 허용.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_version", "keys"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "registry_version": {
+      "type": "string",
+      "pattern": "^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}$",
+      "description": "레지스트리 스냅샷 버전 YYYY.MM.DD. 편집 시마다 증가."
+    },
+    "keys": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/key" }
+    }
+  },
+  "$defs": {
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key_id", "algorithm", "public_key", "status", "trust_scope", "not_before"],
+      "properties": {
+        "key_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9._-]{2,62}$",
+          "description": "license.signer_key_id 와 매칭. 예: geny.platform.2026-04, geny.fixture.rfc8032-test1."
+        },
+        "algorithm": {
+          "type": "string",
+          "enum": ["ed25519"],
+          "description": "현 Foundation 에서는 ed25519 만 지원. ed448/rsa-pss 는 별도 ADR 후 확장."
+        },
+        "public_key": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Ed25519 raw 공개키 32 bytes 를 hex 로 인코딩 (64 자)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "retired", "revoked"],
+          "description": "active = 현재 서명 가능 + 검증 통과. retired = 신규 서명 불가, 기존 서명은 검증 통과 (만료까지). revoked = 전부 거절 (key compromise)."
+        },
+        "trust_scope": {
+          "type": "string",
+          "enum": ["production", "fixture"],
+          "description": "production = 실 라이선스 검증 허용. fixture = 테스트 전용 (RFC 8032 Test 1 등). 프로덕션 verify 는 fixture 키를 기본 거절."
+        },
+        "not_before": {
+          "type": "string",
+          "format": "date-time",
+          "description": "이 키로 서명된 문서가 허용되는 최초 시각 (RFC3339)."
+        },
+        "not_after": {
+          "oneOf": [
+            { "type": "string", "format": "date-time" },
+            { "type": "null" }
+          ],
+          "description": "이 키로 서명된 문서가 허용되는 마지막 시각. null = 무기한 (단 status=retired/revoked 는 별도 효과)."
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "키 소유자 / 발급 주체 (사람 가독 식별자)."
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "주석. 감사 추적용."
+        }
+      }
+    }
+  }
+}

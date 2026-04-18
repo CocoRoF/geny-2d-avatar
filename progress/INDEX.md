@@ -41,8 +41,8 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **AI Generation** | nano-banana 어댑터 | ⚪ 미착수 |
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
-| **Platform / Infra** | K8s + CI/CD + 관측 | 🟡 CI (세션 10/13b/20 — `test:golden` 6 step: schemas + exporter-core tests + bundle/avatar/web-avatar golden diff + web-preview e2e) + 관측 선언 config (세션 17 — `infra/observability/` 메트릭 카탈로그 32개 · Prometheus scrape · 3 알람 · Grafana 3 대시보드). K8s/Helm 미착수 |
-| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 17종 (web-avatar + atlas) + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + CI 자동 검증 (세션 01–05, 11–15, 18), DB/S3 미착수 |
+| **Platform / Infra** | K8s + CI/CD + 관측 | 🟡 CI (세션 10/13b/20/21 — `test:golden` 7 step: schemas + exporter-core tests + bundle/avatar/web-avatar golden diff + web-preview e2e + license-verifier tests) + 관측 선언 config (세션 17 — `infra/observability/` 메트릭 카탈로그 32개 · Prometheus scrape · 3 알람 · Grafana 3 대시보드) + 공개키 레지스트리 (세션 21 — `infra/registry/signer-keys.json`). K8s/Helm 미착수 |
+| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 18종 (+signer-registry) + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + 레지스트리 기반 verify (세션 21 `@geny/license-verifier`) + CI 자동 검증 (세션 01–05, 11–15, 18, 21), DB/S3 미착수 |
 | **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.6.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + `assembleWebAvatarBundle()` stage 2 (텍스처 PNG/WebP + atlas.json emit) + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 13종 (Cubism 11 + web-avatar 1 + atlas 1) + aria 번들 golden + CLI 9 subcommand (세션 08–15, 18). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) |
 | **Frontend** | 에디터 기본 레이아웃 | 🟡 `@geny/web-avatar` v0.1.0 — `<geny-avatar>` Custom Element 스켈레톤 + `loadWebAvatarBundle()` (bundle.json → web-avatar.json → atlas.json) + `ready/error` 이벤트 (세션 18). `apps/web-preview/` Foundation E2E 드라이버 + 자동 E2E (세션 19/20 — `e2e-check.mjs` HTTP + loader 체인 CI 회귀). 렌더링/제어 API 는 Stage 3+ |
 
@@ -76,6 +76,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 18 | 2026-04-18 | Web Avatar stage 2 + `<geny-avatar>` 런타임 스켈레톤 — `schema/v1/atlas.schema.json` 신설 + `web-avatar.schema.json` (textures 치수/sha256 필수 + atlas 필드) + `@geny/exporter-core` loader 텍스처 스캐너 (PNG IHDR/WebP VP8) + `assembleWebAvatarBundle` stage 2 (PNG byte-copy + atlas.json emit) + halfbody v1.2.0 textures/base.png (4×4) + atlas golden + `@geny/web-avatar` v0.1.0 (loader + Custom Element + `ready`/`error`) (93 tests pass, checked 133) | 완료 | [링크](./sessions/2026-04-18-session-18-web-avatar-stage2.md) |
 | 19 | 2026-04-18 | Foundation Exit #1 드라이버 — `apps/web-preview/` 신설 (`index.html` `<geny-avatar>` + metadata 패널 3종 + `scripts/prepare.mjs` 번들 2종 생성 (web-avatar halfbody + Cubism aria) + `scripts/serve.mjs` Node 내장 http 정적 서버) + `progress/exit-gates/01-single-avatar-e2e.md` 수동 E2E 체크리스트 5 단계 (A~E). 의존성 zero — 브라우저 스냅샷은 수동. | 완료 | [링크](./sessions/2026-04-18-session-19-web-preview.md) |
 | 20 | 2026-04-18 | web-preview 자동 E2E — `apps/web-preview/scripts/e2e-check.mjs` (prepare + 임시 포트 serve + HTTP 6종 + `loadWebAvatarBundle` 체인 검증 manifest/meta/atlas) + `pnpm --filter @geny/web-preview run test` + `scripts/test-golden.mjs` step 6 추가 + Exit #1 체크리스트 D 단계 자동/시각 분할. Playwright 회피 — `node:http` + `fetch` + dynamic import. | 완료 | [링크](./sessions/2026-04-18-session-20-web-preview-e2e.md) |
+| 21 | 2026-04-18 | 발급자 공개키 레지스트리 + `license.verify` ref impl (세션 14 blocker 해소) — `schema/v1/signer-registry.schema.json` 신설 + `infra/registry/signer-keys.json` (RFC 8032 Test 1 fixture key) + `@geny/license-verifier` v0.1.0 (`SignerRegistry`/`verifyLicense`/`verifyProvenance`/`verifySignedDocument` + CLI `license-verifier verify`) + 18 tests (registry 파서 + happy/tamper/expiry/scope/bundle-sha/round-trip) + `validate-schemas.mjs` 레지스트리 cross-check (checked=134) + `test-golden.mjs` step 7. | 완료 | [링크](./sessions/2026-04-18-session-21-license-verifier.md) |
 
 ---
 
@@ -102,7 +103,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
-- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 14 fixture (halfbody Cubism 11 + aria 번들 1 + halfbody web-avatar 2) + 번들 루트 `bundle.json` 해시 감사 (세션 13) + `pnpm run test:golden` 6 step CI (세션 08/08b/09/10/11/12/13/15/20 — step 6 = web-preview e2e)
+- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 14 fixture (halfbody Cubism 11 + aria 번들 1 + halfbody web-avatar 2) + 번들 루트 `bundle.json` 해시 감사 (세션 13) + `pnpm run test:golden` 7 step CI (세션 08/08b/09/10/11/12/13/15/20/21 — step 6 = web-preview e2e, step 7 = license-verifier tests)
 - [ ] 성능 SLO 초과 없음 — 측정 인프라 부재
 - [ ] 보안 스캔 P0/P1 0건 — Gitleaks/Trivy 아직 미구축
 - [ ] 문서 업데이트 — 세션별로 관리
@@ -125,8 +126,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 21**: 발급자 공개키 레지스트리 + `license.verify` 엔드포인트 (세션 14 blocker 해소) 혹은 AI 생성 어댑터 (nano-banana) skeleton 혹은 Observability Helm chart 배포 (Exit #3 완결).
-- **세션 22**: rig 확장 (v1.3 body 파츠) 혹은 Post-Processing Stage 1 (alpha cleanup) skeleton — Foundation exit 이후 Production 준비.
+- **세션 22**: AI 생성 어댑터 (nano-banana) skeleton — provenance 의 `ai_generated` 경로를 실제 호출 가능한 어댑터 계약까지. 혹은 Observability Helm chart 배포 (Exit #3 완결).
 - **세션 23**: happy-dom/jsdom 기반 `<geny-avatar>` DOM lifecycle 테스트 (`ready` 이벤트 payload 스냅샷) — Exit #1 체크리스트의 마지막 "실 DOM" 공백 메우기.
+- **세션 24**: rig 확장 (v1.3 body 파츠) 혹은 Post-Processing Stage 1 (alpha cleanup) skeleton — Foundation exit 이후 Production 준비.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

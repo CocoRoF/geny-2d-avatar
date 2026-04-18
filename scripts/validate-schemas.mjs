@@ -42,6 +42,7 @@ const SCHEMA_ID = {
   atlas: "https://geny.ai/schema/v1/atlas.schema.json",
   testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
   pose: "https://geny.ai/schema/v1/pose.schema.json",
+  signerRegistry: "https://geny.ai/schema/v1/signer-registry.schema.json",
 };
 
 // ——— Utilities ———
@@ -117,6 +118,7 @@ async function main() {
     atlas: ajv.getSchema(SCHEMA_ID.atlas),
     testPoses: ajv.getSchema(SCHEMA_ID.testPoses),
     pose: ajv.getSchema(SCHEMA_ID.pose),
+    signerRegistry: ajv.getSchema(SCHEMA_ID.signerRegistry),
   };
   for (const [name, v] of Object.entries(validators)) {
     if (!v) throw new Error(`Could not compile validator for ${name} (id=${SCHEMA_ID[name]})`);
@@ -952,6 +954,45 @@ async function main() {
     }
   }
   await validateAtlasDocs();
+
+  // 6. Validate signer registry (세션 21).
+  async function validateSignerRegistry() {
+    const registryPath = join(REPO_ROOT, "infra", "registry", "signer-keys.json");
+    try {
+      const doc = await readJson(registryPath);
+      checked += 1;
+      if (!validators.signerRegistry(doc)) {
+        failed += 1;
+        console.error(`[registry] INVALID ${relative(REPO_ROOT, registryPath)}`);
+        console.error(fmtErrors(validators.signerRegistry.errors, relative(REPO_ROOT, registryPath)));
+      } else {
+        // Cross-check: sample documents must only reference key_ids present in the registry.
+        const registryKeyIds = new Set(doc.keys.map((k) => k.key_id));
+        const avatarsDir = join(REPO_ROOT, "samples", "avatars");
+        let files = [];
+        try {
+          files = await readdir(avatarsDir);
+        } catch (err) {
+          if (err.code !== "ENOENT") throw err;
+        }
+        for (const entry of files) {
+          if (!entry.endsWith(".license.json") && !entry.endsWith(".provenance.json")) continue;
+          const docPath = join(avatarsDir, entry);
+          const signed = await readJson(docPath);
+          if (signed.signer_key_id && !registryKeyIds.has(signed.signer_key_id)) {
+            failed += 1;
+            console.error(
+              `[registry] ${relative(REPO_ROOT, docPath)} signer_key_id '${signed.signer_key_id}' not in registry`,
+            );
+          }
+        }
+      }
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      console.log(`[registry] no signer registry at ${relative(REPO_ROOT, registryPath)} — skipping`);
+    }
+  }
+  await validateSignerRegistry();
 
   // 5. Summary
   console.log("");
