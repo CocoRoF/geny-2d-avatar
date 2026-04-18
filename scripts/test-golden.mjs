@@ -20,6 +20,8 @@
 // 11) infra/helm/observability — chart configs sync + 구조 검증 (Chart.yaml / values / templates / `.Files.Get` 참조). 세션 24.
 // 12) @geny/ai-adapters-fallback tests — SDXL(edit/style_ref) + Flux-Fill(mask) skeleton 의 capability 매트릭스 + AdapterRegistry
 //     통합 폴백 순서(nano-banana → sdxl → flux-fill) 회귀 (세션 25).
+// 13) @geny/post-processing tests — docs/06 §4 Stage 1 alpha sanitation (premult 라운드트립 + noise threshold +
+//     tight bbox + 파이프라인 결과 sha256 golden) (세션 26).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -44,6 +46,7 @@ const STEPS = [
   { name: "web-avatar dom lifecycle", run: runWebAvatarDomTests },
   { name: "observability chart verify", run: runObservabilityChartVerify },
   { name: "ai-adapters-fallback tests", run: runAIAdaptersFallbackTests },
+  { name: "post-processing tests", run: runPostProcessingTests },
 ];
 
 const failed = [];
@@ -253,6 +256,11 @@ async function runAIAdaptersFallbackTests() {
   // nano-banana 는 router integration test 에서 dist/ import.
   await run("pnpm", ["-F", "@geny/ai-adapter-nano-banana", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/ai-adapters-fallback", "test"], { cwd: repoRoot });
+}
+
+async function runPostProcessingTests() {
+  // docs/06 §4 Stage 1 alpha sanitation skeleton (세션 26).
+  await run("pnpm", ["-F", "@geny/post-processing", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------
