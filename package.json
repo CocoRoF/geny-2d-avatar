@@ -5,7 +5,7 @@
   "description": "표준화된 2D 리그 위에 AI가 재설계한 파츠를 얹어 캐릭터를 찍어내는 반자동 생산·커스터마이징·배포 플랫폼",
   "packageManager": "pnpm@9.12.0",
   "engines": {
-    "node": ">=20.11.0"
+    "node": ">=22.11.0"
   },
   "scripts": {
     "validate:schemas": "node scripts/validate-schemas.mjs",

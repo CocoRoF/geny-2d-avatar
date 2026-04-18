@@ -5,7 +5,7 @@
   "description": "결정론적(deterministic) Cubism 번들 변환 라이브러리 — 내부 리그 템플릿·아바타 → pose3/physics3/motion3/cdi3/model3.json",
   "type": "module",
   "engines": {
-    "node": ">=20.11.0"
+    "node": ">=22.11.0"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
