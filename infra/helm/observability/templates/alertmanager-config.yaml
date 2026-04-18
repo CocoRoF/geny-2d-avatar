@@ -1,0 +1,49 @@
+{{- if .Values.alertmanager.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "geny-observability.alertmanagerFullname" . }}-config
+  labels:
+    {{- include "geny-observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+data:
+  # Canonical routing rule set — docs/02 §9.3.
+  # P1 severity → pagerduty, P2 severity → slack. 미지정 severity 는 slack 기본.
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+
+    route:
+      receiver: slack-oncall
+      group_by: ["alertname", "severity"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - matchers:
+            - severity = "P1"
+          receiver: pagerduty-p1
+          continue: false
+        - matchers:
+            - severity = "P2"
+          receiver: slack-oncall
+          continue: false
+
+    receivers:
+      - name: pagerduty-p1
+        pagerduty_configs:
+          - service_key: {{ .Values.alertmanager.receivers.pagerduty.serviceKey | quote }}
+            description: "{{`{{ .CommonLabels.alertname }}`}} ({{`{{ .CommonLabels.severity }}`}})"
+      - name: slack-oncall
+        slack_configs:
+          - api_url: {{ .Values.alertmanager.receivers.slack.apiUrl | quote }}
+            channel: {{ .Values.alertmanager.receivers.slack.channel | quote }}
+            send_resolved: true
+            title: "{{`[{{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }}`}}"
+            text: "{{`{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}`}}"
+
+    inhibit_rules:
+      - source_matchers: [severity = "P1"]
+        target_matchers: [severity = "P2"]
+        equal: [alertname, cluster]
+{{- end }}

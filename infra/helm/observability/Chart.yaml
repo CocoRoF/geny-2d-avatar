@@ -1,0 +1,22 @@
+apiVersion: v2
+name: geny-observability
+description: |
+  Geny 2D Avatar 플랫폼의 관측성 스택 umbrella chart — Prometheus + Alertmanager + Grafana
+  셋을 단일 Helm release 로 배포한다. `infra/observability/` 의 scrape config / alert rule /
+  Grafana dashboard 는 `configs/` 하위에 sync 된 사본을 두고, ConfigMap 으로 포드에 마운트한다.
+
+  canonical 은 언제나 `infra/observability/` — `scripts/sync-observability-chart.mjs` 가
+  동기를 강제하고 `scripts/verify-observability-chart.mjs` 가 CI 에서 drift 검출.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - observability
+  - prometheus
+  - grafana
+  - alertmanager
+  - geny
+sources:
+  - https://github.com/CocoRoF/geny-2d-avatar
+maintainers:
+  - name: Geny Platform

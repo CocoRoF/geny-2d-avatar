@@ -1,0 +1,69 @@
+{{- if .Values.grafana.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "geny-observability.grafanaFullname" . }}-datasources
+  labels:
+    {{- include "geny-observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  # Grafana provisioning — 클러스터 내 Prometheus 서비스를 단일 데이터소스로.
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        uid: geny-prometheus
+        url: http://{{ include "geny-observability.prometheusFullname" . }}:{{ .Values.prometheus.service.port }}
+        isDefault: true
+        editable: false
+        jsonData:
+          timeInterval: 15s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "geny-observability.grafanaFullname" . }}-dashboards-provider
+  labels:
+    {{- include "geny-observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: geny-foundation
+        orgId: 1
+        folder: Geny
+        type: file
+        disableDeletion: true
+        updateIntervalSeconds: 30
+        allowUiUpdates: false
+        options:
+          path: /var/lib/grafana/dashboards/geny
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "geny-observability.grafanaFullname" . }}-dashboards
+  labels:
+    {{- include "geny-observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+{{- range $path, $_ := .Files.Glob "configs/dashboards/*.json" }}
+  {{ base $path }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "geny-observability.grafanaFullname" . }}-admin
+  labels:
+    {{- include "geny-observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+type: Opaque
+stringData:
+  admin-user: {{ .Values.grafana.adminUser | quote }}
+  admin-password: {{ .Values.grafana.adminPassword | quote }}
+{{- end }}

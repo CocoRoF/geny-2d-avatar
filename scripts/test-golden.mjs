@@ -17,6 +17,7 @@
 //  9) @geny/ai-adapter-nano-banana tests — capability matrix + BUDGET/CAPABILITY/DEADLINE/INVALID_OUTPUT 에러 매핑
 //     + adapter → provenance → license-verifier round-trip (세션 22).
 // 10) @geny/web-avatar tests — happy-dom 기반 `<geny-avatar>` DOM lifecycle 회귀 + loader 단위 테스트 (세션 23).
+// 11) infra/helm/observability — chart configs sync + 구조 검증 (Chart.yaml / values / templates / `.Files.Get` 참조). 세션 24.
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -39,6 +40,7 @@ const STEPS = [
   { name: "ai-adapter-core tests", run: runAIAdapterCoreTests },
   { name: "ai-adapter-nano-banana tests", run: runAIAdapterNanoBananaTests },
   { name: "web-avatar dom lifecycle", run: runWebAvatarDomTests },
+  { name: "observability chart verify", run: runObservabilityChartVerify },
 ];
 
 const failed = [];
@@ -236,6 +238,11 @@ async function runAIAdapterNanoBananaTests() {
 async function runWebAvatarDomTests() {
   // loader + happy-dom 기반 `<geny-avatar>` DOM lifecycle (세션 23).
   await run("pnpm", ["-F", "@geny/web-avatar", "test"], { cwd: repoRoot });
+}
+
+async function runObservabilityChartVerify() {
+  // infra/helm/observability chart 구조 + canonical sync (세션 24).
+  await run("node", ["scripts/verify-observability-chart.mjs"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

@@ -1,0 +1,19 @@
+# dev 환경 override — 단일 노드, emptyDir storage, PagerDuty null route.
+prometheus:
+  storage:
+    emptyDir: true
+  retention: 3d
+  extraArgs:
+    - "--storage.tsdb.retention.time=3d"
+    - "--web.enable-lifecycle"
+
+alertmanager:
+  receivers:
+    pagerduty:
+      serviceKey: "dev-null-noop"
+    slack:
+      apiUrl: "dev-null-noop"
+      channel: "#oncall-geny-dev"
+
+grafana:
+  adminPassword: "admin-dev-only"

@@ -1,0 +1,24 @@
+geny-observability chart {{ .Chart.Version }} deployed.
+
+{{- if .Values.prometheus.enabled }}
+Prometheus:
+  kubectl port-forward svc/{{ include "geny-observability.prometheusFullname" . }} {{ .Values.prometheus.service.port }}:{{ .Values.prometheus.service.port }}
+  → http://localhost:{{ .Values.prometheus.service.port }}
+{{- end }}
+
+{{- if .Values.alertmanager.enabled }}
+Alertmanager:
+  kubectl port-forward svc/{{ include "geny-observability.alertmanagerFullname" . }} {{ .Values.alertmanager.service.port }}:{{ .Values.alertmanager.service.port }}
+  → http://localhost:{{ .Values.alertmanager.service.port }}
+{{- end }}
+
+{{- if .Values.grafana.enabled }}
+Grafana:
+  kubectl port-forward svc/{{ include "geny-observability.grafanaFullname" . }} {{ .Values.grafana.service.port }}:{{ .Values.grafana.service.port }}
+  → http://localhost:{{ .Values.grafana.service.port }}
+  admin user: {{ .Values.grafana.adminUser }}
+{{- end }}
+
+docs/02 §9 의 3 대시보드 (Job Health / Cost / Quality) 가 provisioning 으로 자동 로드됨.
+canonical config 수정 시 `node scripts/sync-observability-chart.mjs` 를 먼저 실행해
+chart configs/ 를 재생성하고 CI 의 verify step 이 drift 를 잡는지 확인.

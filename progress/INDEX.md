@@ -26,7 +26,7 @@
 Foundation Exit 체크리스트 (`docs/14 §3.3`):
 - [ ] 단일 아바타 생성 → 프리뷰 → Cubism export 수동 테스트 성공 (세션 19 — 드라이버 완 + 세션 20 — D 단계 HTTP 자동화 + 세션 23 — happy-dom 기반 `<geny-avatar>` DOM lifecycle 회귀 (`ready`/`error`/stale-src cancel) 가 `test:golden` step 10 으로 CI 고정. 체크리스트 [`progress/exit-gates/01-single-avatar-e2e.md`](./exit-gates/01-single-avatar-e2e.md). E 단계(브라우저 시각 + Cubism Viewer) 수동 pass-through 필요)
 - [x] CI 에서 골든 1 아바타 회귀 자동 (세션 10 + 세션 20 + 세션 23, `.github/workflows/ci.yml` + `pnpm run test:golden` 10 step)
-- [ ] 관측 대시보드 3종 기본 동작 (세션 17 — config 완: `infra/observability/` Prometheus scrape + 3 alert rule + Grafana 3 대시보드 JSON. 실 배포는 Helm 세션)
+- [x] 관측 대시보드 3종 기본 동작 (세션 17 config + 세션 24 Helm chart — `infra/helm/observability/` Prometheus + Alertmanager(P1→PagerDuty / P2→Slack templatized) + Grafana 3 대시보드 provisioning. canonical → chart configs sync 스크립트 + CI drift 검증(step 11). 실 K8s 클러스터 배포는 인프라 준비 시점에 Helm install 만 하면 됨)
 - [x] 개발자 온보딩 1일 (세션 16 — 루트 README quickstart·9 CLI 표·troubleshooting 7종·scripts/Taskfile 갱신)
 
 ---
@@ -41,7 +41,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **AI Generation** | nano-banana 어댑터 | 🟡 계약 + skeleton (세션 22) — `schema/v1/ai-adapter-task.schema.json` · `ai-adapter-result.schema.json` + `@geny/ai-adapter-core` v0.1.0 (AdapterRegistry + 결정론적 시드 + provenance 빌더) + `@geny/ai-adapter-nano-banana` v0.1.0 (Mock 클라이언트 + adapter→provenance→license-verifier round-trip). 실제 HTTP 구현은 세션 23+ |
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
-| **Platform / Infra** | K8s + CI/CD + 관측 | 🟡 CI (세션 10/13b/20/21/22/23 — `test:golden` 10 step: schemas + exporter-core tests + bundle/avatar/web-avatar golden diff + web-preview e2e + license-verifier tests + ai-adapter-core tests + ai-adapter-nano-banana tests + web-avatar dom lifecycle) + 관측 선언 config (세션 17 — `infra/observability/` 메트릭 카탈로그 32개 · Prometheus scrape · 3 알람 · Grafana 3 대시보드) + 공개키 레지스트리 (세션 21 — `infra/registry/signer-keys.json`). K8s/Helm 미착수 |
+| **Platform / Infra** | K8s + CI/CD + 관측 | 🟡 CI (세션 10/13b/20/21/22/23/24 — `test:golden` 11 step: schemas + exporter-core tests + bundle/avatar/web-avatar golden diff + web-preview e2e + license-verifier tests + ai-adapter-core tests + ai-adapter-nano-banana tests + web-avatar dom lifecycle + observability chart verify) + 관측 Helm chart (세션 17/24 — `infra/helm/observability/` Prometheus + Alertmanager + Grafana, canonical → chart sync + drift 검증 + values-{dev,prod}.yaml) + 공개키 레지스트리 (세션 21 — `infra/registry/signer-keys.json`). K8s 매니페스트/서비스 배포는 Foundation Exit 게이트 외 |
 | **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 20종 (+signer-registry +ai-adapter-task/result) + avatar metadata/export/bundle-manifest/license/provenance 샘플 + ai-adapter task/result 샘플 1쌍 + Ed25519 서명 검증 + 레지스트리 기반 verify (세션 21 `@geny/license-verifier`) + adapter→provenance→verify round-trip (세션 22) + CI 자동 검증 (세션 01–05, 11–15, 18, 21, 22), DB/S3 미착수 |
 | **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.6.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + `assembleWebAvatarBundle()` stage 2 (텍스처 PNG/WebP + atlas.json emit) + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 13종 (Cubism 11 + web-avatar 1 + atlas 1) + aria 번들 golden + CLI 9 subcommand (세션 08–15, 18). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) |
 | **Frontend** | 에디터 기본 레이아웃 | 🟡 `@geny/web-avatar` v0.1.0 — `<geny-avatar>` Custom Element 스켈레톤 + `loadWebAvatarBundle()` + `ready/error` 이벤트 + happy-dom 기반 DOM lifecycle 회귀 (세션 18/23 — 실 customElement 등록 → `setAttribute("src")` → `ready` payload 스냅샷 + `INVALID_KIND` 에러 계약 + stale-src cancel, 12 tests CI). `apps/web-preview/` Foundation E2E 드라이버 + 자동 E2E (세션 19/20). 렌더링/제어 API 는 Stage 3+ |
@@ -79,6 +79,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 21 | 2026-04-18 | 발급자 공개키 레지스트리 + `license.verify` ref impl (세션 14 blocker 해소) — `schema/v1/signer-registry.schema.json` 신설 + `infra/registry/signer-keys.json` (RFC 8032 Test 1 fixture key) + `@geny/license-verifier` v0.1.0 (`SignerRegistry`/`verifyLicense`/`verifyProvenance`/`verifySignedDocument` + CLI `license-verifier verify`) + 18 tests (registry 파서 + happy/tamper/expiry/scope/bundle-sha/round-trip) + `validate-schemas.mjs` 레지스트리 cross-check (checked=134) + `test-golden.mjs` step 7. | 완료 | [링크](./sessions/2026-04-18-session-21-license-verifier.md) |
 | 22 | 2026-04-18 | AI 어댑터 계약 + nano-banana skeleton (AI Generation 스트림 착수) — `schema/v1/ai-adapter-task.schema.json` · `ai-adapter-result.schema.json` + `samples/ai-adapters/hair_front.{task,result}.json` + `@geny/ai-adapter-core` v0.1.0 (`AIAdapter`/`AdapterRegistry`/`AdapterError` 9 codes + `deterministicSeed`/`promptSha256` + `buildProvenancePartEntry`, 14 tests) + `@geny/ai-adapter-nano-banana` v0.1.0 (`NanoBananaAdapter` + `MockNanoBananaClient` + capability matrix 10 + adapter→provenance→license-verifier round-trip 1) + `validate-schemas.mjs` task↔result pair cross-check (checked=136) + `test-golden.mjs` step 8/9. | 완료 | [링크](./sessions/2026-04-18-session-22-ai-adapter.md) |
 | 23 | 2026-04-18 | `<geny-avatar>` DOM lifecycle 회귀 (Foundation Exit #1 "실 DOM" 메우기) — `packages/web-avatar/` happy-dom ^15.11.7 devDep + `tests/dom-lifecycle.test.ts` 3 tests (golden bundle → `ready` payload 스냅샷 / 잘못된 kind → `error` `INVALID_KIND` / superseding src → stale load 취소) + `test-golden.mjs` step 10 `web-avatar dom lifecycle` (12 tests incl. 기존 loader 7 + element 2) + fs fetch 글로벌 override 전략 문서화. | 완료 | [링크](./sessions/2026-04-18-session-23-dom-lifecycle.md) |
+| 24 | 2026-04-18 | Observability Helm chart (Foundation Exit #3 완결) — `infra/helm/observability/` Chart v0.1.0 (Prometheus + Alertmanager + Grafana deploy/svc/configmap) + `values.yaml` + `values-{dev,prod}.yaml` + canonical `infra/observability/*` 동기 `configs/` + `scripts/sync-observability-chart.mjs` (+ `--check`) + `scripts/verify-observability-chart.mjs` (drift/Chart.yaml/values/templates/`Files.Get` 참조 + optional `helm template` 렌더) + Alertmanager canonical routing (P1→PagerDuty / P2→Slack templatized) + Grafana provisioning (datasource + dashboards-provider + 3 대시보드 ConfigMap) + `test-golden.mjs` step 11 `observability chart verify`. | 완료 | [링크](./sessions/2026-04-18-session-24-observability-helm.md) |
 
 ---
 
@@ -105,7 +106,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
-- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 14 fixture (halfbody Cubism 11 + aria 번들 1 + halfbody web-avatar 2) + 번들 루트 `bundle.json` 해시 감사 (세션 13) + `pnpm run test:golden` 10 step CI (세션 08/08b/09/10/11/12/13/15/20/21/22/23 — step 6 = web-preview e2e, step 7 = license-verifier tests, step 8 = ai-adapter-core tests, step 9 = ai-adapter-nano-banana tests incl. provenance round-trip, step 10 = web-avatar dom lifecycle (happy-dom))
+- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 14 fixture (halfbody Cubism 11 + aria 번들 1 + halfbody web-avatar 2) + 번들 루트 `bundle.json` 해시 감사 (세션 13) + `pnpm run test:golden` 11 step CI (세션 08/08b/09/10/11/12/13/15/20/21/22/23/24 — step 6 = web-preview e2e, step 7 = license-verifier tests, step 8 = ai-adapter-core tests, step 9 = ai-adapter-nano-banana tests incl. provenance round-trip, step 10 = web-avatar dom lifecycle (happy-dom), step 11 = observability chart verify)
 - [ ] 성능 SLO 초과 없음 — 측정 인프라 부재
 - [ ] 보안 스캔 P0/P1 0건 — Gitleaks/Trivy 아직 미구축
 - [ ] 문서 업데이트 — 세션별로 관리
@@ -128,8 +129,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 24**: Observability Helm chart — `infra/observability/` config 를 실 배포 가능한 차트로 끌어올려 Exit #3 완결 (Prometheus + Grafana + alertmanager values.yaml + 3 dashboards provisioning).
-- **세션 25**: AI 어댑터 2차 — `HttpNanoBananaClient` 실 HTTP 구현 + 벤더 에러 → `AdapterError` 매핑 테이블 + SDXL/Flux-Fill 폴백 어댑터 skeleton + 캐시 레이어(`hash(adapter, model_version, prompt_hash, ref_hash, seed, size)`).
-- **세션 26**: Post-Processing Stage 1 (alpha cleanup) skeleton — `@geny/post-processing` 신설, `scripts/pp-stage1-mask.mjs` + alpha premult 라운드트립 golden + docs/12 §10 stage 경로 첫 단계. 혹은 rig 확장 (v1.3 body) 우선.
+- **세션 25**: AI 어댑터 2차 — `HttpNanoBananaClient` 실 HTTP 구현 + 벤더 에러 → `AdapterError` 매핑 테이블 + SDXL/Flux-Fill 폴백 어댑터 skeleton + 캐시 레이어(`hash(adapter, model_version, prompt_hash, ref_hash, seed, size)` → result).
+- **세션 26**: Post-Processing Stage 1 (alpha cleanup) skeleton — `@geny/post-processing` 신설, alpha premult 라운드트립 golden + docs/12 §10 stage 경로 첫 단계.
+- **세션 27**: rig 확장 (v1.3 body) — 하체 파츠 스펙 + 물리 3 Setting 추가(`body_breath_phys` + 잔여 `ahoge`/`accessory`) + migration `v1.2.0 → v1.3.0`. 혹은 Release Gate 보안/성능 스캔 (Gitleaks/Trivy/k6) 우선.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

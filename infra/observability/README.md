@@ -25,13 +25,21 @@ infra/observability/
         └── 03-quality.json            # docs/02 §9.2 #3 — 자동 검수 점수, 재생성율, 사람 리뷰 개입률
 ```
 
-## 배포 (예정)
+## 배포
 
-Helm chart (`infra/helm/observability/`) 로 K8s 에 배포 예정. 현재는 **선언형 config 만** 저장.
+Helm chart: [`infra/helm/observability/`](../helm/observability/) (세션 24).
 
-- Prometheus: 이 디렉터리의 `prometheus.yml` + `rules/*.yml` 을 ConfigMap 으로 탑재.
-- Grafana: `dashboards/*.json` 을 sidecar(또는 K8s ConfigMap provisioning) 으로 자동 로드.
-- 환경 채널별 override: `prometheus.{dev,staging,prod}.yml` 는 Helm values 계층에서 관리 (세션 17 범위 밖).
+- Prometheus: 본 디렉터리의 `prometheus.yml` + `rules/alerts.yml` 을 chart `configs/` 로 동기한 뒤 ConfigMap 으로 탑재.
+- Grafana: `dashboards/*.json` 을 ConfigMap provisioning 으로 자동 로드. 데이터소스는 chart 가 Prometheus 서비스 DNS 로 자동 연결.
+- Alertmanager: docs/02 §9.3 라우팅(P1→PagerDuty / P2→Slack) templatized — 실 자격증명은 Secret 주입.
+- 환경 override: `values-{dev,prod}.yaml`. canonical yaml 이 환경별로 달라져야 하면 `infra/observability/prometheus.<env>.yml` 을 추가하고 sync 스크립트 FILES 배열 확장.
+
+canonical → chart 동기 및 drift 검증:
+
+```
+node scripts/sync-observability-chart.mjs        # 동기
+node scripts/verify-observability-chart.mjs      # CI drift 검증 (test:golden step 11)
+```
 
 ## 대시보드 설계 원칙
 

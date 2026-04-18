@@ -1,0 +1,88 @@
+# 기본 values — dev 가정. staging/prod 는 values-<env>.yaml 에서 override.
+#
+# 주의: `prometheus.externalLabels.cluster/environment` 는 `configs/prometheus.yml`
+# 내부에도 박혀 있으나 (canonical config 와 byte 일치해야 sync 검증 통과) Helm 은
+# ConfigMap 파일명과 환경 라벨만 override 가능. 환경별로 config 자체가 달라야 한다면
+# 환경별 canonical yaml 파일을 `infra/observability/prometheus.<env>.yml` 로 추가.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# --- Prometheus -----------------------------------------------------
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.53.0
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 9090
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+  storage:
+    # dev: emptyDir. prod: PVC 로 교체.
+    emptyDir: true
+    size: 10Gi
+  retention: 15d
+  # 추가 CLI args (scrape interval 은 config 파일에서 제어).
+  extraArgs:
+    - "--storage.tsdb.retention.time=15d"
+    - "--web.enable-lifecycle"
+
+# --- Alertmanager ---------------------------------------------------
+alertmanager:
+  enabled: true
+  image:
+    repository: prom/alertmanager
+    tag: v0.27.0
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 9093
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  # PagerDuty / Slack 실키는 secret 주입. 이 chart 는 placeholder 만 렌더.
+  receivers:
+    pagerduty:
+      serviceKey: "PLACEHOLDER_REPLACE_IN_PROD"
+    slack:
+      apiUrl: "PLACEHOLDER_REPLACE_IN_PROD"
+      channel: "#oncall-geny"
+
+# --- Grafana --------------------------------------------------------
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: 11.1.0
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  adminUser: admin
+  # Secret 으로 주입 권장 — dev 기본값은 명시적 placeholder.
+  adminPassword: "admin-dev-only"
+  # dashboards/* 는 canonical infra/observability/grafana/dashboards/ 와 byte 일치.
+  # datasources 는 이 chart 가 렌더 (in-cluster prometheus service DNS 사용).
+
+# --- 환경 공통 ------------------------------------------------------
+commonLabels:
+  app.kubernetes.io/part-of: geny-observability
