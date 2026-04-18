@@ -1,0 +1,36 @@
+{
+  "name": "@geny/ai-adapter-nano-banana",
+  "version": "0.1.0",
+  "private": true,
+  "description": "docs/05 §3 nano-banana(Gemini 2.5 Flash Image) 1차 어댑터 skeleton. Foundation 단계는 네트워크 호출 없이 `MockNanoBananaClient` 로 결정론적 출력 생성 — 계약/라우팅/provenance 파이프라인 검증 전용. 프로덕션 HTTP 구현은 세션 23+ 에서.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "dependencies": {
+    "@geny/ai-adapter-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@geny/license-verifier": "workspace:*",
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}

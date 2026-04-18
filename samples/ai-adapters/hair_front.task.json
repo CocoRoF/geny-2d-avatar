@@ -1,0 +1,20 @@
+{
+  "schema_version": "v1",
+  "task_id": "task.hair-front.sample",
+  "slot_id": "hair_front",
+  "reference_image_sha256": null,
+  "mask_sha256": null,
+  "style_reference_sha256": [],
+  "style_profile_id": null,
+  "prompt": "aria hair_front test",
+  "negative_prompt": "face, background",
+  "size": [1024, 1024],
+  "seed": null,
+  "guidance_scale": null,
+  "strength": null,
+  "deadline_ms": 60000,
+  "budget_usd": 0.05,
+  "idempotency_key": "idem-hair-front-sample",
+  "capability_required": ["edit"],
+  "priority": "interactive"
+}

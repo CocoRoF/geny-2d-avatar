@@ -1,0 +1,21 @@
+{
+  "schema_version": "v1",
+  "task_id": "task.hair-front.sample",
+  "slot_id": "hair_front",
+  "image_sha256": "3817a9e9b574018e0dfe807f608ec75f4622b9e4e37e6f6aa7aeb6038af8f7d6",
+  "alpha_sha256": null,
+  "bbox": [51, 51, 922, 922],
+  "vendor": "nano-banana",
+  "model_version": "mock-2026.04.18",
+  "seed": 715659833,
+  "prompt_sha256": "9f9f46cd7f8f11ccc225c2233610319873b6025220d708d9ab990bcbeee11f37",
+  "cost_usd": 0.015,
+  "latency_ms": 120,
+  "completed_at": "2026-04-18T12:00:00Z",
+  "vendor_metadata": {
+    "client": "mock",
+    "seed": 715659833,
+    "size": [1024, 1024]
+  },
+  "logs": []
+}

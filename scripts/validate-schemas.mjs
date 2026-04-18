@@ -43,6 +43,8 @@ const SCHEMA_ID = {
   testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
   pose: "https://geny.ai/schema/v1/pose.schema.json",
   signerRegistry: "https://geny.ai/schema/v1/signer-registry.schema.json",
+  aiAdapterTask: "https://geny.ai/schema/v1/ai-adapter-task.schema.json",
+  aiAdapterResult: "https://geny.ai/schema/v1/ai-adapter-result.schema.json",
 };
 
 // ——— Utilities ———
@@ -119,6 +121,8 @@ async function main() {
     testPoses: ajv.getSchema(SCHEMA_ID.testPoses),
     pose: ajv.getSchema(SCHEMA_ID.pose),
     signerRegistry: ajv.getSchema(SCHEMA_ID.signerRegistry),
+    aiAdapterTask: ajv.getSchema(SCHEMA_ID.aiAdapterTask),
+    aiAdapterResult: ajv.getSchema(SCHEMA_ID.aiAdapterResult),
   };
   for (const [name, v] of Object.entries(validators)) {
     if (!v) throw new Error(`Could not compile validator for ${name} (id=${SCHEMA_ID[name]})`);
@@ -993,6 +997,71 @@ async function main() {
     }
   }
   await validateSignerRegistry();
+
+  // 7. Validate AI adapter fixtures (세션 22).
+  //    task_id/slot_id cross-check 로 task ↔ result 쌍 정합성도 확인.
+  async function validateAIAdapterSamples() {
+    const dir = join(REPO_ROOT, "samples", "ai-adapters");
+    let files = [];
+    try {
+      files = await readdir(dir);
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      return;
+    }
+    const tasksByStem = new Map();
+    const resultsByStem = new Map();
+    for (const entry of files) {
+      if (entry.endsWith(".task.json")) {
+        const p = join(dir, entry);
+        const doc = await readJson(p);
+        checked += 1;
+        if (!validators.aiAdapterTask(doc)) {
+          failed += 1;
+          console.error(`[ai-adapter] INVALID task ${relative(REPO_ROOT, p)}`);
+          console.error(fmtErrors(validators.aiAdapterTask.errors, relative(REPO_ROOT, p)));
+          continue;
+        }
+        tasksByStem.set(entry.replace(/\.task\.json$/, ""), doc);
+      } else if (entry.endsWith(".result.json")) {
+        const p = join(dir, entry);
+        const doc = await readJson(p);
+        checked += 1;
+        if (!validators.aiAdapterResult(doc)) {
+          failed += 1;
+          console.error(`[ai-adapter] INVALID result ${relative(REPO_ROOT, p)}`);
+          console.error(fmtErrors(validators.aiAdapterResult.errors, relative(REPO_ROOT, p)));
+          continue;
+        }
+        resultsByStem.set(entry.replace(/\.result\.json$/, ""), doc);
+      }
+    }
+    // Cross-check: paired task/result must share task_id + slot_id.
+    for (const [stem, task] of tasksByStem) {
+      const result = resultsByStem.get(stem);
+      if (!result) continue;
+      if (task.task_id !== result.task_id) {
+        failed += 1;
+        console.error(
+          `[ai-adapter] '${stem}' task_id mismatch task=${task.task_id} result=${result.task_id}`,
+        );
+      }
+      if (task.slot_id !== result.slot_id) {
+        failed += 1;
+        console.error(
+          `[ai-adapter] '${stem}' slot_id mismatch task=${task.slot_id} result=${result.slot_id}`,
+        );
+      }
+      // Budget contract: result.cost_usd ≤ task.budget_usd (docs/05 §2.2).
+      if (result.cost_usd > task.budget_usd) {
+        failed += 1;
+        console.error(
+          `[ai-adapter] '${stem}' cost_usd=${result.cost_usd} exceeds task.budget_usd=${task.budget_usd}`,
+        );
+      }
+    }
+  }
+  await validateAIAdapterSamples();
 
   // 5. Summary
   console.log("");

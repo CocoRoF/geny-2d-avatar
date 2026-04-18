@@ -7,11 +7,15 @@
 // 동작:
 //  1) 스키마 + rig template 검증 (scripts/validate-schemas.mjs).
 //  2) @geny/exporter-core 빌드 + 단위 테스트 (88 tests, byte-equal golden; 세션 15 +7, 13 +8).
+//     이후 단계에서 각 TS 패키지는 자체 build/test 스크립트가 dist/ 를 만들어 workspace: 참조가 풀린다.
 //  3) CLI 로 halfbody v1.2.0 번들을 임시 디렉터리에 조립, snapshot 을 기존 golden 과 byte 비교.
 //  4) CLI `avatar` 로 sample-01-aria 번들을 조립, snapshot 을 아바타 단 golden 과 byte 비교 (세션 11).
 //  5) CLI `web-avatar` 로 halfbody v1.2.0 web-avatar 번들을 조립, snapshot 을 golden 과 byte 비교 (세션 15).
 //  6) apps/web-preview e2e — prepare+serve+fetch+loadWebAvatarBundle 체인 (세션 20). Foundation Exit #1 의 무인 축.
 //  7) @geny/license-verifier tests — registry 파서 + verifyLicense/Provenance + tamper/expiry/scope 회귀 (세션 21).
+//  8) @geny/ai-adapter-core tests — deterministicSeed/promptSha256 + AdapterRegistry 라우팅 + provenance 엔트리 빌더 (세션 22).
+//  9) @geny/ai-adapter-nano-banana tests — capability matrix + BUDGET/CAPABILITY/DEADLINE/INVALID_OUTPUT 에러 매핑
+//     + adapter → provenance → license-verifier round-trip (세션 22).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -31,6 +35,8 @@ const STEPS = [
   { name: "web-avatar bundle golden diff", run: runWebAvatarBundleDiff },
   { name: "web-preview e2e", run: runWebPreviewE2E },
   { name: "license-verifier tests", run: runLicenseVerifierTests },
+  { name: "ai-adapter-core tests", run: runAIAdapterCoreTests },
+  { name: "ai-adapter-nano-banana tests", run: runAIAdapterNanoBananaTests },
 ];
 
 const failed = [];
@@ -211,6 +217,18 @@ async function runWebPreviewE2E() {
 
 async function runLicenseVerifierTests() {
   await run("pnpm", ["-F", "@geny/license-verifier", "test"], { cwd: repoRoot });
+}
+
+async function runAIAdapterCoreTests() {
+  // build 가 dist/ 를 만들어야 nano-banana 가 import 가능. 먼저 core 를 빌드.
+  await run("pnpm", ["-F", "@geny/ai-adapter-core", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/ai-adapter-core", "test"], { cwd: repoRoot });
+}
+
+async function runAIAdapterNanoBananaTests() {
+  // license-verifier dist 가 필요 (round-trip 테스트에서 import).
+  await run("pnpm", ["-F", "@geny/license-verifier", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/ai-adapter-nano-banana", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

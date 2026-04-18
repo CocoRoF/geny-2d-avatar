@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/ai-adapter-task.schema.json",
+  "title": "AIAdapterTask",
+  "description": "docs/05 §2.2 — 모든 AI 어댑터(nano-banana, SDXL+CN, Flux-Fill 등) 의 단일 입력 계약. 이미지/마스크/스타일 레퍼런스는 외부 저장소의 sha256 로 참조 (원문은 스키마 밖). 시드/예산/타임아웃/idempotency 를 명시해 벤더 교체 시 재현성을 보존한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "slot_id",
+    "prompt",
+    "negative_prompt",
+    "size",
+    "deadline_ms",
+    "budget_usd",
+    "idempotency_key"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{2,62}$",
+      "description": "로그/추적용 task 식별자. idempotency_key 와 동일해도 되지만 분리 가능."
+    },
+    "slot_id": { "$ref": "common/ids.json#/$defs/slotId" },
+    "reference_image_sha256": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "type": "null" }
+      ],
+      "description": "img2img/inpaint 레퍼런스. null 이면 순수 t2i."
+    },
+    "mask_sha256": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "type": "null" }
+      ],
+      "description": "AI 가 덮어쓸 영역 마스크. null 이면 전체 재생성."
+    },
+    "style_reference_sha256": {
+      "type": "array",
+      "description": "IP-Adapter / nano-banana 레퍼런스 이미지 해시 목록. 순서 보존.",
+      "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+      "maxItems": 8
+    },
+    "style_profile_id": {
+      "oneOf": [
+        { "$ref": "common/ids.json#/$defs/styleProfileId" },
+        { "type": "null" }
+      ],
+      "description": "docs/05 §5.2 Style Profile ID. null 이면 프로파일 없음(템플릿 기본)."
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192,
+      "description": "PromptBuilder 가 조립한 최종 프롬프트."
+    },
+    "negative_prompt": {
+      "type": "string",
+      "maxLength": 4096,
+      "description": "슬롯별 + 공통 네거티브. 공백 허용(템플릿 기본값)."
+    },
+    "size": {
+      "type": "array",
+      "description": "[width, height] 픽셀. docs/05 §10.3 — 기본은 1024 계단, PRO 시만 4096.",
+      "items": { "type": "integer", "minimum": 64, "maximum": 8192 },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "seed": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        { "type": "null" }
+      ],
+      "description": "재현용 시드. null 이면 어댑터가 idempotency_key 로 결정론적 생성 (docs/05 §7.1)."
+    },
+    "guidance_scale": {
+      "oneOf": [
+        { "type": "number", "minimum": 0, "maximum": 30 },
+        { "type": "null" }
+      ]
+    },
+    "strength": {
+      "oneOf": [
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        { "type": "null" }
+      ],
+      "description": "img2img/inpaint 강도."
+    },
+    "deadline_ms": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 600000,
+      "description": "어댑터 호출 타임아웃(ms). docs/05 §7.3 슬롯별 기준 (face=90s, hair/cloth=60s, accessory=45s)."
+    },
+    "budget_usd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "이 호출에 허용된 최대 비용(USD). 어댑터 estimateCost 가 초과하면 BUDGET_EXCEEDED."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+      "description": "동일 키 재호출은 캐시 hit. seed=null 인 경우 시드 도출에도 사용 (docs/05 §10.1 + §7.1)."
+    },
+    "capability_required": {
+      "type": "array",
+      "description": "이 Task 를 처리하려면 어댑터가 가져야 할 capability 집합. AdapterRegistry.route() 가 교차검증.",
+      "items": { "$ref": "#/$defs/capability" },
+      "uniqueItems": true,
+      "maxItems": 8
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["interactive", "batch"],
+      "description": "docs/05 §8.1 라우팅 변수. 기본은 interactive."
+    }
+  },
+  "$defs": {
+    "capability": {
+      "type": "string",
+      "enum": ["edit", "style_ref", "mask", "seg", "kp", "upscale", "embed"],
+      "description": "docs/05 §2.2 — 어댑터가 선언하는 기능 집합."
+    }
+  }
+}
