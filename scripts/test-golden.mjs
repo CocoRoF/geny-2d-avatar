@@ -13,13 +13,14 @@
 //  5) CLI `web-avatar` 로 halfbody v1.2.0 web-avatar 번들을 조립, snapshot 을 golden 과 byte 비교 (세션 15).
 //  6) apps/web-preview e2e — prepare+serve+fetch+loadWebAvatarBundle 체인 (세션 20). Foundation Exit #1 의 무인 축.
 //  7) @geny/license-verifier tests — registry 파서 + verifyLicense/Provenance + tamper/expiry/scope 회귀 (세션 21).
-//  8) @geny/ai-adapter-core tests — deterministicSeed/promptSha256 + AdapterRegistry 라우팅 + provenance 엔트리 빌더 (세션 22).
+//  8) @geny/ai-adapter-core tests — deterministicSeed/promptSha256 + AdapterRegistry 라우팅 + provenance 엔트리 빌더
+//     + routeWithFallback() 헬퍼(5xx/4xx/safety/캐시 분기) + SafetyFilter 계약 (세션 22/28).
 //  9) @geny/ai-adapter-nano-banana tests — capability matrix + BUDGET/CAPABILITY/DEADLINE/INVALID_OUTPUT 에러 매핑
 //     + adapter → provenance → license-verifier round-trip (세션 22).
 // 10) @geny/web-avatar tests — happy-dom 기반 `<geny-avatar>` DOM lifecycle 회귀 + loader 단위 테스트 (세션 23).
 // 11) infra/helm/observability — chart configs sync + 구조 검증 (Chart.yaml / values / templates / `.Files.Get` 참조). 세션 24.
-// 12) @geny/ai-adapters-fallback tests — SDXL(edit/style_ref) + Flux-Fill(mask) skeleton 의 capability 매트릭스 + AdapterRegistry
-//     통합 폴백 순서(nano-banana → sdxl → flux-fill) 회귀 (세션 25).
+// 12) @geny/ai-adapters-fallback tests — SDXL(edit/style_ref) + Flux-Fill(mask) Mock 의 capability 매트릭스 + AdapterRegistry
+//     통합 폴백 순서(nano-banana → sdxl → flux-fill) + HttpSDXLClient · HttpFluxFillClient 회귀 (세션 25/28).
 // 13) @geny/post-processing tests — docs/06 §4 Stage 1 alpha sanitation (premult 라운드트립 + noise threshold +
 //     tight bbox + 파이프라인 결과 sha256 golden) (세션 26).
 // 14) rig-template migrate — v1.0.0→v1.3.0 체인 + v1.2.0→v1.3.0 단일 hop + 결정론 (세션 27).

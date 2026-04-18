@@ -20,3 +20,8 @@ export type {
   FluxFillRequest,
   FluxFillResponse,
 } from "./flux-fill-adapter.js";
+
+export { HttpSDXLClient } from "./http-sdxl-client.js";
+export type { HttpSDXLClientOptions } from "./http-sdxl-client.js";
+export { HttpFluxFillClient } from "./http-flux-fill-client.js";
+export type { HttpFluxFillClientOptions } from "./http-flux-fill-client.js";
