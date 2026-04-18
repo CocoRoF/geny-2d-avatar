@@ -1,0 +1,77 @@
+# Prometheus alerting rules — docs/02 §9.3 canonical alarms.
+#
+# Severity 라벨:
+#   - P1 → PagerDuty (즉시 대응 필요)
+#   - P2 → Slack #oncall-geny (근무 시간 내)
+#
+# 메트릭 이름·라벨은 metrics-catalog.md 의 단일 진실 공급원을 따른다.
+# 규칙을 추가·수정하기 전에 먼저 카탈로그를 갱신한다.
+
+groups:
+  - name: geny.job
+    interval: 30s
+    rules:
+      # §9.3 — 완주율 10분간 −15%p → P1
+      # 현재 5m 완주율이 10분 전 5m 완주율보다 15 퍼센트포인트 이상 낮은 상태가 10분 지속되면 발화.
+      - alert: GenyJobSuccessRateDrop
+        expr: |
+          (
+            sum(rate(geny_job_completed_total{status="success"}[5m]))
+            /
+            clamp_min(sum(rate(geny_job_started_total[5m])), 1)
+          )
+          <
+          (
+            sum(rate(geny_job_completed_total{status="success"}[5m] offset 10m))
+            /
+            clamp_min(sum(rate(geny_job_started_total[5m] offset 10m)), 1)
+          ) - 0.15
+        for: 10m
+        labels:
+          severity: P1
+          runbook: docs/02#9.3
+        annotations:
+          summary: "Job 완주율이 10분 전 대비 15%p 이상 하락"
+          description: |
+            지난 10분간 job 완주율이 10분 전 5m 평균보다 15 퍼센트포인트 이상 낮은 상태가 지속됨.
+            점검: 최근 배포, AI 벤더 상태 페이지, geny_job_failed_reason_total 상위 원인.
+
+  - name: geny.ai
+    interval: 30s
+    rules:
+      # §9.3 — 특정 AI 벤더 5xx 비율 > 20% → 자동 페일오버 + P2
+      # 어댑터가 geny_ai_fallback_total 를 증가시키는지 확인. 미증가 시 페일오버 로직 버그.
+      - alert: GenyAIVendor5xxElevated
+        expr: |
+          sum by (vendor) (rate(geny_ai_call_total{status="5xx"}[5m]))
+          /
+          clamp_min(sum by (vendor) (rate(geny_ai_call_total[5m])), 1)
+          > 0.20
+        for: 10m
+        labels:
+          severity: P2
+          runbook: docs/02#9.3
+        annotations:
+          summary: "AI 벤더 {{ $labels.vendor }} 5xx 비율 10분간 >20%"
+          description: |
+            {{ $labels.vendor }} 의 5xx 응답률이 10분간 20%를 초과.
+            자동 페일오버가 동작해야 하며 geny_ai_fallback_total 증가 여부 확인.
+            벤더 상태 페이지 점검 후 미복구 시 수동 페일오버 고려.
+
+  - name: geny.worker
+    interval: 30s
+    rules:
+      # §9.3 — 큐 길이 > 1k 지속 10분 → P2
+      # metrics-catalog.md §2 — geny_worker_queue_depth (labels: worker_kind).
+      - alert: GenyWorkerQueueBacklog
+        expr: geny_worker_queue_depth > 1000
+        for: 10m
+        labels:
+          severity: P2
+          runbook: docs/02#9.3
+        annotations:
+          summary: "Worker 큐 {{ $labels.worker_kind }} 깊이 10분간 >1000"
+          description: |
+            {{ $labels.worker_kind }} 워커 큐 깊이가 10분간 1000 이상.
+            워커 스케일 아웃 또는 인제스트 급증 원인 조사.
+            GPU 워커면 예약 리소스 부족 가능 — 노드 풀 확장 검토.

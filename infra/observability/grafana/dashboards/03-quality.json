@@ -1,0 +1,268 @@
+{
+  "uid": "geny-quality",
+  "title": "Geny — Quality",
+  "description": "docs/02 §9.2 #3 — 자동 검수 점수 분포, 재생성율, 사람 리뷰 개입률. 질문: '품질 시스템이 일하고 있나?'",
+  "tags": ["geny", "foundation", "quality", "qa"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "평균 품질 점수 (1h)",
+      "description": "geny_quality_score — 모든 check_type 통합 평균.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "decimals": 3,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "green", "value": 0.85 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(geny_quality_score_bucket[1h])))",
+          "legendFormat": "median score"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "재생성율 (5m)",
+      "description": "auto_threshold + user_click / 전체 완료 job. 너무 높으면 AI 품질 신호, 너무 낮으면 자동 검수 부재.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.15 },
+              { "color": "red", "value": 0.35 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(geny_quality_regeneration_total[5m])) / clamp_min(sum(rate(geny_job_completed_total{status=\"success\"}[5m])), 1)",
+          "legendFormat": "regen ratio"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "사람 리뷰 개입률 (5m)",
+      "description": "geny_quality_human_review_requested_total — 자동 검수 실패 시 escalation.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 3,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "red", "value": 0.15 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(geny_quality_human_review_requested_total[5m])) / clamp_min(sum(rate(geny_job_completed_total[5m])), 1)",
+          "legendFormat": "human review"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "heatmap",
+      "title": "품질 점수 분포 (check_type 별)",
+      "description": "geny_quality_score_bucket — 분포 눈으로 보고 이상치 구간 식별.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "scaleDistribution": { "type": "linear" },
+            "hideFrom": { "tooltip": false, "viz": false, "legend": false }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "calculate": false,
+        "yAxis": { "axisPlacement": "left", "unit": "short", "decimals": 2 },
+        "color": { "scheme": "Spectral", "mode": "scheme", "steps": 64 },
+        "cellGap": 1,
+        "exemplars": { "color": "rgba(255,0,255,0.7)" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (le) (rate(geny_quality_score_bucket[5m]))",
+          "legendFormat": "{{le}}",
+          "format": "heatmap"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "재생성 트리거 (5m rate)",
+      "description": "trigger=auto_threshold vs user_click 비교.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": { "mode": "normal", "group": "A" },
+            "spanNulls": false
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (trigger) (rate(geny_quality_regeneration_total[5m]))",
+          "legendFormat": "{{trigger}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "gauge",
+      "title": "LPIPS p95 (시각 회귀, 템플릿별)",
+      "description": "docs/15 §7 — 목표 ≤ 0.08. 초과 시 시각 회귀 의심.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 0.2,
+          "decimals": 3,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.06 },
+              { "color": "red", "value": 0.08 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "horizontal",
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "geny_quality_lpips_p95",
+          "legendFormat": "{{template_family}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "사람 리뷰 요청 원인 상위 (1h)",
+      "description": "geny_quality_human_review_requested_total — 자동화 공백 식별.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "decimals": 0, "custom": { "align": "auto" } },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "Value", "desc": true }]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (reason) (increase(geny_quality_human_review_requested_total[1h])))",
+          "legendFormat": "{{reason}}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true },
+            "renameByName": { "reason": "원인", "Value": "요청 수 (1h)" }
+          }
+        }
+      ]
+    }
+  ]
+}

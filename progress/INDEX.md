@@ -26,7 +26,7 @@
 Foundation Exit 체크리스트 (`docs/14 §3.3`):
 - [ ] 단일 아바타 생성 → 프리뷰 → Cubism export 수동 테스트 성공
 - [x] CI 에서 골든 1 아바타 회귀 자동 (세션 10, `.github/workflows/ci.yml` + `pnpm run test:golden`)
-- [ ] 관측 대시보드 3종 기본 동작
+- [ ] 관측 대시보드 3종 기본 동작 (세션 17 — config 완: `infra/observability/` Prometheus scrape + 3 alert rule + Grafana 3 대시보드 JSON. 실 배포는 Helm 세션)
 - [x] 개발자 온보딩 1일 (세션 16 — 루트 README quickstart·9 CLI 표·troubleshooting 7종·scripts/Taskfile 갱신)
 
 ---
@@ -41,7 +41,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **AI Generation** | nano-banana 어댑터 | ⚪ 미착수 |
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
-| **Platform / Infra** | K8s + CI/CD | ⚪ 미착수 |
+| **Platform / Infra** | K8s + CI/CD + 관측 | 🟡 CI (세션 10/13b) + 관측 선언 config (세션 17 — `infra/observability/` 메트릭 카탈로그 32개 · Prometheus scrape · 3 알람 · Grafana 3 대시보드). K8s/Helm 미착수 |
 | **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 16종 + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + CI 자동 검증 + web-avatar 번들 메타(세션 15) (세션 01–05, 11–15), DB/S3 미착수 |
 | **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.6.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + `assembleWebAvatarBundle()` + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 12종 (Cubism 11 + web-avatar 1) + aria 번들 golden + CLI 9 subcommand (세션 08–15). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) · 온보딩(#4) |
 | **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
@@ -72,6 +72,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 14 | 2026-04-18 | `schema/v1/license.schema.json` (+ `provenance.schema.json`) — docs/11 §9 계약 (bundle_manifest_sha256 로 번들 결합, Ed25519 signer_key_id + signature) + `scripts/sign-fixture.mjs` (RFC 8032 Test 1 서명 헬퍼) + aria `.license.json` · `.provenance.json` 샘플 + validate-schemas 에 sha 교차확인 · 서명 검증 내장 (checked 130) | 완료 | [링크](./sessions/2026-04-18-session-14-license-provenance.md) |
 | 15 | 2026-04-18 | Web Avatar 번들 stage 1 — `schema/v1/web-avatar.schema.json` + bundle-manifest kind 확장(+`web-avatar-bundle`) + `@geny/exporter-core` v0.6.0 (`convertWebAvatar` + `assembleWebAvatarBundle` + CLI `web-avatar`) + halfbody v1.2.0 web-avatar golden 2종 + `packages/web-avatar/` 스켈레톤 + `test:golden` step 5 (88 tests pass, checked 131) | 완료 | [링크](./sessions/2026-04-18-session-15-web-avatar.md) |
 | 16 | 2026-04-18 | 개발자 온보딩 1일 (Foundation Exit #4) — 루트 `README.md` 9 섹션 (prereqs, 5분 quickstart, 레포 구조, 9 CLI 표, 샘플 서명 검증, 마이그레이션, CI, troubleshooting 7종) + `scripts/README.md` 4 엔트리 + `Taskfile.yml` `test:golden` task 추가 | 완료 | [링크](./sessions/2026-04-18-session-16-onboarding.md) |
+| 17 | 2026-04-18 | 관측 대시보드 3종 config (Foundation Exit #3 준비) — `infra/observability/` 신설: `metrics-catalog.md` 32 메트릭 + Prometheus scrape 7 job + alert rule 3개(완주율/AI 5xx/큐) + Grafana 대시보드 3종 (Job Health 6 / Cost 6 / Quality 7 panel) + docs/02 §9 1:1 매핑 | 완료 | [링크](./sessions/2026-04-18-session-17-observability.md) |
 
 ---
 
@@ -89,7 +90,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | `packages/` | 재사용 가능한 라이브러리 (sdk-ts, sdk-py, web-avatar…) | 11, 13 |
 | `services/` | 장기 실행 서비스(orchestrator, exporter) | 02, 11 |
 | `samples/` | 스키마 인스턴스 픽스처(avatars/, …) | 12 |
-| `infra/` | Terraform, Helm | 13 §7 |
+| `infra/` | Terraform, Helm, 관측 config | 13 §7, 02 §9 |
 | `scripts/` | 개발 편의 스크립트 | 13 §12 |
 
 ---
@@ -121,8 +122,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 17**: 관측 대시보드 3종 (Foundation Exit #3) — Prometheus/Grafana 뼈대. 또는 발급자 공개키 레지스트리 + license.verify 엔드포인트.
 - **세션 18**: Web Avatar stage 2 — 텍스처 PNG/WebP 번들 + atlas 메타. 실제 런타임 `<geny-avatar>` 스켈레톤 시작.
 - **세션 19**: Foundation Exit #1 (단일 아바타 생성→프리뷰→export 수동 테스트) — 최소 web UI 스켈레톤 or CLI-only 워크플로 문서화.
+- **세션 20**: 발급자 공개키 레지스트리 + `license.verify` 엔드포인트(세션 14 blocker 해소), 또는 Observability Helm chart 실배포(Exit #3 완결).
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.
