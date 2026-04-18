@@ -1,0 +1,13 @@
+{
+  "name": "@geny/web-avatar",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Geny 2D Avatar Web Components 런타임 — web-avatar 번들(web-avatar.json + bundle.json)을 소비하는 브라우저 라이브러리. 세션 15 stage 1 시점에는 스캐폴드만, 실제 구현은 이후 세션에서.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "files": [
+    "README.md"
+  ]
+}

@@ -38,6 +38,7 @@ const SCHEMA_ID = {
   bundleManifest: "https://geny.ai/schema/v1/bundle-manifest.schema.json",
   license: "https://geny.ai/schema/v1/license.schema.json",
   provenance: "https://geny.ai/schema/v1/provenance.schema.json",
+  webAvatar: "https://geny.ai/schema/v1/web-avatar.schema.json",
   testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
   pose: "https://geny.ai/schema/v1/pose.schema.json",
 };
@@ -111,6 +112,7 @@ async function main() {
     expressionPack: ajv.getSchema(SCHEMA_ID.expressionPack),
     license: ajv.getSchema(SCHEMA_ID.license),
     provenance: ajv.getSchema(SCHEMA_ID.provenance),
+    webAvatar: ajv.getSchema(SCHEMA_ID.webAvatar),
     testPoses: ajv.getSchema(SCHEMA_ID.testPoses),
     pose: ajv.getSchema(SCHEMA_ID.pose),
   };
@@ -885,7 +887,34 @@ async function main() {
   }
   await validateAvatarSamples();
 
-  // 4. Summary
+  // 4. Validate exporter-core golden web-avatar JSON against the schema (세션 15).
+  async function validateWebAvatarGolden() {
+    const goldenPath = join(
+      REPO_ROOT,
+      "packages",
+      "exporter-core",
+      "tests",
+      "golden",
+      "halfbody_v1.2.0.web-avatar.json",
+    );
+    try {
+      const doc = await readJson(goldenPath);
+      checked += 1;
+      if (!validators.webAvatar(doc)) {
+        failed += 1;
+        console.error(`[golden] INVALID web-avatar ${relative(REPO_ROOT, goldenPath)}`);
+        console.error(fmtErrors(validators.webAvatar.errors, relative(REPO_ROOT, goldenPath)));
+      }
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      console.log(
+        `[golden] web-avatar golden not present at ${relative(REPO_ROOT, goldenPath)} — skipping`,
+      );
+    }
+  }
+  await validateWebAvatarGolden();
+
+  // 5. Summary
   console.log("");
   console.log(`[validate] checked=${checked} failed=${failed}`);
   if (failed > 0) {

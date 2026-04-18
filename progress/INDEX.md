@@ -42,8 +42,8 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
 | **Platform / Infra** | K8s + CI/CD | ⚪ 미착수 |
-| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 15종 + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + CI 자동 검증 (세션 01–05, 11–14), DB/S3 미착수 |
-| **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.5.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 11종 + aria 번들 golden + CLI 8 subcommand (세션 08–13). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) · 온보딩(#4) |
+| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 16종 + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + CI 자동 검증 + web-avatar 번들 메타(세션 15) (세션 01–05, 11–15), DB/S3 미착수 |
+| **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.6.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + `assembleWebAvatarBundle()` + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 12종 (Cubism 11 + web-avatar 1) + aria 번들 golden + CLI 9 subcommand (세션 08–15). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) · 온보딩(#4) |
 | **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
 
 범례: 🟢 완료 · 🟡 진행중 · 🔴 블록 · ⚪ 미착수
@@ -70,6 +70,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 13 | 2026-04-18 | `schema/v1/bundle-manifest.schema.json` (kind/format/template_id/avatar_id/files) + `@geny/exporter-core` v0.5.0 (번들 루트 `bundle.json` 자동 emit, sha256 감사, avatar_id pass-through) + halfbody/aria 번들 재생성 (14 → 15 files) + `bundle-manifest.test.ts` 8 신규 (76 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-13-bundle-manifest.md) |
 | 13b | 2026-04-18 | CI Node 20.11 → 22.11 pin bump (`.github/workflows/*.yml`, `.nvmrc`, engines) — `node --test` positional glob 미지원으로 세션 12/13 commits 에서 테스트 단계 실패 → 해결 (commit `f331022`) | 완료 | [링크](./sessions/2026-04-18-session-13b-ci-node22.md) |
 | 14 | 2026-04-18 | `schema/v1/license.schema.json` (+ `provenance.schema.json`) — docs/11 §9 계약 (bundle_manifest_sha256 로 번들 결합, Ed25519 signer_key_id + signature) + `scripts/sign-fixture.mjs` (RFC 8032 Test 1 서명 헬퍼) + aria `.license.json` · `.provenance.json` 샘플 + validate-schemas 에 sha 교차확인 · 서명 검증 내장 (checked 130) | 완료 | [링크](./sessions/2026-04-18-session-14-license-provenance.md) |
+| 15 | 2026-04-18 | Web Avatar 번들 stage 1 — `schema/v1/web-avatar.schema.json` + bundle-manifest kind 확장(+`web-avatar-bundle`) + `@geny/exporter-core` v0.6.0 (`convertWebAvatar` + `assembleWebAvatarBundle` + CLI `web-avatar`) + halfbody v1.2.0 web-avatar golden 2종 + `packages/web-avatar/` 스켈레톤 + `test:golden` step 5 (88 tests pass, checked 131) | 완료 | [링크](./sessions/2026-04-18-session-15-web-avatar.md) |
 
 ---
 
@@ -96,7 +97,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 
 Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
-- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 12 fixture (halfbody 11 + aria 번들 1) + 번들 루트 `bundle.json` 해시 감사 (세션 13) + `pnpm run test:golden` 4 step CI (세션 08/08b/09/10/11/12/13)
+- [x] 골든셋 회귀 통과 — `@geny/exporter-core` 14 fixture (halfbody Cubism 11 + aria 번들 1 + halfbody web-avatar 2) + 번들 루트 `bundle.json` 해시 감사 (세션 13) + `pnpm run test:golden` 5 step CI (세션 08/08b/09/10/11/12/13/15)
 - [ ] 성능 SLO 초과 없음 — 측정 인프라 부재
 - [ ] 보안 스캔 P0/P1 0건 — Gitleaks/Trivy 아직 미구축
 - [ ] 문서 업데이트 — 세션별로 관리
@@ -119,8 +120,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 15**: Web Avatar 번들 포맷 1 단계 (docs/11 §4) — `@geny/web-avatar` 스켈레톤 + bundle.json 재사용 + 텍스처 규약. 세션 14 license/provenance 동반 배포.
-- **세션 16**: 개발자 온보딩 1일 달성 (Foundation Exit #4) — README·quickstart·troubleshooting. license 인지 포함.
-- **세션 17**: 관측 대시보드 3종 (Foundation Exit #3) — Prometheus/Grafana 뼈대. OR 발급자 공개키 레지스트리 + license.verify 엔드포인트.
+- **세션 16**: 개발자 온보딩 1일 달성 (Foundation Exit #4) — 루트 README·quickstart·troubleshooting. license 인지 + web-avatar CLI 사용 예 포함.
+- **세션 17**: 관측 대시보드 3종 (Foundation Exit #3) — Prometheus/Grafana 뼈대. 또는 발급자 공개키 레지스트리 + license.verify 엔드포인트.
+- **세션 18**: Web Avatar stage 2 — 텍스처 PNG/WebP 번들 + atlas 메타. 실제 런타임 `<geny-avatar>` 스켈레톤 시작.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

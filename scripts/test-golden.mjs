@@ -6,9 +6,10 @@
 //
 // 동작:
 //  1) 스키마 + rig template 검증 (scripts/validate-schemas.mjs).
-//  2) @geny/exporter-core 빌드 + 단위 테스트 (76 tests, byte-equal golden; 세션 13 +8).
+//  2) @geny/exporter-core 빌드 + 단위 테스트 (88 tests, byte-equal golden; 세션 15 +7, 13 +8).
 //  3) CLI 로 halfbody v1.2.0 번들을 임시 디렉터리에 조립, snapshot 을 기존 golden 과 byte 비교.
 //  4) CLI `avatar` 로 sample-01-aria 번들을 조립, snapshot 을 아바타 단 golden 과 byte 비교 (세션 11).
+//  5) CLI `web-avatar` 로 halfbody v1.2.0 web-avatar 번들을 조립, snapshot 을 golden 과 byte 비교 (세션 15).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -25,6 +26,7 @@ const STEPS = [
   { name: "exporter-core tests", run: runExporterCoreTests },
   { name: "bundle golden diff", run: runBundleDiff },
   { name: "avatar bundle golden diff", run: runAvatarBundleDiff },
+  { name: "web-avatar bundle golden diff", run: runWebAvatarBundleDiff },
 ];
 
 const failed = [];
@@ -45,6 +47,7 @@ if (failed.length > 0) {
   process.stderr.write(
     "[golden] 골든이 의도적으로 바뀌어야 한다면 다음을 참고:\n" +
       "          packages/exporter-core/tests/golden/halfbody_v1.2.0.*.json\n" +
+      "          packages/exporter-core/tests/golden/halfbody_v1.2.0.web-avatar*.json\n" +
       "          samples/avatars/sample-01-aria.bundle.snapshot.json\n" +
       "          를 새 결과로 덮어쓴 뒤 PR 에 '골든 갱신' 명시.\n",
   );
@@ -146,6 +149,51 @@ async function runAvatarBundleDiff() {
       await writeFile(diffPath, `--- golden\n+++ actual\n${diffInline(want, got)}`);
       throw new Error(
         `avatar bundle snapshot differs from golden (see ${diffPath} for inline diff)`,
+      );
+    }
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
+}
+
+async function runWebAvatarBundleDiff() {
+  const tmpDir = await mkdtemp(join(tmpdir(), "geny-golden-web-avatar-"));
+  try {
+    const snapPath = join(tmpDir, "snapshot.json");
+    const bundleDir = join(tmpDir, "bundle");
+    await run(
+      "sh",
+      [
+        "-c",
+        [
+          "node",
+          "packages/exporter-core/dist/cli.js",
+          "web-avatar",
+          "--template",
+          "rig-templates/base/halfbody/v1.2.0",
+          "--out-dir",
+          bundleDir,
+          ">",
+          snapPath,
+        ].join(" "),
+      ],
+      { cwd: repoRoot },
+    );
+    const [got, want] = await Promise.all([
+      readFile(snapPath, "utf8"),
+      readFile(
+        resolve(
+          repoRoot,
+          "packages/exporter-core/tests/golden/halfbody_v1.2.0.web-avatar-bundle.snapshot.json",
+        ),
+        "utf8",
+      ),
+    ]);
+    if (got !== want) {
+      const diffPath = join(tmpDir, "diff.txt");
+      await writeFile(diffPath, `--- golden\n+++ actual\n${diffInline(want, got)}`);
+      throw new Error(
+        `web-avatar bundle snapshot differs from golden (see ${diffPath} for inline diff)`,
       );
     }
   } finally {

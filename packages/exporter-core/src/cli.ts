@@ -9,6 +9,7 @@ import { convertModelFromTemplate } from "./converters/model.js";
 import { convertExpressionFromTemplate } from "./converters/expression.js";
 import { assembleBundle, snapshotBundle } from "./bundle.js";
 import { assembleAvatarBundle, readAvatarExportSpec } from "./avatar-bundle.js";
+import { assembleWebAvatarBundle } from "./web-avatar-bundle.js";
 import { canonicalJson } from "./util/canonical-json.js";
 
 type Command =
@@ -19,6 +20,7 @@ type Command =
   | "model"
   | "expression"
   | "bundle"
+  | "web-avatar"
   | "avatar";
 
 interface Args {
@@ -39,6 +41,8 @@ interface Args {
   mocPath?: string;
   texturePaths?: string[];
   lipsync?: "simple" | "precise";
+  /** web-avatar: optional avatar_id to embed in web-avatar.json / bundle.json. */
+  avatarId?: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -58,10 +62,11 @@ function parseArgs(argv: string[]): Args {
     first !== "model" &&
     first !== "expression" &&
     first !== "bundle" &&
+    first !== "web-avatar" &&
     first !== "avatar"
   ) {
     usage(
-      `unknown command '${first}' (supported: pose, physics, motion, cdi, model, expression, bundle, avatar)`,
+      `unknown command '${first}' (supported: pose, physics, motion, cdi, model, expression, bundle, web-avatar, avatar)`,
     );
   }
   const command = first;
@@ -76,6 +81,7 @@ function parseArgs(argv: string[]): Args {
   let mocPath: string | undefined;
   let texturePaths: string[] | undefined;
   let lipsync: "simple" | "precise" | undefined;
+  let avatarId: string | undefined;
   for (let i = 1; i < argv.length; i++) {
     const arg = argv[i];
     switch (arg) {
@@ -115,6 +121,9 @@ function parseArgs(argv: string[]): Args {
         lipsync = v;
         break;
       }
+      case "--avatar-id":
+        avatarId = argv[++i];
+        break;
       case "-h":
       case "--help":
         printHelp();
@@ -137,6 +146,16 @@ function parseArgs(argv: string[]): Args {
     if (!template) usage("missing --template <dir>");
     if (command === "bundle") {
       if (!outDir) usage("bundle: missing --out-dir <dir>");
+    } else if (command === "web-avatar") {
+      if (!outDir) usage("web-avatar: missing --out-dir <dir>");
+      if (mocPath || texturePaths || lipsync) {
+        usage(
+          "web-avatar: --moc / --texture / --lipsync are not accepted (use bundle for Cubism bundles)",
+        );
+      }
+      if (pack || expression) {
+        usage("web-avatar: --pack / --expression are not accepted");
+      }
     } else {
       if (!out) usage("missing --out <file>");
     }
@@ -157,6 +176,7 @@ function parseArgs(argv: string[]): Args {
     ...(mocPath ? { mocPath } : {}),
     ...(texturePaths ? { texturePaths } : {}),
     ...(lipsync ? { lipsync } : {}),
+    ...(avatarId ? { avatarId } : {}),
   };
 }
 
@@ -179,6 +199,7 @@ function printHelp(): void {
       "  model      Build Cubism model3.json (bundle manifest)",
       "  expression Convert a single expression pack → Cubism exp3.json (requires --expression)",
       "  bundle     Assemble a full Cubism bundle directory (all 5 JSONs + motions/ + expressions/)",
+      "  web-avatar Assemble a web-avatar runtime bundle (web-avatar.json + bundle.json) — session 15",
       "  avatar     Assemble a Cubism bundle from an avatar-export spec (session 11)",
       "",
       "common options:",
@@ -194,6 +215,7 @@ function printHelp(): void {
       "  --moc <path>                 model/bundle: override Moc path (default 'avatar.moc3')",
       "  --texture <path>             model/bundle: repeatable; override Textures list",
       "  --lipsync simple|precise     model/bundle: LipSync group mode (default simple)",
+      "  --avatar-id <id>             web-avatar: optional avatar_id to embed",
       "",
       "note: avatar takes overrides only via the spec file; --moc/--texture/--lipsync are rejected there (session 11 D7).",
       "",
@@ -233,6 +255,21 @@ function main(): void {
     process.stdout.write(snap);
     process.stderr.write(
       `exporter-core: wrote bundle at ${outDir} — ${res.files.length} files, ${
+        res.files.reduce((a, f) => a + f.bytes, 0)
+      } bytes\n`,
+    );
+    return;
+  }
+
+  if (args.command === "web-avatar") {
+    const outDir = resolve(args.outDir!);
+    const opts: Parameters<typeof assembleWebAvatarBundle>[2] = {};
+    if (args.avatarId !== undefined) opts.avatarId = args.avatarId;
+    const res = assembleWebAvatarBundle(tpl, outDir, opts);
+    const snap = snapshotBundle(res);
+    process.stdout.write(snap);
+    process.stderr.write(
+      `exporter-core: wrote web-avatar bundle at ${outDir} — ${res.files.length} files, ${
         res.files.reduce((a, f) => a + f.bytes, 0)
       } bytes\n`,
     );

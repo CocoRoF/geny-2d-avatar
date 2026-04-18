@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/web-avatar.schema.json",
+  "title": "Web Avatar Runtime Bundle Meta",
+  "description": "`@geny/web-avatar` 런타임이 소비하는 JSON 메타. Cubism `.moc3` 를 직접 파싱하지 않고 우리 런타임 전용 구조로 요약 (docs/11 §4.5). 번들 루트의 `web-avatar.json` 으로 배치되며 `bundle.json` (kind=web-avatar-bundle) 의 files[] 에 등재된다. 결정론 규칙(canonical JSON, 세션 08 D5) 적용 — 골든 바이트 비교 대상.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "format",
+    "template_id",
+    "template_version",
+    "avatar_id",
+    "parameter_groups",
+    "parameters",
+    "parts",
+    "motions",
+    "expressions",
+    "textures",
+    "physics_summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "format": {
+      "type": "integer",
+      "const": 1,
+      "description": "web-avatar.json 구조 버전. 필드 추가 시 bump."
+    },
+    "template_id": {
+      "oneOf": [
+        { "$ref": "common/ids.json#/$defs/templateRef" },
+        { "type": "null" }
+      ]
+    },
+    "template_version": {
+      "oneOf": [
+        { "$ref": "common/ids.json#/$defs/semver" },
+        { "type": "null" }
+      ]
+    },
+    "avatar_id": {
+      "oneOf": [
+        { "$ref": "common/ids.json#/$defs/avatarId" },
+        { "type": "null" }
+      ]
+    },
+    "parameter_groups": {
+      "type": "array",
+      "description": "파라미터 그룹. parameters[].group 이 참조.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "display_name_en"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,40}$" },
+          "display_name_en": { "type": "string", "minLength": 1, "maxLength": 64 }
+        }
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "description": "런타임에서 제어 가능한 파라미터 목록. id 알파벳 정렬. physics_output 파라미터는 런타임이 직접 주입하지 않고 물리 엔진이 씀.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "range", "default", "group"],
+        "properties": {
+          "id": { "$ref": "common/ids.json#/$defs/parameterId" },
+          "range": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "number" }
+          },
+          "default": { "type": "number" },
+          "group": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,40}$" },
+          "channel": {
+            "oneOf": [
+              { "type": "string", "minLength": 1, "maxLength": 32 },
+              { "type": "null" }
+            ],
+            "description": "MIDI/OSC 채널 힌트. 없으면 null."
+          }
+        }
+      }
+    },
+    "parts": {
+      "type": "array",
+      "description": "슬롯 목록. slot_id 알파벳 정렬. 본 스테이지에서는 role 만 노출 (mesh/그래픽 메타는 차후 stage 에서).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot_id", "role"],
+        "properties": {
+          "slot_id": { "$ref": "common/ids.json#/$defs/slotId" },
+          "role": { "type": "string", "minLength": 1, "maxLength": 64 }
+        }
+      }
+    },
+    "motions": {
+      "type": "array",
+      "description": "모션 팩 요약. pack_id 알파벳 정렬.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pack_id", "duration_sec", "fade_in_sec", "fade_out_sec", "loop"],
+        "properties": {
+          "pack_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,40}(?:\\.[a-z0-9_]{1,20})?$" },
+          "duration_sec": { "type": "number", "exclusiveMinimum": 0 },
+          "fade_in_sec": { "type": "number", "minimum": 0 },
+          "fade_out_sec": { "type": "number", "minimum": 0 },
+          "loop": { "type": "boolean" }
+        }
+      }
+    },
+    "expressions": {
+      "type": "array",
+      "description": "표정 팩 요약. expression_id 알파벳 정렬.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["expression_id", "name_en", "fade_in_sec", "fade_out_sec"],
+        "properties": {
+          "expression_id": { "type": "string", "pattern": "^expression\\.[a-z][a-z0-9_]{1,40}$" },
+          "name_en": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "fade_in_sec": { "type": "number", "minimum": 0 },
+          "fade_out_sec": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "textures": {
+      "type": "array",
+      "description": "텍스처 파일 참조. Stage 1 스캐폴드는 빈 배열 가능 (실제 PNG emit 은 이후 stage).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "purpose"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^textures/[A-Za-z0-9_./-]+\\.(png|webp)$"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": ["albedo"]
+          }
+        }
+      }
+    },
+    "physics_summary": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["setting_count", "total_output_count"],
+          "properties": {
+            "setting_count": { "type": "integer", "minimum": 0 },
+            "total_output_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        { "type": "null" }
+      ],
+      "description": "physics.json 이 있으면 개요. 없으면 null. 런타임이 물리 설정의 존재 여부만 파악 (세부 settings 은 별도 페치)."
+    }
+  }
+}

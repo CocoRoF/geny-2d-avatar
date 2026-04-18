@@ -21,9 +21,10 @@ schema/
 │   ├── avatar-metadata.schema.json     # docs/12 §4.5
 │   ├── avatar-export.schema.json       # docs/11 §3.5 — 번들 조립 입력 (세션 11)
 │   ├── expression-pack.schema.json     # docs/11 §3.2.2 — 표정 팩 (세션 12)
-│   ├── bundle-manifest.schema.json     # docs/11 §4.5 — 번들 루트 bundle.json (세션 13)
+│   ├── bundle-manifest.schema.json     # docs/11 §4.5 — 번들 루트 bundle.json (세션 13; kind=cubism-bundle|web-avatar-bundle)
 │   ├── license.schema.json             # docs/11 §9.1 — 라이선스 (Ed25519 서명, 세션 14)
 │   ├── provenance.schema.json          # docs/11 §9.2 — 파츠 계보 + 후처리 이력 (세션 14)
+│   ├── web-avatar.schema.json          # docs/11 §4.5 — `@geny/web-avatar` 런타임 전용 경량 번들 메타 (세션 15)
 │   ├── style-profile.schema.json       # docs/10 §3 (미작성)
 │   ├── export-job.schema.json          # docs/12 §4.9 (미작성)
 │   └── common/

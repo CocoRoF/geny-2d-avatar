@@ -75,6 +75,23 @@ export type {
   AssembleBundleOptions,
   BundleManifestJson,
 } from "./bundle.js";
+export { convertWebAvatar } from "./converters/web-avatar.js";
+export type {
+  WebAvatarJson,
+  WebAvatarParameterGroup,
+  WebAvatarParameter,
+  WebAvatarPart,
+  WebAvatarMotion,
+  WebAvatarExpression,
+  WebAvatarTexture,
+  WebAvatarPhysicsSummary,
+  ConvertWebAvatarOptions,
+} from "./converters/web-avatar.js";
+export { assembleWebAvatarBundle } from "./web-avatar-bundle.js";
+export type {
+  WebAvatarBundleManifestJson,
+  AssembleWebAvatarBundleOptions,
+} from "./web-avatar-bundle.js";
 export {
   assembleAvatarBundle,
   specToBundleOptions,

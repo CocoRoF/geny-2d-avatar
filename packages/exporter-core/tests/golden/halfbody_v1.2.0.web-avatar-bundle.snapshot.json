@@ -1,0 +1,16 @@
+{
+  "file_count": 2,
+  "files": [
+    {
+      "bytes": 336,
+      "path": "bundle.json",
+      "sha256": "b4e5d42d9d2c02bc7451cab725b636798bf75817afb1404d91fc30f67ca9d969"
+    },
+    {
+      "bytes": 11546,
+      "path": "web-avatar.json",
+      "sha256": "66b42baaabf7dd2cf83477081a9650644763f00fffc93abd5b3d62de2b59f4d6"
+    }
+  ],
+  "total_bytes": 11882
+}
