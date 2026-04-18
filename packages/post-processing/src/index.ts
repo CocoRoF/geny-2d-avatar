@@ -14,3 +14,12 @@ export type { AlphaBBoxOptions } from "./alpha-bbox.js";
 
 export { applyAlphaSanitation } from "./pipeline.js";
 export type { AlphaSanitationOptions, AlphaSanitationResult } from "./pipeline.js";
+
+export { computeColorStats } from "./color-stats.js";
+export type { ColorStats, ColorStatsOptions } from "./color-stats.js";
+
+export { remapColorLinear } from "./color-remap.js";
+export type { RemapColorOptions } from "./color-remap.js";
+
+export { normalizeColor } from "./color-normalize.js";
+export type { ColorNormalizeOptions, ColorNormalizeResult } from "./color-normalize.js";
