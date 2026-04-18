@@ -6,12 +6,12 @@
 //   node scripts/rig-template/migrate.mjs <srcDir> <outDir>
 //
 // 예:
-//   node scripts/rig-template/migrate.mjs rig-templates/base/halfbody/v1.0.0 /tmp/migrated-v1.2.0
+//   node scripts/rig-template/migrate.mjs rig-templates/base/halfbody/v1.0.0 /tmp/migrated-v1.3.0
 //
 // 동작:
 //   1) <srcDir> 를 <outDir> 로 전체 복사 (outDir 비어 있어야 함).
 //   2) template.manifest.json 의 version 을 읽어 현재 버전 감지.
-//   3) migrators 레지스트리 순서대로 적용 (v1.0.0 → v1.1.0 → v1.2.0).
+//   3) migrators 레지스트리 순서대로 적용 (v1.0.0 → v1.1.0 → v1.2.0 → v1.3.0).
 //   4) 각 migrator 는 mechanical transform (manifest/parameters 필드 추가·버전 bump) 만 안전하게 수행.
 //      파츠 추가/분할, 물리 튜닝, deformers 트리 변경은 <outDir>/MIGRATION_REPORT.md 에 TODO 로 기록.
 //
@@ -88,6 +88,37 @@ const MIGRATORS = [
         "v1.2.0: `parts/cloth_main.spec.json` 을 추가해야 합니다 (docs/03 §12.1 #1, session 07).",
         "v1.2.0: `deformers.json` 에 `overall_warp` (전체 평행이동/회전) 과 `cloth_warp` 를 추가해야 합니다.",
         "v1.2.0: `physics/physics.json` 을 4 setting → 9 setting 으로 확장 (sway L/R 분리 + Fuwa 5). `physics_setting_count` · `total_input_count` · `total_output_count` · `vertex_count` 를 실제 설정에 맞게 재계산.",
+      );
+      return todos;
+    },
+  },
+  {
+    from: "1.2.0",
+    to: "1.3.0",
+    async apply(outDir) {
+      const todos = [];
+      await patchJson(join(outDir, "template.manifest.json"), (m) => {
+        m.version = "1.3.0";
+        m.cubism_mapping = {
+          ...m.cubism_mapping,
+          ahoge_sway: "ParamAhogeSway",
+          accessory_back_sway: "ParamAccessoryBackSway",
+          accessory_front_sway: "ParamAccessoryFrontSway",
+        };
+        return m;
+      });
+      await patchJson(join(outDir, "parameters.json"), (p) => {
+        const existing = new Set(p.parameters.map((x) => x.id));
+        for (const def of V1_3_0_NEW_PARAMETERS) {
+          if (!existing.has(def.id)) p.parameters.push(def);
+        }
+        return p;
+      });
+      todos.push(
+        "v1.3.0: `parts/ahoge.spec.json` 을 추가해야 합니다 (docs/03 §12.1 #2, session 27). UV box/z_order/deformation_parent 는 수동 결정.",
+        "v1.3.0: `deformers.json` 에 `ahoge_warp` (머리 상단 부착, head_warp 자식) 를 추가해야 합니다.",
+        "v1.3.0: `physics/physics.json` 을 9 setting → 12 setting 으로 확장: `ahoge_sway_phys` (입력: head_angle_x/y + body_angle_x) + `accessory_sway_phys` (accessory_back/front 공유 출력) + `body_breath_phys` (입력: body_breath 로 torso/cloth 볼륨 변조). `physics_setting_count` · `total_input_count` · `total_output_count` · `vertex_count` 를 실제 설정에 맞게 재계산.",
+        "v1.3.0: 새 PhysicsSetting 들을 `physics/mao_pro_mapping.md` 에 매핑 근거 추가 (docs/03 §6.2 표 3 목표 행 달성).",
       );
       return todos;
     },
@@ -194,6 +225,48 @@ const V1_2_0_NEW_PARAMETERS = [
     channel: "extension",
     cubism: "ParamHairBackFuwa",
     physics_output: true,
+  },
+];
+
+const V1_3_0_NEW_PARAMETERS = [
+  {
+    id: "ahoge_sway",
+    display_name: { en: "Ahoge Sway", ko: "아호게 흔들림", ja: "アホ毛 揺れ" },
+    unit: "normalized",
+    range: [-1, 1],
+    default: 0,
+    required: false,
+    group: "hair",
+    channel: "extension",
+    cubism: "ParamAhogeSway",
+    physics_output: true,
+    notes: "머리 상단 아호게 흔들림. head_angle_x/y + body_angle_x 를 입력으로 `ahoge_sway_phys` 가 계산. docs/03 §12.1 #2.",
+  },
+  {
+    id: "accessory_back_sway",
+    display_name: { en: "Accessory Back Sway", ko: "뒷악세서리 흔들림", ja: "背面アクセ 揺れ" },
+    unit: "normalized",
+    range: [-1, 1],
+    default: 0,
+    required: false,
+    group: "body",
+    channel: "extension",
+    cubism: "ParamAccessoryBackSway",
+    physics_output: true,
+    notes: "accessory_back 부착물의 2차 흔들림. `accessory_sway_phys` 의 출력.",
+  },
+  {
+    id: "accessory_front_sway",
+    display_name: { en: "Accessory Front Sway", ko: "앞악세서리 흔들림", ja: "前面アクセ 揺れ" },
+    unit: "normalized",
+    range: [-1, 1],
+    default: 0,
+    required: false,
+    group: "body",
+    channel: "extension",
+    cubism: "ParamAccessoryFrontSway",
+    physics_output: true,
+    notes: "accessory_front 부착물의 2차 흔들림. `accessory_sway_phys` 의 출력.",
   },
 ];
 
