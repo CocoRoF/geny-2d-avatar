@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Geny 2D Avatar · Foundation Preview</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        max-width: 960px;
+        margin-inline: auto;
+        line-height: 1.5;
+      }
+      header h1 { margin-bottom: 4px; }
+      header p { margin-top: 0; color: #666; }
+      main { display: grid; gap: 20px; }
+      section {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px 20px;
+      }
+      section h2 { margin-top: 0; font-size: 1.05rem; letter-spacing: 0.02em; text-transform: uppercase; color: #555; }
+      .kv { display: grid; grid-template-columns: 180px 1fr; row-gap: 6px; column-gap: 12px; font-size: 0.95rem; }
+      .kv dt { color: #777; }
+      .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+      .status { padding: 8px 12px; border-radius: 6px; background: #eef4ff; color: #2b4a8b; font-size: 0.9rem; }
+      .status.ok { background: #e8f6ed; color: #205d38; }
+      .status.err { background: #fbe9e9; color: #7a1f1f; }
+      code { background: #f5f5f7; padding: 2px 6px; border-radius: 4px; }
+      ul { margin: 4px 0 0 0; padding-left: 20px; }
+      li { margin: 2px 0; }
+      geny-avatar {
+        display: inline-block;
+        min-width: 1px;
+        min-height: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Geny 2D Avatar · Foundation Preview</h1>
+      <p>
+        <code>&lt;geny-avatar&gt;</code> Custom Element stage 2 — 번들 로딩/파싱 검증용 최소 UI.
+        렌더링은 Stage 3 이후에 추가됩니다.
+      </p>
+    </header>
+
+    <main>
+      <section>
+        <h2>상태</h2>
+        <div id="status" class="status">로딩 중…</div>
+        <geny-avatar id="avatar" src="./public/sample/bundle.json" hidden></geny-avatar>
+      </section>
+
+      <section>
+        <h2>Bundle Manifest (<code>bundle.json</code>)</h2>
+        <dl id="manifest-kv" class="kv"></dl>
+      </section>
+
+      <section>
+        <h2>Web Avatar Meta (<code>web-avatar.json</code>)</h2>
+        <dl id="meta-kv" class="kv"></dl>
+      </section>
+
+      <section>
+        <h2>Atlas (<code>atlas.json</code>)</h2>
+        <dl id="atlas-kv" class="kv"></dl>
+      </section>
+    </main>
+
+    <script type="module" src="./public/vendor/index.js"></script>
+    <script type="module">
+      const statusEl = document.querySelector("#status");
+      const el = document.querySelector("#avatar");
+
+      el.addEventListener("ready", (ev) => {
+        const { manifest, meta, atlas } = ev.detail.bundle;
+        statusEl.className = "status ok";
+        statusEl.textContent = `ready — ${manifest.template_id}@${manifest.template_version}`;
+        kv("#manifest-kv", [
+          ["kind", manifest.kind],
+          ["schema_version", manifest.schema_version],
+          ["format", manifest.format],
+          ["template_id", manifest.template_id],
+          ["template_version", manifest.template_version],
+          ["avatar_id", manifest.avatar_id ?? "—"],
+          ["files (count)", String(manifest.files.length)],
+          ["files (paths)", ulFrom(manifest.files.map((f) => `${f.path} · ${f.bytes}B · ${f.sha256.slice(0, 12)}…`))],
+        ]);
+        kv("#meta-kv", [
+          ["parameter_groups", String(meta.parameter_groups.length)],
+          ["parameters", String(meta.parameters.length)],
+          ["parts", String(meta.parts.length)],
+          ["motions", String(meta.motions.length)],
+          ["expressions", String(meta.expressions.length)],
+          ["textures", String(meta.textures.length)],
+          ["physics_summary", meta.physics_summary
+            ? `${meta.physics_summary.setting_count} setting / ${meta.physics_summary.total_output_count} output`
+            : "—"],
+          ["atlas ref", meta.atlas ? `${meta.atlas.path} (${meta.atlas.sha256.slice(0, 12)}…)` : "—"],
+        ]);
+        kv("#atlas-kv", atlas
+          ? [
+              ["schema_version", atlas.schema_version],
+              ["format", String(atlas.format)],
+              ["textures", ulFrom(atlas.textures.map((t) => `${t.path} · ${t.width}×${t.height} · ${t.format}`))],
+              ["slots", String(atlas.slots.length)],
+            ]
+          : [["(empty)", "atlas 없음 (textures 미포함 번들)"]]);
+      });
+
+      el.addEventListener("error", (ev) => {
+        statusEl.className = "status err";
+        statusEl.textContent = `error — ${ev.detail.error?.message ?? ev.detail.error}`;
+        console.error(ev.detail.error);
+      });
+
+      function kv(selector, entries) {
+        const container = document.querySelector(selector);
+        container.replaceChildren();
+        for (const [k, v] of entries) {
+          const dt = document.createElement("dt");
+          dt.textContent = k;
+          const dd = document.createElement("dd");
+          if (v instanceof Node) dd.appendChild(v);
+          else dd.textContent = v;
+          container.append(dt, dd);
+        }
+      }
+      function ulFrom(items) {
+        const ul = document.createElement("ul");
+        for (const it of items) {
+          const li = document.createElement("li");
+          li.textContent = it;
+          ul.appendChild(li);
+        }
+        return ul;
+      }
+    </script>
+  </body>
+</html>

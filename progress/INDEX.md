@@ -24,7 +24,7 @@
 | **완료 예정** | 2026 Q2 말 이전 |
 
 Foundation Exit 체크리스트 (`docs/14 §3.3`):
-- [ ] 단일 아바타 생성 → 프리뷰 → Cubism export 수동 테스트 성공
+- [ ] 단일 아바타 생성 → 프리뷰 → Cubism export 수동 테스트 성공 (세션 19 — 드라이버 완: `apps/web-preview/` `<geny-avatar>` + 재현 스크립트 + 체크리스트 [`progress/exit-gates/01-single-avatar-e2e.md`](./exit-gates/01-single-avatar-e2e.md). 수동 pass-through 수행 필요)
 - [x] CI 에서 골든 1 아바타 회귀 자동 (세션 10, `.github/workflows/ci.yml` + `pnpm run test:golden`)
 - [ ] 관측 대시보드 3종 기본 동작 (세션 17 — config 완: `infra/observability/` Prometheus scrape + 3 alert rule + Grafana 3 대시보드 JSON. 실 배포는 Helm 세션)
 - [x] 개발자 온보딩 1일 (세션 16 — 루트 README quickstart·9 CLI 표·troubleshooting 7종·scripts/Taskfile 갱신)
@@ -44,7 +44,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **Platform / Infra** | K8s + CI/CD + 관측 | 🟡 CI (세션 10/13b) + 관측 선언 config (세션 17 — `infra/observability/` 메트릭 카탈로그 32개 · Prometheus scrape · 3 알람 · Grafana 3 대시보드). K8s/Helm 미착수 |
 | **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 17종 (web-avatar + atlas) + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + CI 자동 검증 (세션 01–05, 11–15, 18), DB/S3 미착수 |
 | **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.6.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + `assembleWebAvatarBundle()` stage 2 (텍스처 PNG/WebP + atlas.json emit) + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 13종 (Cubism 11 + web-avatar 1 + atlas 1) + aria 번들 golden + CLI 9 subcommand (세션 08–15, 18). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) |
-| **Frontend** | 에디터 기본 레이아웃 | 🟡 `@geny/web-avatar` v0.1.0 — `<geny-avatar>` Custom Element 스켈레톤 + `loadWebAvatarBundle()` (bundle.json → web-avatar.json → atlas.json) + `ready/error` 이벤트 (세션 18). 렌더링/제어 API 는 Stage 3+ |
+| **Frontend** | 에디터 기본 레이아웃 | 🟡 `@geny/web-avatar` v0.1.0 — `<geny-avatar>` Custom Element 스켈레톤 + `loadWebAvatarBundle()` (bundle.json → web-avatar.json → atlas.json) + `ready/error` 이벤트 (세션 18). `apps/web-preview/` Foundation E2E 드라이버 (세션 19). 렌더링/제어 API 는 Stage 3+ |
 
 범례: 🟢 완료 · 🟡 진행중 · 🔴 블록 · ⚪ 미착수
 
@@ -74,6 +74,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 16 | 2026-04-18 | 개발자 온보딩 1일 (Foundation Exit #4) — 루트 `README.md` 9 섹션 (prereqs, 5분 quickstart, 레포 구조, 9 CLI 표, 샘플 서명 검증, 마이그레이션, CI, troubleshooting 7종) + `scripts/README.md` 4 엔트리 + `Taskfile.yml` `test:golden` task 추가 | 완료 | [링크](./sessions/2026-04-18-session-16-onboarding.md) |
 | 17 | 2026-04-18 | 관측 대시보드 3종 config (Foundation Exit #3 준비) — `infra/observability/` 신설: `metrics-catalog.md` 32 메트릭 + Prometheus scrape 7 job + alert rule 3개(완주율/AI 5xx/큐) + Grafana 대시보드 3종 (Job Health 6 / Cost 6 / Quality 7 panel) + docs/02 §9 1:1 매핑 | 완료 | [링크](./sessions/2026-04-18-session-17-observability.md) |
 | 18 | 2026-04-18 | Web Avatar stage 2 + `<geny-avatar>` 런타임 스켈레톤 — `schema/v1/atlas.schema.json` 신설 + `web-avatar.schema.json` (textures 치수/sha256 필수 + atlas 필드) + `@geny/exporter-core` loader 텍스처 스캐너 (PNG IHDR/WebP VP8) + `assembleWebAvatarBundle` stage 2 (PNG byte-copy + atlas.json emit) + halfbody v1.2.0 textures/base.png (4×4) + atlas golden + `@geny/web-avatar` v0.1.0 (loader + Custom Element + `ready`/`error`) (93 tests pass, checked 133) | 완료 | [링크](./sessions/2026-04-18-session-18-web-avatar-stage2.md) |
+| 19 | 2026-04-18 | Foundation Exit #1 드라이버 — `apps/web-preview/` 신설 (`index.html` `<geny-avatar>` + metadata 패널 3종 + `scripts/prepare.mjs` 번들 2종 생성 (web-avatar halfbody + Cubism aria) + `scripts/serve.mjs` Node 내장 http 정적 서버) + `progress/exit-gates/01-single-avatar-e2e.md` 수동 E2E 체크리스트 5 단계 (A~E). 의존성 zero — 브라우저 스냅샷은 수동. | 완료 | [링크](./sessions/2026-04-18-session-19-web-preview.md) |
 
 ---
 
@@ -123,8 +124,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 19**: Foundation Exit #1 — 최소 web 프리뷰 HTML (`<geny-avatar src>` 를 halfbody v1.2.0 번들에 연결) + 수동 E2E 체크리스트 + (선택) 샘플 아바타 CLI 재현 스크립트.
-- **세션 20**: Observability Helm chart 실배포 (Exit #3 완결) 혹은 발급자 공개키 레지스트리 + `license.verify` 엔드포인트 (세션 14 blocker 해소).
-- **세션 21**: AI 생성 어댑터 (nano-banana) skeleton, 혹은 rig v1.3 body 파츠 확장 (Post-Processing 스트림 준비).
+- **세션 20**: Playwright 기반 web-preview 자동 E2E — Exit #1 체크리스트 D 단계를 CI 에서 자동화 (headless Chromium 으로 `ready` 이벤트 수신 + DOM 스냅샷). 혹은 Observability Helm chart 배포 (Exit #3 완결).
+- **세션 21**: 발급자 공개키 레지스트리 + `license.verify` 엔드포인트 (세션 14 blocker 해소) 혹은 AI 생성 어댑터 (nano-banana) skeleton.
+- **세션 22**: rig 확장 (v1.3 body 파츠) 혹은 Post-Processing Stage 1 (alpha cleanup) skeleton — Foundation exit 이후 Production 준비.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

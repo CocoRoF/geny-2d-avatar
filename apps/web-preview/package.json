@@ -1,0 +1,19 @@
+{
+  "name": "@geny/web-preview",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Geny 2D Avatar Foundation 프리뷰 앱 — `<geny-avatar>` 로 halfbody v1.2.0 web-avatar 번들을 로드, metadata 를 DOM 에 렌더. Foundation Exit #1 의 수동 E2E 테스트 경로를 자동화.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build:public": "node scripts/prepare.mjs",
+    "serve": "node scripts/serve.mjs",
+    "dev": "pnpm run build:public && pnpm run serve"
+  },
+  "dependencies": {
+    "@geny/exporter-core": "workspace:*",
+    "@geny/web-avatar": "workspace:*"
+  }
+}
