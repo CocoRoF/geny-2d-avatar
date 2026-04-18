@@ -10,6 +10,7 @@
 //  3) CLI 로 halfbody v1.2.0 번들을 임시 디렉터리에 조립, snapshot 을 기존 golden 과 byte 비교.
 //  4) CLI `avatar` 로 sample-01-aria 번들을 조립, snapshot 을 아바타 단 golden 과 byte 비교 (세션 11).
 //  5) CLI `web-avatar` 로 halfbody v1.2.0 web-avatar 번들을 조립, snapshot 을 golden 과 byte 비교 (세션 15).
+//  6) apps/web-preview e2e — prepare+serve+fetch+loadWebAvatarBundle 체인 (세션 20). Foundation Exit #1 의 무인 축.
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -27,6 +28,7 @@ const STEPS = [
   { name: "bundle golden diff", run: runBundleDiff },
   { name: "avatar bundle golden diff", run: runAvatarBundleDiff },
   { name: "web-avatar bundle golden diff", run: runWebAvatarBundleDiff },
+  { name: "web-preview e2e", run: runWebPreviewE2E },
 ];
 
 const failed = [];
@@ -199,6 +201,10 @@ async function runWebAvatarBundleDiff() {
   } finally {
     await rm(tmpDir, { recursive: true, force: true });
   }
+}
+
+async function runWebPreviewE2E() {
+  await run("pnpm", ["-F", "@geny/web-preview", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

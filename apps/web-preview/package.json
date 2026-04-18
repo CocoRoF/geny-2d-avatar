@@ -10,7 +10,8 @@
   "scripts": {
     "build:public": "node scripts/prepare.mjs",
     "serve": "node scripts/serve.mjs",
-    "dev": "pnpm run build:public && pnpm run serve"
+    "dev": "pnpm run build:public && pnpm run serve",
+    "test": "node scripts/e2e-check.mjs"
   },
   "dependencies": {
     "@geny/exporter-core": "workspace:*",
