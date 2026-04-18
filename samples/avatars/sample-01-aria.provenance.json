@@ -1,0 +1,51 @@
+{
+  "avatar_id": "av_01JBMBTC8W5FQ0RTYAX38P7Z5K",
+  "bundle_manifest_sha256": "e56ce4d74795ce483f863999ac123af2adac9df093e455674613da9d775cf7ac",
+  "generated_at": "2026-04-18T10:00:00Z",
+  "parts": [
+    {
+      "model_version": null,
+      "prompt_sha256": null,
+      "seed": null,
+      "slot_id": "body",
+      "source_asset_sha256": null,
+      "source_type": "template_preset",
+      "vendor": null
+    },
+    {
+      "model_version": null,
+      "prompt_sha256": null,
+      "seed": null,
+      "slot_id": "face",
+      "source_asset_sha256": "3f72b4472c1f59ca48e2c8084a0810f78dd39535e9b065da6783a7c343828ea3",
+      "source_type": "user_uploaded",
+      "vendor": null
+    },
+    {
+      "model_version": "0.3.1",
+      "prompt_sha256": "e3f3413cd7f4b751ea288423bf1a974815880a85804300c2354414e7326174f6",
+      "seed": 2039418301,
+      "slot_id": "hair_front",
+      "source_asset_sha256": null,
+      "source_type": "ai_generated",
+      "vendor": "nano-banana"
+    }
+  ],
+  "post_processing": [
+    {
+      "params_sha256": "cb395fcebb6fc0ffcc21173cb6e693f912de66ebb64b6528c9baee0f3efce00b",
+      "stage_id": "alpha_clean",
+      "version": "1.0.0"
+    },
+    {
+      "params_sha256": "99594217dbf6af2d1506b30e52eab704cb36e3893f1178c8280223b9e29312ea",
+      "stage_id": "pivot_fit",
+      "version": "1.0.0"
+    }
+  ],
+  "schema_version": "v1",
+  "signature": "ed25519:RtlmlsRhUkGntg7zFfNfdOYljQ8lhKrFTXqRlfi_MmgVbT_DPmEvv5uFezGM9W8ErN6mJRWuY4X6j7jLSXIWBw",
+  "signer_key_id": "geny.fixture.rfc8032-test1",
+  "template_id": "tpl.base.v1.halfbody",
+  "template_version": "1.2.0"
+}

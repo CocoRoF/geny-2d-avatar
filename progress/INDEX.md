@@ -42,7 +42,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
 | **Platform / Infra** | K8s + CI/CD | ⚪ 미착수 |
-| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 13종 + avatar metadata/export/bundle-manifest 샘플 + CI 자동 검증 (세션 01–05, 11–13), DB/S3 미착수 |
+| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 15종 + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + CI 자동 검증 (세션 01–05, 11–14), DB/S3 미착수 |
 | **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.5.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 11종 + aria 번들 golden + CLI 8 subcommand (세션 08–13). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) · 온보딩(#4) |
 | **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
 
@@ -68,6 +68,8 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 11 | 2026-04-18 | `schema/v1/avatar-export.schema.json` + aria `.export.json` + `@geny/exporter-core` v0.3.0 (`assembleAvatarBundle` + CLI `avatar`) + aria 번들 golden + `test:golden` 4단계 확장 (58 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-11-avatar-export.md) |
 | 12 | 2026-04-18 | `schema/v1/expression-pack.schema.json` + halfbody v1.2.0 smile/wink/neutral `.expression.json` 3종 + `@geny/exporter-core` v0.4.0 (`convertExpression` + `expressionSlug` + bundle expressions/ + CLI `expression`) + FileReferences.Expressions (model3) + exp3 golden 3종 + aria 번들 재생성 (14 files) (68 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-12-expressions.md) |
 | 13 | 2026-04-18 | `schema/v1/bundle-manifest.schema.json` (kind/format/template_id/avatar_id/files) + `@geny/exporter-core` v0.5.0 (번들 루트 `bundle.json` 자동 emit, sha256 감사, avatar_id pass-through) + halfbody/aria 번들 재생성 (14 → 15 files) + `bundle-manifest.test.ts` 8 신규 (76 tests pass) | 완료 | [링크](./sessions/2026-04-18-session-13-bundle-manifest.md) |
+| 13b | 2026-04-18 | CI Node 20.11 → 22.11 pin bump (`.github/workflows/*.yml`, `.nvmrc`, engines) — `node --test` positional glob 미지원으로 세션 12/13 commits 에서 테스트 단계 실패 → 해결 (commit `f331022`) | 완료 | [링크](./sessions/2026-04-18-session-13b-ci-node22.md) |
+| 14 | 2026-04-18 | `schema/v1/license.schema.json` (+ `provenance.schema.json`) — docs/11 §9 계약 (bundle_manifest_sha256 로 번들 결합, Ed25519 signer_key_id + signature) + `scripts/sign-fixture.mjs` (RFC 8032 Test 1 서명 헬퍼) + aria `.license.json` · `.provenance.json` 샘플 + validate-schemas 에 sha 교차확인 · 서명 검증 내장 (checked 130) | 완료 | [링크](./sessions/2026-04-18-session-14-license-provenance.md) |
 
 ---
 
@@ -117,8 +119,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 14**: `license.json` + provenance 서명 (docs/11 §9) — bundle.json 참조, 발급자 공개키 레지스트리.
-- **세션 15**: Web Avatar 번들 포맷 1 단계 (docs/11 §4) — `@geny/web-avatar` 스켈레톤 + bundle.json 재사용 + 텍스처 규약.
-- **세션 16**: 개발자 온보딩 1일 달성 (Foundation Exit #4) — README·quickstart·troubleshooting.
+- **세션 15**: Web Avatar 번들 포맷 1 단계 (docs/11 §4) — `@geny/web-avatar` 스켈레톤 + bundle.json 재사용 + 텍스처 규약. 세션 14 license/provenance 동반 배포.
+- **세션 16**: 개발자 온보딩 1일 달성 (Foundation Exit #4) — README·quickstart·troubleshooting. license 인지 포함.
+- **세션 17**: 관측 대시보드 3종 (Foundation Exit #3) — Prometheus/Grafana 뼈대. OR 발급자 공개키 레지스트리 + license.verify 엔드포인트.
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/provenance.schema.json",
+  "title": "Provenance",
+  "description": "docs/11 §9.2 — 아바타 파츠의 계보 (벤더/시드/프롬프트 해시) + post-processing 이력 + 번들 참조. 민감 정보(프롬프트 원문, 원본 자산) 는 sha256 만. 원문은 콘솔 전용. Ed25519 서명으로 불변성 보장.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "avatar_id",
+    "template_id",
+    "template_version",
+    "bundle_manifest_sha256",
+    "parts",
+    "post_processing",
+    "generated_at",
+    "signer_key_id",
+    "signature"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "avatar_id": { "$ref": "common/ids.json#/$defs/avatarId" },
+    "template_id": { "$ref": "common/ids.json#/$defs/templateRef" },
+    "template_version": { "$ref": "common/ids.json#/$defs/semver" },
+    "bundle_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "결합된 번들의 `bundle.json` sha256. 번들 재생성 시 provenance 도 재서명."
+    },
+    "parts": {
+      "type": "array",
+      "description": "파츠별 계보. slot_id 사전순 정렬 권장.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot_id", "source_type"],
+        "properties": {
+          "slot_id": { "$ref": "common/ids.json#/$defs/slotId" },
+          "source_type": {
+            "type": "string",
+            "enum": ["template_preset", "ai_generated", "user_uploaded"],
+            "description": "파츠 출처. template_preset = 템플릿에 포함된 기본값, ai_generated = AI 생성, user_uploaded = 사용자 업로드."
+          },
+          "vendor": {
+            "oneOf": [
+              { "type": "string", "minLength": 1, "maxLength": 64 },
+              { "type": "null" }
+            ],
+            "description": "AI 제공자 식별자 (예: `nano-banana`). preset/upload 은 null."
+          },
+          "model_version": {
+            "oneOf": [
+              { "type": "string", "minLength": 1, "maxLength": 64 },
+              { "type": "null" }
+            ],
+            "description": "AI 모델 버전. preset/upload 은 null."
+          },
+          "seed": {
+            "oneOf": [
+              { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+              { "type": "null" }
+            ],
+            "description": "재현용 시드. 비AI 는 null."
+          },
+          "prompt_sha256": {
+            "oneOf": [
+              { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              { "type": "null" }
+            ],
+            "description": "원본 프롬프트 sha256. 원문은 사용자 콘솔에서만 조회 (docs/11 §9.2)."
+          },
+          "source_asset_sha256": {
+            "oneOf": [
+              { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              { "type": "null" }
+            ],
+            "description": "원본 자산(이미지/psd 등) sha256."
+          }
+        }
+      }
+    },
+    "post_processing": {
+      "type": "array",
+      "description": "후처리 파이프라인 이력 (docs/06). 실행 순서 보존.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage_id", "version"],
+        "properties": {
+          "stage_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,40}$",
+            "description": "스테이지 식별자. 예: `alpha_clean`, `color_normalize`, `pivot_fit`."
+          },
+          "version": { "$ref": "common/ids.json#/$defs/semver" },
+          "params_sha256": {
+            "oneOf": [
+              { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              { "type": "null" }
+            ],
+            "description": "스테이지 파라미터 해시. null 이면 기본값으로 실행."
+          }
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "provenance 스냅샷 생성 시각 (RFC3339 UTC)."
+    },
+    "signer_key_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{2,62}$",
+      "description": "서명 키 식별자. 라이선스와 동일 키로 서명해도 되고 별도 provenance 키도 가능."
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^ed25519:[A-Za-z0-9_-]+$",
+      "description": "Ed25519 서명 (base64url). 페이로드는 `signature` 필드 제거 후 canonical JSON."
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/license.schema.json",
+  "title": "License",
+  "description": "Export 된 아바타 번들의 라이선스 증명서 (docs/11 §9.1, §9.3). `bundle.json` 의 sha256 으로 특정 번들과 결합. Ed25519 서명으로 위조 방지. 서명 대상은 `signature` 필드를 제외한 canonical JSON (2-space indent, LF, trailing newline; 세션 08 D5).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "license_id",
+    "avatar_id",
+    "template_id",
+    "template_version",
+    "owner",
+    "license_type",
+    "usage_rights",
+    "restrictions",
+    "bundle_manifest_sha256",
+    "issued_at",
+    "expires_at",
+    "platform_terms_version",
+    "signer_key_id",
+    "signature"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "license_id": { "$ref": "common/ids.json#/$defs/licenseId" },
+    "avatar_id": { "$ref": "common/ids.json#/$defs/avatarId" },
+    "template_id": { "$ref": "common/ids.json#/$defs/templateRef" },
+    "template_version": { "$ref": "common/ids.json#/$defs/semver" },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "enum": ["user", "org"] },
+        "id": {
+          "oneOf": [
+            { "$ref": "common/ids.json#/$defs/userId" },
+            { "$ref": "common/ids.json#/$defs/orgId" }
+          ]
+        }
+      },
+      "description": "라이선스 소유자. type=user → id=usr_*, type=org → id=org_*. 호환성은 API 레이어에서 강제 (schema 는 oneOf union)."
+    },
+    "style_profile": {
+      "oneOf": [
+        { "$ref": "common/ids.json#/$defs/styleProfileId" },
+        { "type": "null" }
+      ],
+      "description": "style profile 참조. 없으면 null (기본 스타일 또는 템플릿 고유)."
+    },
+    "license_type": {
+      "type": "string",
+      "enum": ["personal", "commercial_per_seat", "enterprise", "trial"],
+      "description": "라이선스 타입. docs/16 와 정합."
+    },
+    "usage_rights": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "vtube_live",
+          "recorded_video",
+          "commercial_product_ui",
+          "social_media",
+          "live_streaming",
+          "education_non_commercial"
+        ]
+      },
+      "description": "허용 사용처. 최소 1개. docs/11 §9.1 예시 확장."
+    },
+    "restrictions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "no_resale_of_assets",
+          "no_ai_training_third_party",
+          "no_redistribution",
+          "no_derivative_commercial_use",
+          "no_adult_content",
+          "attribution_required"
+        ]
+      },
+      "description": "제약 사항. 빈 배열 허용."
+    },
+    "bundle_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "이 라이선스가 결합된 번들의 `bundle.json` sha256 (세션 13). 번들 재생성 시 라이선스도 재서명 필요."
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "발급 시각 (RFC3339). UTC(Z) 권장."
+    },
+    "expires_at": {
+      "oneOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ],
+      "description": "만료 시각 (옵션). null 이면 무기한 (단, 플랫폼 약관 갱신 시 재서명 가능)."
+    },
+    "platform_terms_version": {
+      "type": "string",
+      "pattern": "^[0-9]{4}\\.[0-9]{2}$",
+      "description": "플랫폼 약관 버전 YYYY.MM. 약관 개정 시 신규 라이선스부터 반영."
+    },
+    "signer_key_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{2,62}$",
+      "description": "서명 키 식별자 (공개키 레지스트리 조회용). 예: `geny.platform.2026-04`, `geny.fixture.rfc8032-test1`."
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^ed25519:[A-Za-z0-9_-]+$",
+      "description": "Ed25519 서명 (base64url, 패딩 없음). 페이로드는 `signature` 필드 제거 후 canonical JSON 직렬화 바이트 (세션 14 D3)."
+    }
+  }
+}

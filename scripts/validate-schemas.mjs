@@ -16,6 +16,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import { verifyDocument } from "./sign-fixture.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, "..");
@@ -35,6 +36,8 @@ const SCHEMA_ID = {
   motionPack: "https://geny.ai/schema/v1/motion-pack.schema.json",
   expressionPack: "https://geny.ai/schema/v1/expression-pack.schema.json",
   bundleManifest: "https://geny.ai/schema/v1/bundle-manifest.schema.json",
+  license: "https://geny.ai/schema/v1/license.schema.json",
+  provenance: "https://geny.ai/schema/v1/provenance.schema.json",
   testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
   pose: "https://geny.ai/schema/v1/pose.schema.json",
 };
@@ -106,6 +109,8 @@ async function main() {
     physics: ajv.getSchema(SCHEMA_ID.physics),
     motionPack: ajv.getSchema(SCHEMA_ID.motionPack),
     expressionPack: ajv.getSchema(SCHEMA_ID.expressionPack),
+    license: ajv.getSchema(SCHEMA_ID.license),
+    provenance: ajv.getSchema(SCHEMA_ID.provenance),
     testPoses: ajv.getSchema(SCHEMA_ID.testPoses),
     pose: ajv.getSchema(SCHEMA_ID.pose),
   };
@@ -783,6 +788,97 @@ async function main() {
         failed += 1;
         console.error(
           `[samples] avatar-export '${relative(REPO_ROOT, p)}' references unknown template '${ref}'`,
+        );
+      }
+    }
+
+    // 세션 14: license + provenance 샘플. 스키마 + avatar 교차참조 + 서명 검증.
+    // `.bundle.snapshot.json` 에 기록된 `bundle.json` 항목의 sha256 과도 교차확인.
+    const bundleManifestShaByAvatar = new Map();
+    for (const entry of files) {
+      if (!entry.endsWith(".bundle.snapshot.json")) continue;
+      const p = join(avatarsDir, entry);
+      const snap = await readJson(p);
+      const manifestEntry = (snap.files || []).find((f) => f.path === "bundle.json");
+      if (!manifestEntry) continue;
+      const stem = entry.replace(/\.bundle\.snapshot\.json$/, "");
+      bundleManifestShaByAvatar.set(stem, manifestEntry.sha256);
+    }
+    for (const entry of files) {
+      if (!entry.endsWith(".license.json")) continue;
+      const p = join(avatarsDir, entry);
+      const lic = await readJson(p);
+      checked += 1;
+      if (!validators.license(lic)) {
+        failed += 1;
+        console.error(`[samples] INVALID license ${relative(REPO_ROOT, p)}`);
+        console.error(fmtErrors(validators.license.errors, relative(REPO_ROOT, p)));
+        continue;
+      }
+      if (!avatarIds.has(lic.avatar_id)) {
+        failed += 1;
+        console.error(
+          `[samples] license '${relative(REPO_ROOT, p)}' references unknown avatar_id '${lic.avatar_id}'`,
+        );
+      }
+      const stem = entry.replace(/\.license\.json$/, "");
+      const expectedSha = bundleManifestShaByAvatar.get(stem);
+      if (expectedSha && lic.bundle_manifest_sha256 !== expectedSha) {
+        failed += 1;
+        console.error(
+          `[samples] license '${relative(REPO_ROOT, p)}' bundle_manifest_sha256=${lic.bundle_manifest_sha256} ≠ bundle.json sha in ${stem}.bundle.snapshot.json (${expectedSha})`,
+        );
+      }
+      try {
+        if (!verifyDocument(lic)) {
+          failed += 1;
+          console.error(
+            `[samples] license '${relative(REPO_ROOT, p)}' signature verification FAILED`,
+          );
+        }
+      } catch (err) {
+        failed += 1;
+        console.error(
+          `[samples] license '${relative(REPO_ROOT, p)}' signature verify threw: ${err.message}`,
+        );
+      }
+    }
+    for (const entry of files) {
+      if (!entry.endsWith(".provenance.json")) continue;
+      const p = join(avatarsDir, entry);
+      const prov = await readJson(p);
+      checked += 1;
+      if (!validators.provenance(prov)) {
+        failed += 1;
+        console.error(`[samples] INVALID provenance ${relative(REPO_ROOT, p)}`);
+        console.error(fmtErrors(validators.provenance.errors, relative(REPO_ROOT, p)));
+        continue;
+      }
+      if (!avatarIds.has(prov.avatar_id)) {
+        failed += 1;
+        console.error(
+          `[samples] provenance '${relative(REPO_ROOT, p)}' references unknown avatar_id '${prov.avatar_id}'`,
+        );
+      }
+      const stem = entry.replace(/\.provenance\.json$/, "");
+      const expectedSha = bundleManifestShaByAvatar.get(stem);
+      if (expectedSha && prov.bundle_manifest_sha256 !== expectedSha) {
+        failed += 1;
+        console.error(
+          `[samples] provenance '${relative(REPO_ROOT, p)}' bundle_manifest_sha256=${prov.bundle_manifest_sha256} ≠ bundle.json sha in ${stem}.bundle.snapshot.json (${expectedSha})`,
+        );
+      }
+      try {
+        if (!verifyDocument(prov)) {
+          failed += 1;
+          console.error(
+            `[samples] provenance '${relative(REPO_ROOT, p)}' signature verification FAILED`,
+          );
+        }
+      } catch (err) {
+        failed += 1;
+        console.error(
+          `[samples] provenance '${relative(REPO_ROOT, p)}' signature verify threw: ${err.message}`,
         );
       }
     }
