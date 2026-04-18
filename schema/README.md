@@ -24,7 +24,8 @@ schema/
 │   ├── bundle-manifest.schema.json     # docs/11 §4.5 — 번들 루트 bundle.json (세션 13; kind=cubism-bundle|web-avatar-bundle)
 │   ├── license.schema.json             # docs/11 §9.1 — 라이선스 (Ed25519 서명, 세션 14)
 │   ├── provenance.schema.json          # docs/11 §9.2 — 파츠 계보 + 후처리 이력 (세션 14)
-│   ├── web-avatar.schema.json          # docs/11 §4.5 — `@geny/web-avatar` 런타임 전용 경량 번들 메타 (세션 15)
+│   ├── web-avatar.schema.json          # docs/11 §4.5 — `@geny/web-avatar` 런타임 전용 경량 번들 메타 (세션 15; 세션 18 stage 2 — textures[].{width,height,bytes,sha256} + atlas 필드 확정)
+│   ├── atlas.schema.json               # docs/11 §4.5 — 텍스처 UV/치수 매핑 (세션 18 stage 2)
 │   ├── style-profile.schema.json       # docs/10 §3 (미작성)
 │   ├── export-job.schema.json          # docs/12 §4.9 (미작성)
 │   └── common/

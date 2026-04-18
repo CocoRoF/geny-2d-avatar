@@ -65,14 +65,43 @@ test("convertWebAvatar: textures option is sorted by path and preserved", () => 
   const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
   const wa = convertWebAvatar(tpl, {
     textures: [
-      { path: "textures/b.png", purpose: "albedo" },
-      { path: "textures/a.png", purpose: "albedo" },
+      {
+        path: "textures/b.png",
+        purpose: "albedo",
+        width: 8,
+        height: 8,
+        bytes: 100,
+        sha256: "b".repeat(64),
+      },
+      {
+        path: "textures/a.png",
+        purpose: "albedo",
+        width: 4,
+        height: 4,
+        bytes: 64,
+        sha256: "a".repeat(64),
+      },
     ],
   });
-  assert.deepEqual(wa.textures, [
-    { path: "textures/a.png", purpose: "albedo" },
-    { path: "textures/b.png", purpose: "albedo" },
-  ]);
+  assert.equal(wa.textures.length, 2);
+  assert.equal(wa.textures[0]!.path, "textures/a.png");
+  assert.equal(wa.textures[1]!.path, "textures/b.png");
+  assert.equal(wa.textures[0]!.width, 4);
+  assert.equal(wa.textures[1]!.bytes, 100);
+});
+
+test("convertWebAvatar: atlas option passed through when provided", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const atlasRef = { path: "atlas.json" as const, sha256: "f".repeat(64) };
+  const wa = convertWebAvatar(tpl, { atlas: atlasRef });
+  assert.deepEqual(wa.atlas, atlasRef);
+});
+
+test("convertWebAvatar: default atlas is null (opts.atlas omitted)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const wa = convertWebAvatar(tpl);
+  assert.equal(wa.atlas, null);
+  assert.deepEqual(wa.textures, []);
 });
 
 test("convertWebAvatar: canonicalJson bytes are stable across calls", () => {

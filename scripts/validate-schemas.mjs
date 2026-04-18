@@ -39,6 +39,7 @@ const SCHEMA_ID = {
   license: "https://geny.ai/schema/v1/license.schema.json",
   provenance: "https://geny.ai/schema/v1/provenance.schema.json",
   webAvatar: "https://geny.ai/schema/v1/web-avatar.schema.json",
+  atlas: "https://geny.ai/schema/v1/atlas.schema.json",
   testPoses: "https://geny.ai/schema/v1/test-poses.schema.json",
   pose: "https://geny.ai/schema/v1/pose.schema.json",
 };
@@ -113,6 +114,7 @@ async function main() {
     license: ajv.getSchema(SCHEMA_ID.license),
     provenance: ajv.getSchema(SCHEMA_ID.provenance),
     webAvatar: ajv.getSchema(SCHEMA_ID.webAvatar),
+    atlas: ajv.getSchema(SCHEMA_ID.atlas),
     testPoses: ajv.getSchema(SCHEMA_ID.testPoses),
     pose: ajv.getSchema(SCHEMA_ID.pose),
   };
@@ -913,6 +915,43 @@ async function main() {
     }
   }
   await validateWebAvatarGolden();
+
+  // 5. Validate atlas.json — template source and golden (세션 18).
+  async function validateAtlasDocs() {
+    const paths = [
+      join(
+        REPO_ROOT,
+        "rig-templates",
+        "base",
+        "halfbody",
+        "v1.2.0",
+        "textures",
+        "atlas.json",
+      ),
+      join(
+        REPO_ROOT,
+        "packages",
+        "exporter-core",
+        "tests",
+        "golden",
+        "halfbody_v1.2.0.atlas.json",
+      ),
+    ];
+    for (const atlasPath of paths) {
+      try {
+        const doc = await readJson(atlasPath);
+        checked += 1;
+        if (!validators.atlas(doc)) {
+          failed += 1;
+          console.error(`[atlas] INVALID atlas ${relative(REPO_ROOT, atlasPath)}`);
+          console.error(fmtErrors(validators.atlas.errors, relative(REPO_ROOT, atlasPath)));
+        }
+      } catch (err) {
+        if (err.code !== "ENOENT") throw err;
+      }
+    }
+  }
+  await validateAtlasDocs();
 
   // 5. Summary
   console.log("");

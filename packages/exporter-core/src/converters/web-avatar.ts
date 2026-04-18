@@ -44,6 +44,15 @@ export interface WebAvatarExpression {
 export interface WebAvatarTexture {
   path: string;
   purpose: "albedo";
+  width: number;
+  height: number;
+  bytes: number;
+  sha256: string;
+}
+
+export interface WebAvatarAtlasRef {
+  path: "atlas.json";
+  sha256: string;
 }
 
 export interface WebAvatarPhysicsSummary {
@@ -63,14 +72,21 @@ export interface WebAvatarJson {
   motions: WebAvatarMotion[];
   expressions: WebAvatarExpression[];
   textures: WebAvatarTexture[];
+  atlas: WebAvatarAtlasRef | null;
   physics_summary: WebAvatarPhysicsSummary | null;
 }
 
 export interface ConvertWebAvatarOptions {
   /** avatar-export 경유라면 avatar_id. 없으면 null. */
   avatarId?: string;
-  /** 번들에 포함될 텍스처 참조 목록. stage 1 기본값은 빈 배열. */
+  /**
+   * 번들에 포함될 텍스처 참조 목록. stage 1 에서는 호출자가 직접 주입했지만,
+   * stage 2 부터는 `assembleWebAvatarBundle` 가 template.textures 를 읽어 자동 계산.
+   * 여전히 override 용도로 직접 전달 가능 (예: AI 생성 텍스처 주입).
+   */
   textures?: WebAvatarTexture[];
+  /** atlas.json 참조. textures 가 있으면 필수, 없으면 null. */
+  atlas?: WebAvatarAtlasRef | null;
 }
 
 /**
@@ -144,6 +160,8 @@ export function convertWebAvatar(
     .slice()
     .sort(byKey<WebAvatarTexture>("path"));
 
+  const atlas: WebAvatarAtlasRef | null = opts.atlas ?? null;
+
   const physicsSummary: WebAvatarPhysicsSummary | null = tpl.physics
     ? {
         setting_count: tpl.physics.meta.physics_setting_count,
@@ -163,6 +181,7 @@ export function convertWebAvatar(
     motions,
     expressions,
     textures,
+    atlas,
     physics_summary: physicsSummary,
   };
 }

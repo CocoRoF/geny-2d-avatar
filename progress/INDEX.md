@@ -42,9 +42,9 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | **Post-Processing & Fitting** | Stage 1, 3, 6 (alpha/color/pivot) | ⚪ 미착수 |
 | **UX** | 에디터 뼈대 | ⚪ 미착수 |
 | **Platform / Infra** | K8s + CI/CD + 관측 | 🟡 CI (세션 10/13b) + 관측 선언 config (세션 17 — `infra/observability/` 메트릭 카탈로그 32개 · Prometheus scrape · 3 알람 · Grafana 3 대시보드). K8s/Helm 미착수 |
-| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 16종 + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + CI 자동 검증 + web-avatar 번들 메타(세션 15) (세션 01–05, 11–15), DB/S3 미착수 |
-| **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.6.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + `assembleWebAvatarBundle()` + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 12종 (Cubism 11 + web-avatar 1) + aria 번들 golden + CLI 9 subcommand (세션 08–15). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) · 온보딩(#4) |
-| **Frontend** | 에디터 기본 레이아웃 | ⚪ 미착수 |
+| **Data** | Postgres/S3/Redis, 스키마 초판 | 🟡 JSON Schema 17종 (web-avatar + atlas) + avatar metadata/export/bundle-manifest/license/provenance 샘플 + Ed25519 서명 검증 + CI 자동 검증 (세션 01–05, 11–15, 18), DB/S3 미착수 |
+| **Pipeline** | 단일 아바타 DAG | 🟡 `@geny/exporter-core` v0.6.0 — pose3 + physics3 + motion3 + cdi3 + model3 + exp3 변환기 + `assembleBundle()` + `assembleAvatarBundle()` + `assembleWebAvatarBundle()` stage 2 (텍스처 PNG/WebP + atlas.json emit) + 루트 `bundle.json` 매니페스트 (sha256 감사) + halfbody v1.2.0 golden 13종 (Cubism 11 + web-avatar 1 + atlas 1) + aria 번들 golden + CLI 9 subcommand (세션 08–15, 18). 남은 Exit 게이트: Editor 실측(#1) · 관측(#3) |
+| **Frontend** | 에디터 기본 레이아웃 | 🟡 `@geny/web-avatar` v0.1.0 — `<geny-avatar>` Custom Element 스켈레톤 + `loadWebAvatarBundle()` (bundle.json → web-avatar.json → atlas.json) + `ready/error` 이벤트 (세션 18). 렌더링/제어 API 는 Stage 3+ |
 
 범례: 🟢 완료 · 🟡 진행중 · 🔴 블록 · ⚪ 미착수
 
@@ -73,6 +73,7 @@ Foundation Exit 체크리스트 (`docs/14 §3.3`):
 | 15 | 2026-04-18 | Web Avatar 번들 stage 1 — `schema/v1/web-avatar.schema.json` + bundle-manifest kind 확장(+`web-avatar-bundle`) + `@geny/exporter-core` v0.6.0 (`convertWebAvatar` + `assembleWebAvatarBundle` + CLI `web-avatar`) + halfbody v1.2.0 web-avatar golden 2종 + `packages/web-avatar/` 스켈레톤 + `test:golden` step 5 (88 tests pass, checked 131) | 완료 | [링크](./sessions/2026-04-18-session-15-web-avatar.md) |
 | 16 | 2026-04-18 | 개발자 온보딩 1일 (Foundation Exit #4) — 루트 `README.md` 9 섹션 (prereqs, 5분 quickstart, 레포 구조, 9 CLI 표, 샘플 서명 검증, 마이그레이션, CI, troubleshooting 7종) + `scripts/README.md` 4 엔트리 + `Taskfile.yml` `test:golden` task 추가 | 완료 | [링크](./sessions/2026-04-18-session-16-onboarding.md) |
 | 17 | 2026-04-18 | 관측 대시보드 3종 config (Foundation Exit #3 준비) — `infra/observability/` 신설: `metrics-catalog.md` 32 메트릭 + Prometheus scrape 7 job + alert rule 3개(완주율/AI 5xx/큐) + Grafana 대시보드 3종 (Job Health 6 / Cost 6 / Quality 7 panel) + docs/02 §9 1:1 매핑 | 완료 | [링크](./sessions/2026-04-18-session-17-observability.md) |
+| 18 | 2026-04-18 | Web Avatar stage 2 + `<geny-avatar>` 런타임 스켈레톤 — `schema/v1/atlas.schema.json` 신설 + `web-avatar.schema.json` (textures 치수/sha256 필수 + atlas 필드) + `@geny/exporter-core` loader 텍스처 스캐너 (PNG IHDR/WebP VP8) + `assembleWebAvatarBundle` stage 2 (PNG byte-copy + atlas.json emit) + halfbody v1.2.0 textures/base.png (4×4) + atlas golden + `@geny/web-avatar` v0.1.0 (loader + Custom Element + `ready`/`error`) (93 tests pass, checked 133) | 완료 | [링크](./sessions/2026-04-18-session-18-web-avatar-stage2.md) |
 
 ---
 
@@ -122,8 +123,8 @@ Foundation 단계 릴리스 게이트(`docs/14 §10`):
 
 ## 8. 다음 3세션 예고 (Tentative)
 
-- **세션 18**: Web Avatar stage 2 — 텍스처 PNG/WebP 번들 + atlas 메타. 실제 런타임 `<geny-avatar>` 스켈레톤 시작.
-- **세션 19**: Foundation Exit #1 (단일 아바타 생성→프리뷰→export 수동 테스트) — 최소 web UI 스켈레톤 or CLI-only 워크플로 문서화.
-- **세션 20**: 발급자 공개키 레지스트리 + `license.verify` 엔드포인트(세션 14 blocker 해소), 또는 Observability Helm chart 실배포(Exit #3 완결).
+- **세션 19**: Foundation Exit #1 — 최소 web 프리뷰 HTML (`<geny-avatar src>` 를 halfbody v1.2.0 번들에 연결) + 수동 E2E 체크리스트 + (선택) 샘플 아바타 CLI 재현 스크립트.
+- **세션 20**: Observability Helm chart 실배포 (Exit #3 완결) 혹은 발급자 공개키 레지스트리 + `license.verify` 엔드포인트 (세션 14 blocker 해소).
+- **세션 21**: AI 생성 어댑터 (nano-banana) skeleton, 혹은 rig v1.3 body 파츠 확장 (Post-Processing 스트림 준비).
 
 계획은 현재 맥락에서의 최선이며, 세션 시작 시 재평가한다.

@@ -17,6 +17,7 @@
     "motions",
     "expressions",
     "textures",
+    "atlas",
     "physics_summary"
   ],
   "properties": {
@@ -130,11 +131,11 @@
     },
     "textures": {
       "type": "array",
-      "description": "텍스처 파일 참조. Stage 1 스캐폴드는 빈 배열 가능 (실제 PNG emit 은 이후 stage).",
+      "description": "텍스처 파일 참조. path 알파벳 정렬. 번들 내 실제 바이트와 sha256/bytes/width/height 로 결합 — 런타임은 fetch 후 integrity 검증 가능.",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "purpose"],
+        "required": ["path", "purpose", "width", "height", "bytes", "sha256"],
         "properties": {
           "path": {
             "type": "string",
@@ -143,9 +144,28 @@
           "purpose": {
             "type": "string",
             "enum": ["albedo"]
-          }
+          },
+          "width": { "type": "integer", "minimum": 1, "maximum": 8192 },
+          "height": { "type": "integer", "minimum": 1, "maximum": 8192 },
+          "bytes": { "type": "integer", "minimum": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
         }
       }
+    },
+    "atlas": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "const": "atlas.json" },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        },
+        { "type": "null" }
+      ],
+      "description": "atlas.json (슬롯별 UV 매핑) 참조. textures[] 가 비어 있으면 null. 런타임은 `<geny-avatar>` src(bundle.json) → atlas.path 해석 후 별도 fetch."
     },
     "physics_summary": {
       "oneOf": [

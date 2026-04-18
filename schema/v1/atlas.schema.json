@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/atlas.schema.json",
+  "title": "Texture Atlas Meta",
+  "description": "Web Avatar 번들의 텍스처 아틀라스 메타. `<outDir>/atlas.json` 에 배치되며 bundle.json(kind=web-avatar-bundle) 의 files[] 에 등재된다. textures[] 는 번들 내 텍스처 파일의 물리 메타(dimension/format), slots[] 는 각 슬롯이 참조하는 UV 사각형 (0..1 정규화). Foundation 스테이지에서는 slots[] 가 비어도 됨 — 실제 UV 매핑은 AI 생성 + 오토피팅 단계에서 채움 (docs/07).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "format", "textures", "slots"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "format": {
+      "type": "integer",
+      "const": 1,
+      "description": "atlas.json 구조 버전. 필드 추가 시 bump."
+    },
+    "textures": {
+      "type": "array",
+      "description": "번들 내 텍스처 파일 목록. path 알파벳 정렬. 모든 경로는 번들 루트 기준 상대이며 `textures/` 접두사를 갖는다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "width", "height", "format", "premultiplied_alpha"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^textures/[A-Za-z0-9_./-]+\\.(png|webp)$"
+          },
+          "width": { "type": "integer", "minimum": 1, "maximum": 8192 },
+          "height": { "type": "integer", "minimum": 1, "maximum": 8192 },
+          "format": { "type": "string", "enum": ["png", "webp"] },
+          "premultiplied_alpha": {
+            "type": "boolean",
+            "description": "WebGL 렌더 시 premultiply 여부. AI 파이프라인 출력은 기본 false."
+          }
+        }
+      }
+    },
+    "slots": {
+      "type": "array",
+      "description": "슬롯별 UV 매핑. slot_id 알파벳 정렬. 빈 배열은 '텍스처는 있으나 매핑은 아직 없음' (예: Foundation placeholder).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot_id", "texture_path", "uv"],
+        "properties": {
+          "slot_id": { "$ref": "common/ids.json#/$defs/slotId" },
+          "texture_path": {
+            "type": "string",
+            "pattern": "^textures/[A-Za-z0-9_./-]+\\.(png|webp)$",
+            "description": "이 슬롯이 참조하는 textures[].path."
+          },
+          "uv": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": { "type": "number", "minimum": 0, "maximum": 1 },
+            "description": "[u0, v0, u1, v1] 정규화 좌표. (0,0) = 좌상, (1,1) = 우하. u1 > u0, v1 > v0 권장."
+          }
+        }
+      }
+    }
+  }
+}
