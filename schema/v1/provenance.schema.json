@@ -75,6 +75,29 @@
               { "type": "null" }
             ],
             "description": "원본 자산(이미지/psd 등) sha256."
+          },
+          "attempts": {
+            "type": "array",
+            "description": "orchestrator 가 기록한 폴백 트레이스(docs/05 §7.3/§12.3). `source_type: ai_generated` 인 경우에만 의미 — 최종 성공한 어댑터는 마지막 엔트리. null 이거나 생략 가능(하위 호환).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["adapter", "model_version", "ok"],
+              "properties": {
+                "adapter": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]{1,63}$"
+                },
+                "model_version": { "$ref": "common/ids.json#/$defs/semver" },
+                "ok": { "type": "boolean" },
+                "error_code": {
+                  "type": "string",
+                  "pattern": "^[A-Z][A-Z0-9_]{1,63}$"
+                },
+                "error_message": { "type": "string", "maxLength": 512 }
+              }
+            },
+            "maxItems": 16
           }
         }
       }

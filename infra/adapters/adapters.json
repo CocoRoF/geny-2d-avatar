@@ -1,0 +1,47 @@
+{
+  "schema_version": "v1",
+  "adapters": [
+    {
+      "name": "nano-banana",
+      "version": "0.1.0",
+      "capability": ["edit", "style_ref", "mask"],
+      "cost_per_call_usd": 0.015,
+      "max_parallel": 8,
+      "routing_weight": 100,
+      "config": {
+        "endpoint": "https://nano-banana.example.com",
+        "api_key_env": "NANO_BANANA_API_KEY",
+        "model": "gemini-2.5-flash-image",
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "name": "sdxl",
+      "version": "0.1.0",
+      "capability": ["edit", "style_ref"],
+      "cost_per_call_usd": 0.022,
+      "max_parallel": 4,
+      "routing_weight": 80,
+      "config": {
+        "endpoint": "https://sdxl.example.com",
+        "api_key_env": "SDXL_API_KEY",
+        "model": "sdxl-inpaint-1.0",
+        "timeout_ms": 90000
+      }
+    },
+    {
+      "name": "flux-fill",
+      "version": "0.1.0",
+      "capability": ["edit", "mask"],
+      "cost_per_call_usd": 0.028,
+      "max_parallel": 2,
+      "routing_weight": 70,
+      "config": {
+        "endpoint": "https://flux-fill.example.com",
+        "api_key_env": "FLUX_FILL_API_KEY",
+        "model": "flux-fill-pro-1.0",
+        "timeout_ms": 90000
+      }
+    }
+  ]
+}

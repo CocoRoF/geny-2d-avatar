@@ -45,6 +45,7 @@ const SCHEMA_ID = {
   signerRegistry: "https://geny.ai/schema/v1/signer-registry.schema.json",
   aiAdapterTask: "https://geny.ai/schema/v1/ai-adapter-task.schema.json",
   aiAdapterResult: "https://geny.ai/schema/v1/ai-adapter-result.schema.json",
+  adapterCatalog: "https://geny.ai/schema/v1/adapter-catalog.schema.json",
 };
 
 // ——— Utilities ———
@@ -123,6 +124,7 @@ async function main() {
     signerRegistry: ajv.getSchema(SCHEMA_ID.signerRegistry),
     aiAdapterTask: ajv.getSchema(SCHEMA_ID.aiAdapterTask),
     aiAdapterResult: ajv.getSchema(SCHEMA_ID.aiAdapterResult),
+    adapterCatalog: ajv.getSchema(SCHEMA_ID.adapterCatalog),
   };
   for (const [name, v] of Object.entries(validators)) {
     if (!v) throw new Error(`Could not compile validator for ${name} (id=${SCHEMA_ID[name]})`);
@@ -1062,6 +1064,35 @@ async function main() {
     }
   }
   await validateAIAdapterSamples();
+
+  // 8. Validate canonical adapter catalog (세션 30).
+  async function validateAdapterCatalog() {
+    const catalogPath = join(REPO_ROOT, "infra", "adapters", "adapters.json");
+    try {
+      const doc = await readJson(catalogPath);
+      checked += 1;
+      if (!validators.adapterCatalog(doc)) {
+        failed += 1;
+        console.error(`[adapters] INVALID catalog ${relative(REPO_ROOT, catalogPath)}`);
+        console.error(fmtErrors(validators.adapterCatalog.errors, relative(REPO_ROOT, catalogPath)));
+      } else {
+        // Uniqueness check: name@version.
+        const seen = new Set();
+        for (const entry of doc.adapters) {
+          const key = `${entry.name}@${entry.version}`;
+          if (seen.has(key)) {
+            failed += 1;
+            console.error(`[adapters] duplicate entry '${key}' in ${relative(REPO_ROOT, catalogPath)}`);
+          }
+          seen.add(key);
+        }
+      }
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      console.log(`[adapters] no catalog at ${relative(REPO_ROOT, catalogPath)} — skipping`);
+    }
+  }
+  await validateAdapterCatalog();
 
   // 5. Summary
   console.log("");

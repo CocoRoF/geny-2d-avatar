@@ -15,20 +15,35 @@ docs/05 AI 생성 파이프라인의 어댑터 계약.
   - 4xx/CAPABILITY_MISMATCH/BUDGET_EXCEEDED/INVALID_OUTPUT → 즉시 throw (다른 벤더도 같은 입력에 같은 응답)
   - 캐시 hit → 어댑터 호출 없이 즉시 반환 (키는 **primary 어댑터 기준**; 폴백이 일어나도 저장 키는 고정)
   - `attempts[]` 트레이스 반환 — 누가 어떻게 실패했는지 provenance 로 이어 쓸 수 있음
+- **`parseAdapterCatalog(json)` / `buildRegistryFromCatalog(catalog, factories)`** — docs/05 §12.6 어댑터 카탈로그.
+  - JSON(`infra/adapters/adapters.json`) 은 "무엇을" (name/version/capability/routing_weight/config/enabled)
+  - factory 맵은 "어떻게" (실 HTTP 클라이언트/Mock 을 코드에서 주입)
+  - `enabled: false` 는 A/B 토글, factory 미선언 엔트리는 부팅 시 throw
+- **`orchestrate(task, { catalog, factories, cache?, safety?, maxAttempts? })`** — 단일 진입점.
+  - 레지스트리 구성 → `routeWithFallback` → provenance `parts[]` 엔트리 (`attempts[]` 포함) 까지 한 번에.
+  - 반환된 `outcome.provenance` 는 `schema/v1/provenance.schema.json` 의 `parts[].ai_generated` 로 그대로 삽입 가능.
 
 ```ts
-import { AdapterRegistry, routeWithFallback, InMemoryAdapterCache } from "@geny/ai-adapter-core";
+import {
+  orchestrate,
+  parseAdapterCatalog,
+  InMemoryAdapterCache,
+  entryToMeta,
+} from "@geny/ai-adapter-core";
+import { readFileSync } from "node:fs";
 
-const registry = new AdapterRegistry();
-registry.register(new NanoBananaAdapter({ client: httpNano }));
-registry.register(new SDXLAdapter({ client: httpSDXL }));
-
+const catalog = parseAdapterCatalog(JSON.parse(readFileSync("infra/adapters/adapters.json", "utf-8")));
+const factories = {
+  "nano-banana": (entry) => new NanoBananaAdapter({ client: httpNano, meta: entryToMeta(entry) }),
+  "sdxl":        (entry) => new SDXLAdapter({ client: httpSDXL, meta: entryToMeta(entry) }),
+  "flux-fill":   (entry) => new FluxFillAdapter({ client: httpFlux, meta: entryToMeta(entry) }),
+};
 const cache = new InMemoryAdapterCache();
-const out = await routeWithFallback(registry, task, { cache });
-// out.result : GenerationResult
-// out.primary: "nano-banana" (최상위 후보)
-// out.used   : 실제로 성공한 어댑터 이름
-// out.attempts: [{ adapter, modelVersion, ok, errorCode? }, ...]
+
+const outcome = await orchestrate(task, { catalog, factories, cache });
+// outcome.used     : 실제로 성공한 어댑터
+// outcome.attempts : [{ adapter, modelVersion, ok, errorCode? }, ...]
+// outcome.provenance: provenance.schema.json parts[] 엔트리 (attempts 포함)
 ```
 
 ## 빌드
@@ -38,4 +53,4 @@ pnpm -F @geny/ai-adapter-core build
 pnpm -F @geny/ai-adapter-core test
 ```
 
-37 tests (deterministic seed 5 + provenance builder 4 + registry routing 5 + cache 4 + routeWithFallback 14 + 기타).
+52 tests (deterministic seed 5 + provenance builder 4 + registry routing 5 + cache 4 + routeWithFallback 14 + catalog 9 + orchestrator 6 + 기타).

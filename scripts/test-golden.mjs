@@ -14,7 +14,8 @@
 //  6) apps/web-preview e2e — prepare+serve+fetch+loadWebAvatarBundle 체인 (세션 20). Foundation Exit #1 의 무인 축.
 //  7) @geny/license-verifier tests — registry 파서 + verifyLicense/Provenance + tamper/expiry/scope 회귀 (세션 21).
 //  8) @geny/ai-adapter-core tests — deterministicSeed/promptSha256 + AdapterRegistry 라우팅 + provenance 엔트리 빌더
-//     + routeWithFallback() 헬퍼(5xx/4xx/safety/캐시 분기) + SafetyFilter 계약 (세션 22/28).
+//     + routeWithFallback() 헬퍼(5xx/4xx/safety/캐시 분기) + SafetyFilter 계약
+//     + adapters.json catalog 파서 + factory 주입 + orchestrate() 단일 진입점 (세션 22/28/30, 52 tests).
 //  9) @geny/ai-adapter-nano-banana tests — capability matrix + BUDGET/CAPABILITY/DEADLINE/INVALID_OUTPUT 에러 매핑
 //     + adapter → provenance → license-verifier round-trip (세션 22).
 // 10) @geny/web-avatar tests — happy-dom 기반 `<geny-avatar>` DOM lifecycle 회귀 + loader 단위 테스트 (세션 23).

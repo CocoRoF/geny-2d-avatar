@@ -22,13 +22,27 @@
       "vendor": null
     },
     {
-      "model_version": "0.3.1",
+      "attempts": [
+        {
+          "adapter": "nano-banana",
+          "error_code": "VENDOR_ERROR_5XX",
+          "error_message": "upstream 503",
+          "model_version": "0.3.1",
+          "ok": false
+        },
+        {
+          "adapter": "sdxl",
+          "model_version": "0.1.0",
+          "ok": true
+        }
+      ],
+      "model_version": "0.1.0",
       "prompt_sha256": "e3f3413cd7f4b751ea288423bf1a974815880a85804300c2354414e7326174f6",
       "seed": 2039418301,
       "slot_id": "hair_front",
       "source_asset_sha256": null,
       "source_type": "ai_generated",
-      "vendor": "nano-banana"
+      "vendor": "sdxl"
     }
   ],
   "post_processing": [
@@ -44,7 +58,7 @@
     }
   ],
   "schema_version": "v1",
-  "signature": "ed25519:RtlmlsRhUkGntg7zFfNfdOYljQ8lhKrFTXqRlfi_MmgVbT_DPmEvv5uFezGM9W8ErN6mJRWuY4X6j7jLSXIWBw",
+  "signature": "ed25519:AknuVYGEa-2miBHPQSOchgZPyZNm9ZzAvQln0LKNUydGiqNKky24SmZHwuujSmW2etdmGQ7B9sN3DBdvAwdCDg",
   "signer_key_id": "geny.fixture.rfc8032-test1",
   "template_id": "tpl.base.v1.halfbody",
   "template_version": "1.2.0"
