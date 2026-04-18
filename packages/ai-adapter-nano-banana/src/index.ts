@@ -9,3 +9,5 @@ export type {
   NanoBananaRequest,
   NanoBananaResponse,
 } from "./client.js";
+export { HttpNanoBananaClient } from "./http-client.js";
+export type { HttpNanoBananaClientOptions } from "./http-client.js";

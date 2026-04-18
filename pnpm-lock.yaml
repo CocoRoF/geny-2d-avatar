@@ -49,6 +49,22 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  packages/ai-adapters-fallback:
+    dependencies:
+      '@geny/ai-adapter-core':
+        specifier: workspace:*
+        version: link:../ai-adapter-core
+    devDependencies:
+      '@geny/ai-adapter-nano-banana':
+        specifier: workspace:*
+        version: link:../ai-adapter-nano-banana
+      '@types/node':
+        specifier: ^20.11.30
+        version: 20.19.39
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   packages/exporter-core:
     devDependencies:
       '@types/node':

@@ -18,6 +18,8 @@
 //     + adapter → provenance → license-verifier round-trip (세션 22).
 // 10) @geny/web-avatar tests — happy-dom 기반 `<geny-avatar>` DOM lifecycle 회귀 + loader 단위 테스트 (세션 23).
 // 11) infra/helm/observability — chart configs sync + 구조 검증 (Chart.yaml / values / templates / `.Files.Get` 참조). 세션 24.
+// 12) @geny/ai-adapters-fallback tests — SDXL(edit/style_ref) + Flux-Fill(mask) skeleton 의 capability 매트릭스 + AdapterRegistry
+//     통합 폴백 순서(nano-banana → sdxl → flux-fill) 회귀 (세션 25).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -41,6 +43,7 @@ const STEPS = [
   { name: "ai-adapter-nano-banana tests", run: runAIAdapterNanoBananaTests },
   { name: "web-avatar dom lifecycle", run: runWebAvatarDomTests },
   { name: "observability chart verify", run: runObservabilityChartVerify },
+  { name: "ai-adapters-fallback tests", run: runAIAdaptersFallbackTests },
 ];
 
 const failed = [];
@@ -243,6 +246,13 @@ async function runWebAvatarDomTests() {
 async function runObservabilityChartVerify() {
   // infra/helm/observability chart 구조 + canonical sync (세션 24).
   await run("node", ["scripts/verify-observability-chart.mjs"], { cwd: repoRoot });
+}
+
+async function runAIAdaptersFallbackTests() {
+  // SDXL + Flux-Fill skeleton + AdapterRegistry 통합 폴백 (세션 25).
+  // nano-banana 는 router integration test 에서 dist/ import.
+  await run("pnpm", ["-F", "@geny/ai-adapter-nano-banana", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/ai-adapters-fallback", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

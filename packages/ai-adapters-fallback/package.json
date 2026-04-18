@@ -1,0 +1,36 @@
+{
+  "name": "@geny/ai-adapters-fallback",
+  "version": "0.1.0",
+  "private": true,
+  "description": "docs/05 §2.3 폴백 AI 어댑터 skeleton — SDXL (edit/style_ref) + Flux-Fill (mask). nano-banana 5xx/DEADLINE 시 AdapterRegistry.route() 가 자동 폴백. 네트워크 없이 Mock 클라이언트로 라우팅/결정론/provenance 를 검증 (세션 25).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "dependencies": {
+    "@geny/ai-adapter-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@geny/ai-adapter-nano-banana": "workspace:*",
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}
