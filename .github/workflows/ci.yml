@@ -39,6 +39,58 @@ jobs:
       - name: Golden regression
         run: pnpm run test:golden
 
+  bullmq-integration:
+    # 세션 69 — ADR 0006 §D3 X+4 staging. `@geny/job-queue-bullmq/tests/redis-integration.test.ts`
+    # 는 `REDIS_URL` 미설정 시 4 test skip (Foundation CI 기본 경로). 본 lane 만 redis 서비스
+    # 컨테이너를 띄워 테스트 포인트 1/2/3/getJob-null + close 멱등을 실 Redis 에서 회귀한다.
+    # golden lane 과 병렬 — 실패해도 golden 이 막히지 않음 (독립 job).
+    name: bullmq integration (redis 7.2-alpine)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      redis:
+        image: redis:7.2-alpine
+        # BullMQ 는 noeviction 정책에서만 큐 안정성이 보장됨 (ADR 0006 §1.2). redis:7.2-alpine
+        # 기본은 maxmemory 미설정 + noeviction 이지만, --maxmemory-policy 를 명시해 의도를 코드화.
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    env:
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.11.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Enforce noeviction policy
+        # Redis service container 는 `options` 에서 CMD 를 직접 덮지 못함 (BullMQ 가 `config SET`
+        # 으로 런타임 변경 거부하는 케이스 방어). 세팅은 기본값 확인만 — 어긋나면 실패.
+        run: |
+          set -euo pipefail
+          policy=$(redis-cli -u "$REDIS_URL" config get maxmemory-policy | tail -n1)
+          echo "maxmemory-policy=$policy"
+          test "$policy" = "noeviction"
+
+      - name: BullMQ integration tests
+        run: pnpm -F @geny/job-queue-bullmq test
+
   secret-scan:
     name: secret scan (gitleaks)
     runs-on: ubuntu-latest

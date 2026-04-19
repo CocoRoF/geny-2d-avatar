@@ -1,0 +1,34 @@
+# docker-compose.staging.yml — 로컬 dev 용 BullMQ/Redis 스택 (세션 69, ADR 0006 §1.2).
+#
+# 용도: `apps/worker-generate --driver bullmq` / `scripts/perf-harness.mjs --driver bullmq` /
+#       `packages/job-queue-bullmq` integration test 를 로컬에서 돌릴 때 REDIS_URL 을 공급.
+#
+# 사용:
+#   docker compose -f docker-compose.staging.yml up -d
+#   export REDIS_URL=redis://127.0.0.1:6379
+#   pnpm -F @geny/job-queue-bullmq test                 # 4 redis-integration test 실 실행
+#   REDIS_URL=$REDIS_URL node scripts/perf-harness.mjs --driver bullmq --jobs 200 --concurrency 4
+#   docker compose -f docker-compose.staging.yml down   # 정리
+#
+# 버전/정책 선택:
+#   - redis:7.2-alpine — infra/helm/redis/Chart.yaml appVersion 과 정렬.
+#   - maxmemory-policy=noeviction — BullMQ 는 noeviction 이 아니면 큐 데이터가 LRU 로 증발해 잡
+#     유실 가능 (ADR 0006 §1.2). redis:7.x 기본이 noeviction 이지만 `--requirepass 등으로 구성
+#     파일을 재정의할 가능성을 배제하기 위해 명시적으로 플래그 주입.
+#   - ports 6379:6379 — 로컬에서 `REDIS_URL=redis://127.0.0.1:6379` 로 접근.
+#   - healthcheck `redis-cli ping` — `docker compose up --wait` 에서 ready 판정용.
+
+services:
+  redis:
+    image: redis:7.2-alpine
+    command:
+      - redis-server
+      - --maxmemory-policy
+      - noeviction
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
