@@ -68,9 +68,9 @@ consumer:
   enabled: true
   replicas: 2
   role: consumer                    # --role consumer
-  # BullMQ Worker concurrency — 세션 65 `createBullMQConsumer(opts.concurrency)` 에 전달 예정.
-  # 현재 CLI flag 미노출 (session 67 후보) — 본 값은 Deployment env `GENY_WORKER_CONCURRENCY`
-  # 로 주입되고 future CLI 가 읽는다 (idempotent upgrade 를 위한 선행 배선).
+  # BullMQ Worker concurrency — 세션 65 `createBullMQConsumer(opts.concurrency)` 에 전달.
+  # Deployment env `GENY_WORKER_CONCURRENCY` 로 주입되고 `--concurrency` CLI flag fallback
+  # 경로 (세션 67) 로 소비된다 — 미지정 시 BullMQ 기본값 (1). 범위 [1, 256].
   concurrency: 4
   port: 9092
   resources:

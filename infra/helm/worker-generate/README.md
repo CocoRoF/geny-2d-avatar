@@ -75,7 +75,7 @@ helm lint     infra/helm/worker-generate -f infra/helm/worker-generate/values-pr
 | `redis.existingSecret` | `redis-geny-redis-connection` | geny-redis chart 가 만든 Secret |
 | `producer.replicas` | 1 (dev) / 2 (prod) | HTTP /jobs 수신 replica |
 | `consumer.replicas` | 1 (dev) / 3 (prod) | BullMQ Worker replica |
-| `consumer.concurrency` | 4 | env `GENY_WORKER_CONCURRENCY` 로 주입. CLI flag 미노출 — session 67 후보 |
+| `consumer.concurrency` | 4 | env `GENY_WORKER_CONCURRENCY` 로 주입 (세션 66 D6) → CLI `--concurrency N` fallback 으로 소비 (세션 67) |
 | `serviceMonitor.enabled` | false | Prometheus Operator ServiceMonitor 렌더 |
 
 ## 구조

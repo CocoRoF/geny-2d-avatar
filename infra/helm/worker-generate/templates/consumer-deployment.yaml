@@ -41,7 +41,7 @@ spec:
             {{- end }}
           env:
             {{- include "geny-worker-generate.commonEnv" . | nindent 12 }}
-            # BullMQ Worker concurrency 주입 — future CLI flag (session 67 후보) 가 읽는다.
+            # BullMQ Worker concurrency 주입 — `--concurrency` CLI flag fallback (세션 67) 로 소비.
             - name: GENY_WORKER_CONCURRENCY
               value: {{ .Values.consumer.concurrency | quote }}
           {{- with include "geny-worker-generate.envFrom" . }}

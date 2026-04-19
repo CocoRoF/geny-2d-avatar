@@ -1,10 +1,10 @@
 /**
- * `@geny/worker-generate` CLI 엔트리 (세션 44 / 63 / 64 / 65).
+ * `@geny/worker-generate` CLI 엔트리 (세션 44 / 63 / 64 / 65 / 67).
  *
  * 사용:
  *   node dist/main.js --port 9091 [--catalog path] [--http]
  *                     [--driver in-memory|bullmq] [--queue-name N]
- *                     [--role producer|consumer|both]
+ *                     [--role producer|consumer|both] [--concurrency N]
  *
  * `--role` (세션 65, ADR 0006 §D3 X+2):
  *   - `both` (기본) — 기존 인라인 경로: producer + in-process consumer(setImmediate orchestrate).
@@ -13,6 +13,9 @@
  *     orchestrate 훅 생략. consumer 역 프로세스가 따로 돌아야 잡이 처리됨.
  *   - `consumer` — BullMQ `Worker` 만. `/jobs` 라우터는 미노출. `/metrics` + `/healthz` 유지.
  *   producer/consumer 는 `--driver bullmq` 필수.
+ *
+ * `--concurrency N` (세션 67) — consumer 역할에서만 사용. env `GENY_WORKER_CONCURRENCY`
+ *   fallback. Helm chart (세션 66 D6) 가 env 로 주입한 값을 CLI 미지정 시 자동 소비.
  *
  * 메트릭 배선 (catalog §2.1):
  *   - `geny_queue_enqueued_total{queue_name}` — producer/both (store.onEnqueued 훅).
@@ -54,82 +57,9 @@ import {
 } from "@geny/job-queue-bullmq";
 
 import { createWorkerGenerate, type JobStoreFactory } from "./index.js";
+import { parseArgs, type CliArgs } from "./args.js";
 
 const DEFAULT_SAMPLER_INTERVAL_MS = 30_000;
-
-type DriverKind = "in-memory" | "bullmq";
-type Role = "producer" | "consumer" | "both";
-
-interface CliArgs {
-  port: number;
-  host: string;
-  catalog: string | undefined;
-  http: boolean;
-  driver: DriverKind;
-  queueName: string;
-  role: Role;
-}
-
-const DEFAULT_QUEUE_NAME = "geny-generate";
-
-function parseArgs(argv: readonly string[]): CliArgs {
-  let port = 9091;
-  let host = "0.0.0.0";
-  let catalog: string | undefined;
-  let http = false;
-  let driver: DriverKind = "in-memory";
-  let queueName = DEFAULT_QUEUE_NAME;
-  let role: Role = "both";
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === "--port") {
-      const v = argv[++i];
-      if (!v) throw new Error("--port 값 누락");
-      const n = Number(v);
-      if (!Number.isFinite(n) || n < 0 || n > 65535) throw new Error(`--port 범위 오류: ${v}`);
-      port = n;
-    } else if (a === "--host") {
-      const v = argv[++i];
-      if (!v) throw new Error("--host 값 누락");
-      host = v;
-    } else if (a === "--catalog") {
-      const v = argv[++i];
-      if (!v) throw new Error("--catalog 값 누락");
-      catalog = v;
-    } else if (a === "--http") {
-      http = true;
-    } else if (a === "--driver") {
-      const v = argv[++i];
-      if (v !== "in-memory" && v !== "bullmq") {
-        throw new Error(`--driver 는 "in-memory" 또는 "bullmq" 만 허용: ${v}`);
-      }
-      driver = v;
-    } else if (a === "--queue-name") {
-      const v = argv[++i];
-      if (!v) throw new Error("--queue-name 값 누락");
-      queueName = v;
-    } else if (a === "--role") {
-      const v = argv[++i];
-      if (v !== "producer" && v !== "consumer" && v !== "both") {
-        throw new Error(`--role 는 "producer"|"consumer"|"both" 만 허용: ${v}`);
-      }
-      role = v;
-    } else if (a === "--help" || a === "-h") {
-      process.stdout.write(
-        "usage: worker-generate [--port N] [--host H] [--catalog PATH] [--http]" +
-          " [--driver in-memory|bullmq] [--queue-name NAME]" +
-          " [--role producer|consumer|both]\n",
-      );
-      process.exit(0);
-    } else {
-      throw new Error(`unknown flag: ${a}`);
-    }
-  }
-  if ((role === "producer" || role === "consumer") && driver !== "bullmq") {
-    throw new Error(`--role ${role} 은 --driver bullmq 에서만 사용 가능`);
-  }
-  return { port, host, catalog, http, driver, queueName, role };
-}
 
 interface RedisBundle {
   client: import("ioredis").Redis;
@@ -316,12 +246,18 @@ async function runConsumer(
         durationHistogram.observe(labels, seconds);
       },
     },
+    ...(args.concurrency !== undefined ? { concurrency: args.concurrency } : {}),
   });
   await consumer.ready();
 
   const server = svc.createMetricsServer();
   await new Promise<void>((ok) => server.listen(args.port, args.host, ok));
-  logBoundSummary(server, args, httpNames, "worker=bullmq");
+  logBoundSummary(
+    server,
+    args,
+    httpNames,
+    `worker=bullmq concurrency=${args.concurrency ?? "default(1)"}`,
+  );
 
   const shutdown = async (signal: string): Promise<void> => {
     process.stderr.write(`[worker-generate] ${signal} — consumer draining\n`);
