@@ -83,6 +83,19 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  packages/metrics-http:
+    dependencies:
+      '@geny/ai-adapter-core':
+        specifier: workspace:*
+        version: link:../ai-adapter-core
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.30
+        version: 20.19.39
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   packages/post-processing:
     devDependencies:
       '@types/node':

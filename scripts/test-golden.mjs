@@ -28,6 +28,8 @@
 //     경로 + fit-to-palette k-means k=4 ΔE ≤ cap 이동 + pre-atlas hook, 세션 29/32) + §4 step 3/4/5 확장
 //     (morph close + feather + UV clip + 파이프라인 순서 회귀, 세션 35). 111 tests.
 // 14) rig-template migrate — v1.0.0→v1.3.0 체인 + v1.2.0→v1.3.0 단일 hop + 결정론 (세션 27).
+// 15) @geny/metrics-http tests — Node http `/metrics` + `/healthz` 핸들러 + createMetricsServer
+//     e2e (orchestrator hook → scrape 반영) + HEAD/405/404/query-string 회귀 (12 tests, 세션 36).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -54,6 +56,7 @@ const STEPS = [
   { name: "ai-adapters-fallback tests", run: runAIAdaptersFallbackTests },
   { name: "post-processing tests", run: runPostProcessingTests },
   { name: "rig-template migrate tests", run: runRigMigrateTests },
+  { name: "metrics-http tests", run: runMetricsHttpTests },
 ];
 
 const failed = [];
@@ -273,6 +276,12 @@ async function runPostProcessingTests() {
 async function runRigMigrateTests() {
   // halfbody v1.0.0→v1.3.0 migrator 체인 회귀 (세션 27).
   await run("node", ["scripts/rig-template/migrate.test.mjs"], { cwd: repoRoot });
+}
+
+async function runMetricsHttpTests() {
+  // @geny/metrics-http 는 @geny/ai-adapter-core 의 dist 에 의존. core 빌드 선행.
+  await run("pnpm", ["-F", "@geny/ai-adapter-core", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/metrics-http", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

@@ -1,0 +1,35 @@
+{
+  "name": "@geny/metrics-http",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prometheus `/metrics` Node http handler — `@geny/ai-adapter-core` 의 `InMemoryMetricsRegistry` 를 `renderPrometheusText()` 로 직렬화해 `text/plain; version=0.0.4` 응답으로 노출. worker/api 등 어떤 Node 서비스에도 동일하게 붙일 수 있는 얇은 층.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "dependencies": {
+    "@geny/ai-adapter-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}
