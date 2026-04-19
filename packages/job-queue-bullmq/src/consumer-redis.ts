@@ -7,16 +7,17 @@
  *  - `Worker` 는 BullMQ 5.x `new Worker(queueName, processor, { connection })` 으로 구성.
  *    `processor(job)` 내부에서 `processWithMetrics` 로 감싸 `geny_queue_failed_total` /
  *    `geny_queue_duration_seconds` 2 메트릭을 배출한 뒤 `opts.processor(job.data)` 호출.
+ *    **세션 68** 부터 `enqueuedAt=job.timestamp` 를 전달 — duration 이 wait+process 전체
+ *    (enqueue→terminal) 를 측정, Foundation 근사치를 정밀화.
  *  - `close()` 는 `Worker.close()` — in-flight 잡을 끝까지 기다린 뒤 connection 을 놓는다.
  *    ioredis 클라이언트 lifecycle 은 호출자 책임 (driver-redis 과 동일 규약).
  *  - `REDIS_URL` 미설정 Foundation CI 에서는 이 파일을 직접 import 하지 않는 한 번들되지 않는다.
  *
- * ## 비-목표 (X+2 범위 밖)
+ * ## 비-목표
  *
- *  - `QueueEvents` 연결은 본 파일에서 만들지 않음. `geny_queue_duration_seconds` 의 정확한
- *    enqueue→terminal 구간은 Runtime 튜닝 시 QueueEvents `added`/`completed` 타임스탬프 차분
- *    으로 확장 — 현재는 processor 구간 근사.
  *  - DLQ 라우팅(테스트 포인트 5) 은 Runtime 세션에서 `attemptsMade >= max_retries` 분기로 추가.
+ *  - 외부 대시보드가 enqueue→completed 구간을 실시간 스트림으로 보고 싶을 때 QueueEvents 를
+ *    별도로 띄울 수 있으나, 본 래퍼의 히스토그램 정확성에는 불필요.
  */
 
 import { Worker, type Job, type WorkerOptions } from "bullmq";
@@ -66,6 +67,8 @@ export function createBullMQConsumer<TResult = unknown>(
         queueName: opts.queueName,
         ...(opts.sink ? { sink: opts.sink } : {}),
         ...(opts.classifyError ? { classifyError: opts.classifyError } : {}),
+        // BullMQ Job.timestamp 는 Queue.add 시점의 ms epoch — enqueue→terminal 정밀 측정 (세션 68).
+        ...(typeof job.timestamp === "number" ? { enqueuedAt: job.timestamp } : {}),
       });
     },
     {

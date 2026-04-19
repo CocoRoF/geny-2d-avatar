@@ -7,10 +7,13 @@
  *    `classifyError(err)` 로 enum(`ai_timeout|ai_5xx|schema_violation|post_processing|export|
  *    other`) 으로 정규화. catalog §2.1 (`infra/observability/metrics-catalog.md`) vocabulary
  *    와 일치. `geny_job_failed_reason_total` 과 교차 확인 가능.
- *  - `geny_queue_duration_seconds{queue_name, outcome}` histogram — enqueue→terminal 전체가
- *    아니라 **consumer 처리 구간**(processor start → resolve/reject) 만 관측. Foundation 단계
- *    의 근사치이며, 정확한 wait+process 구간은 Runtime 세션에서 QueueEvents 의
- *    `added/completed` 타임스탬프 차분으로 확장 예정.
+ *  - `geny_queue_duration_seconds{queue_name, outcome}` histogram — `opts.enqueuedAt` 주입
+ *    시 **enqueue→terminal 구간** (BullMQ `Job.timestamp` 를 기준으로 wait+process 전체),
+ *    미주입 시 **consumer 처리 구간** (processor start → resolve/reject) 만 관측.
+ *    `consumer-redis.ts` 가 세션 68 부터 `enqueuedAt=job.timestamp` 를 전달해 Foundation 단계
+ *    근사를 정밀화 — BullMQ `Job.timestamp` 는 `Queue.add` 시점의 ms epoch 라 별도 QueueEvents
+ *    pub/sub 없이도 동등 정밀도를 얻는다. 외부 하네스가 `added/completed` 를 pub/sub 으로 받는
+ *    방식은 cross-process 케이스에서 여전히 유용 — 본 경로는 in-Worker 최단거리 구현.
  *
  * 이 헬퍼는 `bullmq`/`ioredis` 에 의존하지 않는 **순수 함수** — 단위 테스트는 Redis 없이 돌아간다.
  * 실 BullMQ `Worker` 연결은 `consumer-redis.ts` 의 `createBullMQConsumer` 가 담당.
@@ -55,6 +58,13 @@ export interface ProcessWithMetricsOptions {
   classifyError?: (err: unknown) => QueueFailureReason;
   /** 테스트 결정성 — 기본 `Date.now`. */
   clock?: () => number;
+  /**
+   * enqueue 시각 (ms epoch). 주입 시 duration = `now - enqueuedAt` 으로 wait+process 구간을
+   * 측정한다 (세션 68). 미주입 시 processor start → terminal 구간만 측정 (세션 65 호환).
+   * `consumer-redis.ts` 는 BullMQ `Job.timestamp` 를 그대로 넘긴다.
+   * 음수 차분(clock skew / 시계 역행) 은 0 으로 clamp — histogram bucket 에 음수가 섞이지 않도록.
+   */
+  enqueuedAt?: number;
 }
 
 /**
@@ -66,12 +76,14 @@ export async function processWithMetrics<T>(
   opts: ProcessWithMetricsOptions,
 ): Promise<T> {
   const now = opts.clock ?? Date.now;
-  const start = now();
+  const processorStart = now();
+  const start = opts.enqueuedAt ?? processorStart;
+  const durationSeconds = (): number => Math.max(0, (now() - start) / 1000);
   try {
     const result = await processor();
     opts.sink?.onDuration(
       { queue_name: opts.queueName, outcome: "succeeded" },
-      (now() - start) / 1000,
+      durationSeconds(),
     );
     return result;
   } catch (err) {
@@ -79,7 +91,7 @@ export async function processWithMetrics<T>(
     opts.sink?.onFailed({ queue_name: opts.queueName, reason });
     opts.sink?.onDuration(
       { queue_name: opts.queueName, outcome: "failed" },
-      (now() - start) / 1000,
+      durationSeconds(),
     );
     throw err;
   }

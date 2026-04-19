@@ -112,6 +112,48 @@ test("processWithMetrics: classifyError 커스텀 훅 우선 적용", async () =
   assert.equal(rec.failed[0]?.reason, "schema_violation");
 });
 
+test("processWithMetrics: enqueuedAt 주입 시 duration = wait + process (세션 68 정밀화)", async () => {
+  const rec = recordingSink();
+  const clock = fakeClock();
+  // enqueuedAt 은 processor 시작(= clock.now()) 보다 과거 — wait 시간 1200ms 을 가상함.
+  const enqueuedAt = clock.now() - 1200;
+  const result = await processWithMetrics(
+    async () => {
+      clock.advance(300); // 실 processor 는 300ms 소요
+      return "ok";
+    },
+    { queueName: "q1", sink: rec.sink, clock: clock.now, enqueuedAt },
+  );
+  assert.equal(result, "ok");
+  // duration = (now() - enqueuedAt) / 1000 = (처음 + 300 - (처음 - 1200)) / 1000 = 1.5s
+  assert.deepEqual(rec.durations, [{ queue_name: "q1", outcome: "succeeded", seconds: 1.5 }]);
+});
+
+test("processWithMetrics: enqueuedAt 이 미래(clock skew) 면 0 으로 clamp", async () => {
+  const rec = recordingSink();
+  const clock = fakeClock();
+  const enqueuedAt = clock.now() + 5000; // 비정상 — 미래 타임스탬프
+  await processWithMetrics(
+    async () => "ok",
+    { queueName: "q", sink: rec.sink, clock: clock.now, enqueuedAt },
+  );
+  assert.equal(rec.durations.length, 1);
+  assert.equal(rec.durations[0]!.seconds, 0, "미래 enqueuedAt 은 음수 duration 대신 0");
+});
+
+test("processWithMetrics: enqueuedAt 미주입 시 기존 processor-구간 유지 (세션 65 호환)", async () => {
+  const rec = recordingSink();
+  const clock = fakeClock();
+  await processWithMetrics(
+    async () => {
+      clock.advance(400);
+      return "ok";
+    },
+    { queueName: "q", sink: rec.sink, clock: clock.now },
+  );
+  assert.deepEqual(rec.durations, [{ queue_name: "q", outcome: "succeeded", seconds: 0.4 }]);
+});
+
 test("defaultClassifyQueueError: code vocabulary 매핑 커버리지", () => {
   assert.equal(defaultClassifyQueueError({ code: "AI_TIMEOUT" }), "ai_timeout");
   assert.equal(defaultClassifyQueueError({ code: "VENDOR_ERROR_5XX" }), "ai_5xx");
