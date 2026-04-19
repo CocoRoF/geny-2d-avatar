@@ -49,6 +49,14 @@ async function migrateCase(srcRel) {
   return { out, base, manifest, params, report };
 }
 
+async function readIfExists(path) {
+  try {
+    return await readFile(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const failures = [];
 
@@ -79,7 +87,9 @@ async function main() {
       assert.ok(ids.has("accessory_front_sway"));
       assert.match(report, /1\.0\.0 → 1\.1\.0/);
       assert.match(report, /1\.2\.0 → 1\.3\.0/);
-      assert.match(report, /ahoge\.spec\.json/);
+      // 세션 37 — v1.3.0 hop 이 남기는 유일한 저자 TODO 는 physics.json.
+      assert.match(report, /physics\.json/);
+      assert.doesNotMatch(report, /ahoge\.spec\.json/);
       console.error("[migrate.test] ✔ v1.0.0 → v1.3.0 full chain");
     } finally {
       await rm(base, { recursive: true, force: true });
@@ -90,7 +100,7 @@ async function main() {
 
   // Case B: v1.2.0 → v1.3.0 단일 hop
   try {
-    const { base, manifest, params, report } = await migrateCase(
+    const { out, base, manifest, params, report } = await migrateCase(
       "rig-templates/base/halfbody/v1.2.0",
     );
     try {
@@ -126,7 +136,61 @@ async function main() {
       // v1.0.0/v1.1.0/v1.2.0 전환 TODO 는 포함되지 않아야 (단일 hop)
       assert.doesNotMatch(report, /1\.0\.0 → 1\.1\.0/);
       assert.match(report, /1\.2\.0 → 1\.3\.0/);
-      assert.match(report, /physics_setting_count/);
+      assert.match(report, /physics\.json/);
+
+      // 세션 37 — mechanical auto-patch 검증.
+      const ahogePart = await readJson(join(out, "parts", "ahoge.spec.json"));
+      assert.equal(ahogePart.slot_id, "ahoge");
+      assert.equal(ahogePart.deformation_parent, "ahoge_warp");
+      assert.equal(ahogePart.z_order, 94);
+      assert.equal(ahogePart.cubism_part_id, "PartAhoge");
+
+      const accBack = await readJson(join(out, "parts", "accessory_back.spec.json"));
+      const accFront = await readJson(
+        join(out, "parts", "accessory_front.spec.json"),
+      );
+      assert.equal(
+        accBack.deformation_parent,
+        "accessory_back_warp",
+        "accessory_back 의 parent 가 신규 warp 로 이동",
+      );
+      assert.equal(
+        accFront.deformation_parent,
+        "accessory_front_warp",
+        "accessory_front 의 parent 가 신규 warp 로 이동",
+      );
+
+      const def = await readJson(join(out, "deformers.json"));
+      const defIds = def.nodes.map((n) => n.id);
+      for (const id of ["ahoge_warp", "accessory_back_warp", "accessory_front_warp"]) {
+        assert.ok(defIds.includes(id), `deformers.json 에 ${id} 추가되어야 함`);
+      }
+      const layer = def.nodes.find((n) => n.id === "accessories_layer");
+      assert.match(
+        layer.notes,
+        /accessory_back_warp.*accessory_front_warp/,
+        "accessories_layer notes 갱신",
+      );
+      // ahoge_warp 의 parent 는 head_pose_rot (아호게는 머리 직속).
+      const ahogeWarp = def.nodes.find((n) => n.id === "ahoge_warp");
+      assert.equal(ahogeWarp.parent, "head_pose_rot");
+      assert.deepEqual(ahogeWarp.params_in, ["ahoge_sway"]);
+
+      const mapping = await readIfExists(
+        join(out, "physics", "mao_pro_mapping.md"),
+      );
+      assert.ok(mapping, "mao_pro_mapping.md 존재");
+      assert.match(mapping, /## 6\. v1\.3\.0/);
+      assert.match(mapping, /accessory_sway_phys/);
+
+      // TODO 항목은 1개 (physics.json 만) — 세션 37 D1.
+      const todoLines = report.split("\n").filter((l) => l.startsWith("- [ ]"));
+      assert.equal(
+        todoLines.length,
+        1,
+        `v1.2.0→v1.3.0 hop 의 수동 TODO 는 1개여야 (실제: ${todoLines.length})`,
+      );
+
       console.error("[migrate.test] ✔ v1.2.0 → v1.3.0 single hop");
     } finally {
       await rm(base, { recursive: true, force: true });
