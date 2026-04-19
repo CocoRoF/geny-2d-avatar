@@ -28,7 +28,9 @@
   },
   "dependencies": {
     "@geny/ai-adapter-core": "workspace:*",
-    "@geny/orchestrator-service": "workspace:*"
+    "@geny/job-queue-bullmq": "workspace:*",
+    "@geny/orchestrator-service": "workspace:*",
+    "ioredis": "^5"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",

@@ -1,14 +1,17 @@
 /**
- * `@geny/worker-generate` CLI 엔트리 (세션 44).
+ * `@geny/worker-generate` CLI 엔트리 (세션 44 / 63).
  *
  * 사용:
  *   node dist/main.js --port 9091 [--catalog path] [--http]
+ *                     [--driver in-memory|bullmq] [--queue-name N]
  *
  * 동작:
  *   1. `@geny/orchestrator-service` 와 동일한 `--catalog` / `--http` 플래그를 받는다.
- *   2. `createWorkerGenerate` 로 orchestrator + jobs router 를 하나의 프로세스에 묶는다.
- *   3. `/metrics` + `/healthz` + `/jobs` + `/jobs/{id}` 를 같은 포트에 바인딩.
- *   4. SIGTERM / SIGINT 수신 시 서버 정지 + 드레인 + exit.
+ *   2. `--driver bullmq` 시 `REDIS_URL` env 를 소비, `createBullMQDriverFromRedis` +
+ *      `createBullMQJobStore` 로 JobStore 를 교체 주입 (세션 63, ADR 0006 §D3 X+1).
+ *   3. `createWorkerGenerate` 로 orchestrator + jobs router 를 하나의 프로세스에 묶는다.
+ *   4. `/metrics` + `/healthz` + `/jobs` + `/jobs/{id}` 를 같은 포트에 바인딩.
+ *   5. SIGTERM / SIGINT 수신 시 서버 정지 + 드레인 + (bullmq) ioredis quit + exit.
  */
 
 import process from "node:process";
@@ -21,21 +24,33 @@ import {
   loadApiKeysFromCatalogEnv,
 } from "@geny/orchestrator-service";
 import { parseAdapterCatalog } from "@geny/ai-adapter-core";
+import {
+  createBullMQDriverFromRedis,
+  createBullMQJobStore,
+} from "@geny/job-queue-bullmq";
 
-import { createWorkerGenerate } from "./index.js";
+import { createWorkerGenerate, type JobStoreFactory } from "./index.js";
+
+type DriverKind = "in-memory" | "bullmq";
 
 interface CliArgs {
   port: number;
   host: string;
   catalog: string | undefined;
   http: boolean;
+  driver: DriverKind;
+  queueName: string;
 }
+
+const DEFAULT_QUEUE_NAME = "geny-generate";
 
 function parseArgs(argv: readonly string[]): CliArgs {
   let port = 9091;
   let host = "0.0.0.0";
   let catalog: string | undefined;
   let http = false;
+  let driver: DriverKind = "in-memory";
+  let queueName = DEFAULT_QUEUE_NAME;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--port") {
@@ -54,20 +69,61 @@ function parseArgs(argv: readonly string[]): CliArgs {
       catalog = v;
     } else if (a === "--http") {
       http = true;
+    } else if (a === "--driver") {
+      const v = argv[++i];
+      if (v !== "in-memory" && v !== "bullmq") {
+        throw new Error(`--driver 는 "in-memory" 또는 "bullmq" 만 허용: ${v}`);
+      }
+      driver = v;
+    } else if (a === "--queue-name") {
+      const v = argv[++i];
+      if (!v) throw new Error("--queue-name 값 누락");
+      queueName = v;
     } else if (a === "--help" || a === "-h") {
       process.stdout.write(
-        "usage: worker-generate [--port N] [--host H] [--catalog PATH] [--http]\n",
+        "usage: worker-generate [--port N] [--host H] [--catalog PATH] [--http]" +
+          " [--driver in-memory|bullmq] [--queue-name NAME]\n",
       );
       process.exit(0);
     } else {
       throw new Error(`unknown flag: ${a}`);
     }
   }
-  return { port, host, catalog, http };
+  return { port, host, catalog, http, driver, queueName };
+}
+
+/**
+ * `--driver bullmq` 경로의 store 팩토리를 빌드한다. `REDIS_URL` 을 읽고, 그것이 없으면
+ * 명시적으로 에러 throw — 묵시적 in-memory fallback 금지 (ops 혼란 방지).
+ *
+ * 반환: `{ factory, closeConnection }` — factory 는 `createWorkerGenerate.storeFactory`
+ * 로 주입, closeConnection 은 SIGTERM 시 ioredis `quit()` 호출.
+ */
+async function buildBullMQStoreFactory(queueName: string): Promise<{
+  factory: JobStoreFactory;
+  closeConnection: () => Promise<void>;
+}> {
+  const redisUrl = process.env["REDIS_URL"];
+  if (!redisUrl) {
+    throw new Error("--driver bullmq 는 REDIS_URL 환경변수를 요구한다 (예: redis://127.0.0.1:6379)");
+  }
+  const { Redis } = await import("ioredis");
+  const client = new Redis(redisUrl, { maxRetriesPerRequest: null });
+  const driver = createBullMQDriverFromRedis(client, { queueName });
+  const factory: JobStoreFactory = (orchestrate) =>
+    createBullMQJobStore({ driver, orchestrate });
+  const closeConnection = async (): Promise<void> => {
+    try {
+      await client.quit();
+    } catch {
+      client.disconnect();
+    }
+  };
+  return { factory, closeConnection };
 }
 
 async function main(): Promise<void> {
-  const { port, host, catalog, http } = parseArgs(process.argv.slice(2));
+  const { port, host, catalog, http, driver, queueName } = parseArgs(process.argv.slice(2));
   const catalogPath = catalog ?? DEFAULT_CATALOG_PATH;
   const parsedCatalog = parseAdapterCatalog(
     JSON.parse(readFileSync(catalogPath, "utf8")),
@@ -83,8 +139,17 @@ async function main(): Promise<void> {
     factories = { ...mockFactories, ...httpFactories };
   }
 
+  let storeFactory: JobStoreFactory | undefined;
+  let closeConnection: (() => Promise<void>) | undefined;
+  if (driver === "bullmq") {
+    const built = await buildBullMQStoreFactory(queueName);
+    storeFactory = built.factory;
+    closeConnection = built.closeConnection;
+  }
+
   const worker = createWorkerGenerate({
     orchestratorOptions: { catalog: parsedCatalog, factories },
+    ...(storeFactory ? { storeFactory } : {}),
     logger: {
       info(msg, meta) {
         process.stderr.write(`[worker-generate] ${msg} ${meta ? JSON.stringify(meta) : ""}\n`);
@@ -102,8 +167,11 @@ async function main(): Promise<void> {
   const mode = http
     ? `HTTP: [${httpNames.join(", ") || "(none — env 미설정)"}] / Mock: 나머지`
     : "Mock: 전 어댑터";
+  const driverDesc = driver === "bullmq"
+    ? `driver=bullmq queue=${queueName} redis=${process.env["REDIS_URL"]}`
+    : "driver=in-memory";
   process.stderr.write(
-    `[worker-generate] listening on http://${host}:${boundPort}/{metrics,healthz,jobs} — ${worker.service.adapters.length} adapters — ${mode}\n`,
+    `[worker-generate] listening on http://${host}:${boundPort}/{metrics,healthz,jobs} — ${worker.service.adapters.length} adapters — ${mode} — ${driverDesc}\n`,
   );
 
   const shutdown = async (signal: string): Promise<void> => {
@@ -114,6 +182,13 @@ async function main(): Promise<void> {
       process.stderr.write(`[worker-generate] drain error: ${(err as Error).message}\n`);
     }
     await worker.store.stop();
+    if (closeConnection) {
+      try {
+        await closeConnection();
+      } catch (err) {
+        process.stderr.write(`[worker-generate] redis close error: ${(err as Error).message}\n`);
+      }
+    }
     server.close((err) => {
       if (err) {
         process.stderr.write(`[worker-generate] close error: ${err.message}\n`);

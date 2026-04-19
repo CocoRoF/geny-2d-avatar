@@ -1,10 +1,13 @@
 /**
  * 인-메모리 FIFO 잡 큐 + 상태 추적 (Foundation 범위). docs/02 §4 JobRunner 의 최초 내부
- * 참조 구현 — 실제 Redis/BullMQ 큐 결선은 `@geny/job-queue-bullmq` (세션 60) 와 Runtime
- * wiring (세션 62+).
+ * 참조 구현 — 실제 Redis/BullMQ 큐 결선은 `@geny/job-queue-bullmq` (세션 60/62) 와 Runtime
+ * bootstrap wiring (세션 63+).
  *
  * 설계:
- *  - `submit(task)` 이 동기적으로 `{ job_id, status: "queued" }` 를 반환.
+ *  - `submit(task)` 은 **`Promise<JobRecord>`** 를 반환 (세션 63 — `@geny/job-queue-bullmq`
+ *    의 `createBullMQJobStore` 와 **동일한 async 인터페이스** 로 통일해, `createWorkerGenerate`
+ *    가 in-memory ↔ BullMQ 드라이버를 구조적으로 교체할 수 있게 한다). 내부적으로는 여전히
+ *    동기 구현이라 `Promise.resolve(rec)` 로 포장.
  *  - **`job_id = task.idempotency_key` 원문 패스스루** (세션 61, ADR 0006 §D3.2 + prework
  *    §2.5). 해시/UUID 변환 없음 — traceability 유지 + BullMQ 드라이버와 계약 동일.
  *  - **동일 `idempotency_key` 재제출은 기존 `JobRecord` 를 그대로 반환** (BullMQ
@@ -43,9 +46,9 @@ export interface CreateJobStoreOptions {
 }
 
 export interface JobStore {
-  submit(task: GenerationTask): JobRecord;
-  get(id: string): JobRecord | undefined;
-  list(): readonly JobRecord[];
+  submit(task: GenerationTask): Promise<JobRecord>;
+  get(id: string): Promise<JobRecord | undefined>;
+  list(): Promise<readonly JobRecord[]>;
   /** id 가 최종 상태(succeeded/failed)에 도달할 때까지 resolve 지연. */
   waitFor(id: string, timeoutMs?: number): Promise<JobRecord>;
   /** 대기 중인 모든 잡이 최종 상태에 도달할 때까지 대기. */
@@ -95,7 +98,7 @@ export function createJobStore(opts: CreateJobStoreOptions): JobStore {
   }
 
   return {
-    submit(task) {
+    async submit(task) {
       if (stopped) throw new Error("JobStore: 이미 정지됨 — 새 제출 불가");
       const id = task.idempotency_key;
       // 동일 idempotency_key 재제출: 기존 record 그대로 반환, 새 엔트리/새 orchestrate 없음.
@@ -111,16 +114,18 @@ export function createJobStore(opts: CreateJobStoreOptions): JobStore {
       jobs.set(id, rec);
       order.push(id);
       pending.push(id);
-      // 이벤트 루프 다음 tick 에 loop 를 깨움 (sync submit 반환 보장).
-      queueMicrotask(() => {
+      // setImmediate 로 loop 를 다음 매크로태스크에 예약. `async submit` 이라 `await` 를
+      // 소비하는 호출자 측 마이크로태스크가 먼저 완료되어야 `status === "queued"` 를
+      // 관측할 수 있음 (세션 60 bullmq 팩토리와 동일 설계).
+      setImmediate(() => {
         void loop();
       });
       return rec;
     },
-    get(id) {
+    async get(id) {
       return jobs.get(id);
     },
-    list() {
+    async list() {
       return order.map((id) => jobs.get(id)!).filter(Boolean);
     },
     waitFor(id, timeoutMs) {

@@ -40,8 +40,8 @@ export function createJobRouter(opts: JobRouterOptions): (req: IncomingMessage, 
     const path = url.split("?")[0] ?? "/";
 
     if (path === "/jobs" && (req.method === "GET" || req.method === "HEAD")) {
-      const list = store.list().map(summary);
-      return writeJson(res, 200, { jobs: list }, req.method === "HEAD");
+      void handleList(res, store, req.method === "HEAD");
+      return;
     }
 
     if (path === "/jobs" && req.method === "POST") {
@@ -49,12 +49,11 @@ export function createJobRouter(opts: JobRouterOptions): (req: IncomingMessage, 
       return;
     }
 
-    const m = /^\/jobs\/([A-Za-z0-9_-]+)$/.exec(path);
+    const m = /^\/jobs\/([A-Za-z0-9_.:-]+)$/.exec(path);
     if (m && (req.method === "GET" || req.method === "HEAD")) {
       const id = m[1]!;
-      const rec = store.get(id);
-      if (!rec) return writeJson(res, 404, { error: "unknown job_id" });
-      return writeJson(res, 200, summary(rec), req.method === "HEAD");
+      void handleGet(res, store, id, req.method === "HEAD");
+      return;
     }
 
     if (path === "/jobs" || m) {
@@ -94,9 +93,42 @@ async function handleSubmit(
   if (!task.ok) {
     return writeJson(res, 400, { error: task.error });
   }
-  const rec = store.submit(task.task);
-  logger?.info?.(`job submitted: ${rec.job_id}`, { slot_id: rec.task.slot_id });
-  writeJson(res, 202, summary(rec));
+  try {
+    const rec = await store.submit(task.task);
+    logger?.info?.(`job submitted: ${rec.job_id}`, { slot_id: rec.task.slot_id });
+    writeJson(res, 202, summary(rec));
+  } catch (err) {
+    logger?.warn?.(`submit failed: ${(err as Error).message}`);
+    writeJson(res, 503, { error: (err as Error).message });
+  }
+}
+
+async function handleList(
+  res: ServerResponse,
+  store: JobStore,
+  headOnly: boolean,
+): Promise<void> {
+  try {
+    const list = (await store.list()).map(summary);
+    writeJson(res, 200, { jobs: list }, headOnly);
+  } catch (err) {
+    writeJson(res, 503, { error: (err as Error).message });
+  }
+}
+
+async function handleGet(
+  res: ServerResponse,
+  store: JobStore,
+  id: string,
+  headOnly: boolean,
+): Promise<void> {
+  try {
+    const rec = await store.get(id);
+    if (!rec) return writeJson(res, 404, { error: "unknown job_id" });
+    writeJson(res, 200, summary(rec), headOnly);
+  } catch (err) {
+    writeJson(res, 503, { error: (err as Error).message });
+  }
 }
 
 function readBody(req: IncomingMessage): Promise<string> {

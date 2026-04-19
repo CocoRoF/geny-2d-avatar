@@ -10,6 +10,13 @@ import {
   createMockAdapterFactories,
 } from "@geny/orchestrator-service";
 
+import { createBullMQJobStore } from "@geny/job-queue-bullmq";
+import type {
+  BullMQDriver,
+  BullMQJobSnapshot,
+  BullMQQueueCounts,
+} from "@geny/job-queue-bullmq";
+
 import { createWorkerGenerate } from "../src/index.js";
 
 function sha(input: string): string {
@@ -209,4 +216,83 @@ test("wiring: --http 주입된 fetch 로 실 벤더 HTTP 경로 e2e (ADR 0005 L4
   // ADR 0005 L4: 카탈로그 version "0.1.0" 이 벤더 request `model` 로 누출되면 안 됨 →
   // config.model ("gemini-2.5-flash-image") 이 전달되어야 함.
   assert.equal(calls[0]!.model, "gemini-2.5-flash-image");
+});
+
+/**
+ * 세션 63 storeFactory 주입 경로 — fake BullMQDriver 를 `createBullMQJobStore` 에 물려
+ * `createWorkerGenerate({ storeFactory })` 로 넘겼을 때 in-memory store 대신 BullMQ 경로
+ * 로 `submit` 이 라우팅되고, BullMQ jobId 가 idempotency_key 와 동일한지 확인.
+ *
+ * 실 Redis 없이 어댑터 계약 수준으로 `--driver bullmq` 배선을 회귀한다. 실 ioredis+Queue
+ * e2e 는 `REDIS_URL` 세팅된 환경에서 `@geny/job-queue-bullmq` integration suite 가 커버.
+ */
+function makeFakeBullMQDriver(): {
+  driver: BullMQDriver;
+  jobs: Map<string, BullMQJobSnapshot>;
+} {
+  const jobs = new Map<string, BullMQJobSnapshot>();
+  const driver: BullMQDriver = {
+    async add({ jobId, data }) {
+      const cached = jobs.get(jobId);
+      if (cached) return cached;
+      const snap: BullMQJobSnapshot = {
+        id: jobId,
+        state: "waiting",
+        data,
+        timestamp: Date.now(),
+      };
+      jobs.set(jobId, snap);
+      return snap;
+    },
+    async getJob(id) {
+      return jobs.get(id) ?? null;
+    },
+    async listJobs() {
+      return Array.from(jobs.values());
+    },
+    async getCounts(): Promise<BullMQQueueCounts> {
+      return {
+        waiting: jobs.size,
+        active: 0,
+        completed: 0,
+        failed: 0,
+        delayed: 0,
+      };
+    },
+    async close() {},
+  };
+  return { driver, jobs };
+}
+
+test("wiring: storeFactory 주입 → BullMQ 경로로 submit 라우팅 (세션 63)", async () => {
+  const { driver, jobs: driverJobs } = makeFakeBullMQDriver();
+  const worker = createWorkerGenerate({
+    storeFactory: (orchestrate) => createBullMQJobStore({ driver, orchestrate }),
+  });
+  await withHttp(worker, async (port) => {
+    const idem = "idem-bullmq-wire-1";
+    const post = await reqJson(port, "POST", "/jobs", {
+      schema_version: "v1",
+      task_id: "t-bullmq",
+      slot_id: "hair_front",
+      prompt: "pastel soft hair",
+      negative_prompt: "",
+      size: [512, 512],
+      deadline_ms: 5000,
+      budget_usd: 0.1,
+      idempotency_key: idem,
+      capability_required: ["edit"],
+    });
+    assert.equal(post.status, 202);
+    const submit = JSON.parse(post.body);
+    assert.equal(submit.job_id, idem);
+    // fake driver 에 해당 jobId 가 기록돼야 함 → BullMQ 경로 활성 증명.
+    assert.ok(driverJobs.has(idem), "fake BullMQ driver 에 jobId 가 기록되지 않음");
+
+    await worker.store.waitFor(submit.job_id, 2000);
+    const get = await reqJson(port, "GET", `/jobs/${submit.job_id}`);
+    const parsed = JSON.parse(get.body);
+    assert.equal(parsed.status, "succeeded");
+    assert.equal(parsed.result.vendor, "nano-banana");
+  });
 });

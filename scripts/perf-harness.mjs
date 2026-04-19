@@ -108,7 +108,7 @@ export async function runHarness(overrides = {}) {
         try {
           await worker.store.waitFor(jobId, 15_000);
           const orchEnd = process.hrtime.bigint();
-          const rec = worker.store.get(jobId);
+          const rec = await worker.store.get(jobId);
           if (rec?.status !== "succeeded") {
             errors.push({ i, phase: "orchestrate", reason: rec?.error ?? "non-succeeded" });
           }

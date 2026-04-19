@@ -33,9 +33,15 @@ importers:
       '@geny/ai-adapter-core':
         specifier: workspace:*
         version: link:../../packages/ai-adapter-core
+      '@geny/job-queue-bullmq':
+        specifier: workspace:*
+        version: link:../../packages/job-queue-bullmq
       '@geny/orchestrator-service':
         specifier: workspace:*
         version: link:../../services/orchestrator
+      ioredis:
+        specifier: ^5
+        version: 5.10.1
     devDependencies:
       '@types/node':
         specifier: ^20.11.30

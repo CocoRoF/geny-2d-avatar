@@ -60,7 +60,7 @@ test("createJobStore: submit → queued → running → succeeded (job_id = idem
       return sampleOutcome(task);
     },
   });
-  const rec = store.submit(sampleTask({ idempotency_key: "happy-001" }));
+  const rec = await store.submit(sampleTask({ idempotency_key: "happy-001" }));
   assert.equal(rec.job_id, "happy-001");
   assert.equal(rec.status, "queued");
   const done = await store.waitFor(rec.job_id, 2000);
@@ -81,13 +81,13 @@ test("createJobStore: 동일 idempotency_key 재제출 → 같은 record, orches
     },
   });
   const task = sampleTask({ idempotency_key: "dup-inmem-01" });
-  const first = store.submit(task);
-  const second = store.submit(task);
+  const first = await store.submit(task);
+  const second = await store.submit(task);
   assert.equal(first.job_id, second.job_id);
   assert.strictEqual(first, second);
   await store.waitFor(first.job_id, 2000);
   assert.equal(calls, 1);
-  assert.equal(store.list().length, 1);
+  assert.equal((await store.list()).length, 1);
   await store.stop();
 });
 
@@ -99,7 +99,7 @@ test("createJobStore: orchestrate throw → failed + error payload", async () =>
       throw err;
     },
   });
-  const rec = store.submit(sampleTask());
+  const rec = await store.submit(sampleTask());
   const done = await store.waitFor(rec.job_id, 2000);
   assert.equal(done.status, "failed");
   assert.equal(done.error?.code, "VENDOR_ERROR_5XX");
@@ -117,8 +117,8 @@ test("createJobStore: 2 잡 FIFO 직렬 처리", async () => {
       return sampleOutcome(task);
     },
   });
-  const a = store.submit(sampleTask({ task_id: "A", idempotency_key: "kA" }));
-  const b = store.submit(sampleTask({ task_id: "B", idempotency_key: "kB" }));
+  const a = await store.submit(sampleTask({ task_id: "A", idempotency_key: "kA" }));
+  const b = await store.submit(sampleTask({ task_id: "B", idempotency_key: "kB" }));
   await Promise.all([store.waitFor(a.job_id, 2000), store.waitFor(b.job_id, 2000)]);
   // B 는 A 가 끝나야 시작.
   assert.deepEqual(seen, ["start:A", "end:A", "start:B", "end:B"]);
@@ -128,18 +128,18 @@ test("createJobStore: 2 잡 FIFO 직렬 처리", async () => {
 test("createJobStore: stop 후 submit throw", async () => {
   const store = createJobStore({ orchestrate: async (t) => sampleOutcome(t) });
   await store.stop();
-  assert.throws(() => store.submit(sampleTask()), /이미 정지됨/);
+  await assert.rejects(() => store.submit(sampleTask()), /이미 정지됨/);
 });
 
 test("createJobStore: list 는 제출 순서 보존", async () => {
   const store = createJobStore({
     orchestrate: async (t) => sampleOutcome(t),
   });
-  store.submit(sampleTask({ task_id: "A", idempotency_key: "kA" }));
-  store.submit(sampleTask({ task_id: "B", idempotency_key: "kB" }));
-  store.submit(sampleTask({ task_id: "C", idempotency_key: "kC" }));
+  await store.submit(sampleTask({ task_id: "A", idempotency_key: "kA" }));
+  await store.submit(sampleTask({ task_id: "B", idempotency_key: "kB" }));
+  await store.submit(sampleTask({ task_id: "C", idempotency_key: "kC" }));
   await store.drain(2000);
-  const ids = store.list().map((r) => r.task.task_id);
+  const ids = (await store.list()).map((r) => r.task.task_id);
   assert.deepEqual(ids, ["A", "B", "C"]);
   await store.stop();
 });

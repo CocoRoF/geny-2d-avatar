@@ -11,6 +11,7 @@
 
 import type { Server } from "node:http";
 
+import type { GenerationTask, OrchestrateOutcome } from "@geny/ai-adapter-core";
 import {
   createOrchestratorService,
   type CreateOrchestratorServiceOptions,
@@ -19,6 +20,11 @@ import {
 
 import { createJobStore, type JobStore } from "./job-store.js";
 import { createJobRouter } from "./router.js";
+
+/** 외부 store 주입용: orchestrate 콜백을 받아 JobStore 를 빌드하는 팩토리. */
+export type JobStoreFactory = (
+  orchestrate: (task: GenerationTask) => Promise<OrchestrateOutcome>,
+) => JobStore;
 
 export { createJobStore, type JobStore, type JobRecord, type JobStatus } from "./job-store.js";
 export { createJobRouter, validateTask } from "./router.js";
@@ -30,6 +36,14 @@ export interface CreateWorkerGenerateOptions {
   orchestratorOptions?: Omit<CreateOrchestratorServiceOptions, "metricsServerFallback">;
   /** 잡 라우터 로그 싱크. */
   logger?: Parameters<typeof createJobRouter>[0]["logger"];
+  /**
+   * 외부 `JobStore` 주입 (세션 63 — `@geny/job-queue-bullmq` 의 `createBullMQJobStore` 같은
+   * 드라이버 교체용). 팩토리 함수로 받는 이유: 구현체가 `orchestrate` 에 의존하는데 그 참조는
+   * `createWorkerGenerate` 내부의 `service` 에 따라서만 결정 가능 (circular init). 함수 형태로
+   * 지연 주입하면, 팩토리 호출자가 `orchestrate` 를 넘겨받아 JobStore 를 빌드할 수 있다.
+   * 미지정 시 in-memory FIFO 기본.
+   */
+  storeFactory?: JobStoreFactory;
 }
 
 export interface WorkerGenerate {
@@ -52,12 +66,14 @@ export interface WorkerGenerate {
 export function createWorkerGenerate(opts: CreateWorkerGenerateOptions = {}): WorkerGenerate {
   const ref: { current: OrchestratorService | null } = { current: null };
 
-  const store = createJobStore({
-    orchestrate: async (task) => {
-      if (!ref.current) throw new Error("worker-generate: orchestrator not yet bound");
-      return ref.current.orchestrate(task);
-    },
-  });
+  const orchestrate = async (task: GenerationTask): Promise<OrchestrateOutcome> => {
+    if (!ref.current) throw new Error("worker-generate: orchestrator not yet bound");
+    return ref.current.orchestrate(task);
+  };
+
+  const store = opts.storeFactory
+    ? opts.storeFactory(orchestrate)
+    : createJobStore({ orchestrate });
 
   const routerOpts = opts.logger === undefined
     ? { store }
