@@ -45,6 +45,10 @@
 //     잘못된 CT 415·필드 검증·405+Allow·404) + wiring e2e (Mock 로 orchestrate→/metrics 반영 +
 //     createHttpAdapterFactories 주입 fetch 로 config.model 이 request body `model` 로 전달되는
 //     ADR 0005 L4 apiModel 분리 재검증). 16 tests, 세션 44.
+// 20) perf-harness smoke — Foundation 성능 SLO (docs/14 §10) 하네스 회귀. worker-generate 를
+//     in-process 기동 후 HTTP POST /jobs 20건을 concurrency 4 로 투하, accept + orchestrate
+//     latency p50/p95/p99 + 에러율 + throughput 을 수집해 smoke 완화 SLO 대비 pass 확인.
+//     SLO 강제 위반 path + jobs=0 경계 포함 3 cases (세션 51).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -76,6 +80,7 @@ const STEPS = [
   { name: "orchestrator-service tests", run: runOrchestratorServiceTests },
   { name: "rig-template physics-lint", run: runPhysicsLintTests },
   { name: "worker-generate tests", run: runWorkerGenerateTests },
+  { name: "perf-harness smoke", run: runPerfHarnessSmoke },
 ];
 
 const failed = [];
@@ -331,6 +336,11 @@ async function runWorkerGenerateTests() {
   // worker-generate 는 orchestrator-service dist 에 의존. 그 이전 체인은 이미 step 17 에서 빌드됨.
   await run("pnpm", ["-F", "@geny/orchestrator-service", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/worker-generate", "test"], { cwd: repoRoot });
+}
+
+async function runPerfHarnessSmoke() {
+  // worker-generate dist 가 이미 step 19 에서 빌드됨. 하네스는 ../apps/worker-generate/dist 직접 import.
+  await run("node", ["scripts/perf-harness.test.mjs"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

@@ -415,6 +415,29 @@ cost_estimate:
 - 사용자/프로젝트/조직 단위 **월 AI 호출 상한 (budget)**.
 - 초과 시 자동 다운그레이드 (저비용 모델로 대체) + UI 안내.
 
+### 12.4 성능 SLO 측정 하네스 (Foundation)
+
+릴리스 게이트(`docs/14 §10` "성능 SLO 초과 없음") 를 기계적으로 검증하기 위한 하네스. 세션 51 에서 도입.
+
+- **스크립트**: `scripts/perf-harness.mjs` — `@geny/worker-generate` 를 in-process 기동, 실 HTTP `POST /jobs` 에 Mock 어댑터 잡 N 개를 concurrency C 로 투하해 p50/p95/p99 + 에러율 + 처리량 보고.
+- **측정 지표**:
+  - `accept_latency_ms` — `POST /jobs` → 202 까지. 라우터 + JobStore.submit 오버헤드.
+  - `orchestrate_latency_ms` — `POST /jobs` 전송 → 잡이 terminal (succeeded/failed) 에 도달하기까지. 큐 대기 + 어댑터 호출 + 후속 hook.
+  - `error_rate_ratio` — terminal 실패 / 총 투하.
+  - `throughput_jobs_per_s` — terminal 건 / 전체 시간.
+- **SLO 임계 (Foundation Mock 파이프라인 기준)**:
+
+  | 지표 | 임계 | 의미 |
+  |---|---|---|
+  | `accept_latency_ms` p95 | ≤ 100 | 라우터/submit 자체의 오버헤드. 실 벤더 지연과 독립. |
+  | `orchestrate_latency_ms` p95 | ≤ 500 | Mock 어댑터 기준 end-to-end. 실 벤더는 별도 staging SLO. |
+  | `orchestrate_latency_ms` p99 | ≤ 1500 | tail 포함 열화 한도. |
+  | `error_rate_ratio` | ≤ 0.01 | Mock 은 0 이 정상, 1% 는 환경 슬랙. |
+  | `throughput_jobs_per_s` | ≥ 10 | 개발 하드웨어 기준 최저선. |
+
+- **CI 게이트**: `test:golden` step 20 `perf-harness smoke` 가 완화 SLO (p95 ≤ 2s, 에러 ≤ 5%, tput ≥ 1/s) 로 20 잡 1회 회귀. 전체 벤치는 수동 `node scripts/perf-harness.mjs --jobs 200 --concurrency 16`.
+- **실 벤더 부하**는 `--http` 플래그로 wire (`createHttpAdapterFactories`), Foundation 범위 밖.
+
 ---
 
 ## 13. 플러그인 확장점 (Extensibility Hooks)
