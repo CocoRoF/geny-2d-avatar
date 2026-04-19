@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/palette.schema.json",
+  "title": "PaletteCatalog",
+  "description": "docs/06 §6.4 — 팔레트 락. 아바타의 지배색(k-means k=4 클러스터)이 이 카탈로그의 최근접 팔레트 색으로 이동된다. ΔE(CIE76) 로 측정하며, move_cap_delta_e 이내에서만 실제로 이동한다(그 이상은 경고 후 skip — 의도치 않은 색 변형 방지). 슬롯 / 스타일 / color_context 단위로 목표 팔레트를 선택할 수 있도록 다중 엔트리를 허용한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "palettes"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "palettes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "colors"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{1,63}$",
+            "description": "팔레트 식별자. 예: `halfbody-pastel`, `chibi-neon`."
+          },
+          "description": { "type": "string", "maxLength": 256 },
+          "scope": {
+            "type": "string",
+            "enum": ["avatar", "slot", "color_context"],
+            "description": "팔레트 적용 범위. avatar=아바타 전체, slot=특정 slot_id 만, color_context=같은 color_context 공유 파츠들.",
+            "default": "avatar"
+          },
+          "slot_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
+            "description": "scope=slot 일 때만 의미 있음."
+          },
+          "color_context": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
+            "description": "scope=color_context 일 때만 의미 있음."
+          },
+          "move_cap_delta_e": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50,
+            "description": "fitToPalette 가 한 클러스터를 팔레트 색으로 이동시킬 때 허용하는 ΔE 상한. docs/06 §6.4 표준 12.",
+            "default": 12
+          },
+          "colors": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "rgb"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1, "maxLength": 32 },
+                "rgb": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "items": { "type": "integer", "minimum": 0, "maximum": 255 },
+                  "description": "sRGB 0..255. 팔레트 카탈로그는 항상 sRGB — 런타임에서 필요 시 Lab 으로 변환."
+                },
+                "weight": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "상대 비중(0..1). 여러 팔레트 색 중 어느 것이 지배적이어야 하는지 힌트. fitToPalette 가 1차적으로 참고만 하며, 매핑 자체는 최근접 ΔE 로 결정."
+                }
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "scope": { "const": "slot" } }, "required": ["scope"] },
+            "then": {
+              "properties": {
+                "slot_id": { "type": "string" }
+              },
+              "required": ["slot_id"]
+            }
+          },
+          {
+            "if": {
+              "properties": { "scope": { "const": "color_context" } },
+              "required": ["scope"]
+            },
+            "then": {
+              "properties": {
+                "color_context": { "type": "string" }
+              },
+              "required": ["color_context"]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

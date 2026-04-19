@@ -1,0 +1,33 @@
+{
+  "schema_version": "v1",
+  "palettes": [
+    {
+      "id": "halfbody-pastel",
+      "description": "halfbody v1 기본 아바타용 파스텔 팔레트. docs/06 §6.4 예시 — 피부/머리/옷 주색을 카탈로그화.",
+      "scope": "avatar",
+      "move_cap_delta_e": 12,
+      "colors": [
+        { "name": "skin-base", "rgb": [250, 224, 211], "weight": 0.25 },
+        { "name": "skin-shadow", "rgb": [222, 184, 172], "weight": 0.08 },
+        { "name": "hair-pastel-pink", "rgb": [236, 190, 200], "weight": 0.22 },
+        { "name": "hair-shadow", "rgb": [182, 132, 150], "weight": 0.06 },
+        { "name": "eye-mint", "rgb": [166, 220, 210], "weight": 0.05 },
+        { "name": "cloth-lavender", "rgb": [196, 188, 232], "weight": 0.2 },
+        { "name": "cloth-white", "rgb": [244, 244, 248], "weight": 0.1 },
+        { "name": "accent-gold", "rgb": [226, 198, 110], "weight": 0.04 }
+      ]
+    },
+    {
+      "id": "halfbody-pastel-hair",
+      "description": "hair_front / hair_side / hair_back 전용 팔레트 — 피부/옷 색을 섞지 않도록 스코프 한정.",
+      "scope": "color_context",
+      "color_context": "hair_primary",
+      "move_cap_delta_e": 10,
+      "colors": [
+        { "name": "hair-pastel-pink", "rgb": [236, 190, 200], "weight": 0.65 },
+        { "name": "hair-shadow", "rgb": [182, 132, 150], "weight": 0.25 },
+        { "name": "hair-highlight", "rgb": [252, 224, 230], "weight": 0.1 }
+      ]
+    }
+  ]
+}

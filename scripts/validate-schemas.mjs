@@ -46,6 +46,7 @@ const SCHEMA_ID = {
   aiAdapterTask: "https://geny.ai/schema/v1/ai-adapter-task.schema.json",
   aiAdapterResult: "https://geny.ai/schema/v1/ai-adapter-result.schema.json",
   adapterCatalog: "https://geny.ai/schema/v1/adapter-catalog.schema.json",
+  palette: "https://geny.ai/schema/v1/palette.schema.json",
 };
 
 // ——— Utilities ———
@@ -125,6 +126,7 @@ async function main() {
     aiAdapterTask: ajv.getSchema(SCHEMA_ID.aiAdapterTask),
     aiAdapterResult: ajv.getSchema(SCHEMA_ID.aiAdapterResult),
     adapterCatalog: ajv.getSchema(SCHEMA_ID.adapterCatalog),
+    palette: ajv.getSchema(SCHEMA_ID.palette),
   };
   for (const [name, v] of Object.entries(validators)) {
     if (!v) throw new Error(`Could not compile validator for ${name} (id=${SCHEMA_ID[name]})`);
@@ -1093,6 +1095,41 @@ async function main() {
     }
   }
   await validateAdapterCatalog();
+
+  // 9. Validate canonical palette catalogs (세션 32).
+  async function validatePaletteCatalogs() {
+    const paletteDir = join(REPO_ROOT, "infra", "palettes");
+    let files = [];
+    try {
+      files = await readdir(paletteDir);
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      console.log(`[palettes] no ${relative(REPO_ROOT, paletteDir)} — skipping`);
+      return;
+    }
+    for (const entry of files) {
+      if (!entry.endsWith(".json")) continue;
+      const p = join(paletteDir, entry);
+      const doc = await readJson(p);
+      checked += 1;
+      if (!validators.palette(doc)) {
+        failed += 1;
+        console.error(`[palettes] INVALID ${relative(REPO_ROOT, p)}`);
+        console.error(fmtErrors(validators.palette.errors, relative(REPO_ROOT, p)));
+        continue;
+      }
+      // Uniqueness: palette id within a file.
+      const seen = new Set();
+      for (const pal of doc.palettes) {
+        if (seen.has(pal.id)) {
+          failed += 1;
+          console.error(`[palettes] duplicate palette id '${pal.id}' in ${relative(REPO_ROOT, p)}`);
+        }
+        seen.add(pal.id);
+      }
+    }
+  }
+  await validatePaletteCatalogs();
 
   // 5. Summary
   console.log("");

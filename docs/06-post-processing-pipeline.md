@@ -353,8 +353,22 @@
 ## 16. 열린 질문
 
 - Relighting 알고리즘을 내부 구현할지, 3rd-party 모델에 맡길지 (얼굴 붕괴 리스크).
-- Color transfer 에서 Lab vs OKLab 선택. OKLab 이 지각적 정합이 좋지만 도구 생태계가 얕음.
+- ~Color transfer 에서 Lab vs OKLab 선택~ → 세션 32 에서 **CIE 1976 L*a*b* (D65)** 로 결정. `@geny/post-processing` 의 `colorSpace: "lab"` 옵션이 Reinhard 채널별 재매핑을 Lab 공간에서 수행. OKLab 은 필요 시 별도 옵션으로 후속 추가.
 - 후처리 파이프라인 자체를 **사용자 커스터마이즈** 가능하게 노출할지 (PRO 기능 후보).
+
+---
+
+## 17. Runtime 산출물 (2026-04-19 시점, 세션 32)
+
+| 기능 | 도입 | 함수 | 공간 |
+|---|---|---|---|
+| α 정제 (Stage 1) | 세션 26 | `applyAlphaSanitation()` | RGBA8 |
+| Color stats / remap / normalize (RGB Reinhard) | 세션 29 | `computeColorStats(..., {colorSpace:"rgb"})` / `remapColorLinear` / `normalizeColor` | RGB |
+| **Color stats / remap / normalize (L\*a\*b\* Reinhard)** | **세션 32** | **위와 동일 API + `{colorSpace:"lab"}` 옵션** | **Lab (D65)** |
+| **Fit-to-palette (k-means k=4 + ΔE76 cap 이동)** | **세션 32** | **`fitToPalette(img, palette, {k, moveCapDeltaE})`** | **Lab** |
+| **Pre-atlas hook** | **세션 32** | **`applyPreAtlasNormalization(parts, {target?, palette?})`** — `assembleWebAvatarBundle()` stage 2 atlas emit 직전 체인 지점 | — |
+
+팔레트 카탈로그 규약: `schema/v1/palette.schema.json` + `infra/palettes/*.json`. `scope: avatar \| slot \| color_context` 로 적용 범위 제어. `move_cap_delta_e` 기본 12 (docs/06 §6.4).
 
 ---
 
