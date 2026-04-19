@@ -29,9 +29,15 @@
   },
   "compat": {
     "motion_packs": [
-      "idle.default@^1",
+      "idle.default@^1.2",
       "blink.auto@^1",
-      "lipsync.mock@^1"
+      "lipsync.mock@^1",
+      "nod.yes@^1",
+      "shake.no@^1",
+      "greet.wave@^1",
+      "idle.sleepy@^1",
+      "ahoge.bounce@^1",
+      "accessory.greet@^1"
     ],
     "expression_packs": [
       "expression.smile@^1",

@@ -1,0 +1,44 @@
+{
+  "schema_version": "v1",
+  "pack_id": "idle.default",
+  "version": "1.2.0",
+  "format": 3,
+  "notes": "fullbody v1.0.0 리마스터. halfbody v1.3.0 idle.default@1.1.0 의 4 curve(body_breath, body_angle_y, head_angle_x, head_angle_y) 전량 승계 + body_angle_x(±1.5°, 2 cycle) 추가 → PhysicsSetting13 skirt_sway_phys (body_angle_x 50w) + PhysicsSetting17 hip_phys (body_angle_x 60w) 2차 오프셋 유도. body_angle_y 와 위상 동일(피크 1.0s / 3.0s) 이지만 x/y 중첩으로 원형 sway 근사. 4초 루프 유지 — 세션 58 D1.",
+  "meta": {
+    "duration_sec": 4.0,
+    "fps": 30,
+    "fade_in_sec": 1.0,
+    "fade_out_sec": 1.0,
+    "loop": true,
+    "curve_count": 5,
+    "total_segment_count": 17,
+    "total_point_count": 22
+  },
+  "curves": [
+    {
+      "target": "parameter",
+      "target_id": "body_breath",
+      "segments": [0, 0, 0, 1.0, 1, 0, 2.0, 0, 0, 3.0, 1, 0, 4.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "body_angle_x",
+      "segments": [0, 0, 0, 1.0, 1.5, 0, 2.0, 0, 0, 3.0, -1.5, 0, 4.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "body_angle_y",
+      "segments": [0, 0, 0, 1.0, 1.5, 0, 2.0, 0, 0, 3.0, 1.5, 0, 4.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "head_angle_x",
+      "segments": [0, 0, 0, 2.0, 1, 0, 4.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "head_angle_y",
+      "segments": [0, 0, 0, 1.5, 0.5, 0, 3.0, -0.5, 0, 4.0, 0]
+    }
+  ]
+}
