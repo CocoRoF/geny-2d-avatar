@@ -182,3 +182,78 @@ test("runWebAvatarPipeline: textureOverrides guard (path 보존) 통과", () => 
     rmSync(outDir, { recursive: true, force: true });
   }
 });
+
+/**
+ * 골든 sha256 - 세션 41. 세션 38 은 "같은 입력 → 같은 출력" 결정론만 확인했고 값을
+ * 고정하지 않아, pngjs/`applyAlphaSanitation`/exporter-core/halfbody v1.2.0 base.png
+ * 중 어느 하나가 변해도 감지할 수 없었다. 이 테스트는 네 개 산출물 sha256 을 하드코딩해
+ * **Stage 1 sanitation 파이프라인 전체를 byte-equal 로 고정**.
+ *
+ * 값이 변해야 한다면 — 의도한 변경이라는 전제로 — 캡처 후 아래 상수를 업데이트.
+ * (방법: `node --experimental-vm-modules` 로 runWebAvatarPipeline 돌린 뒤 files sha256).
+ */
+const GOLDEN_V1_2_0_PIPELINE: Readonly<Record<string, { sha256: string; bytes: number }>> = {
+  "atlas.json": {
+    sha256: "1bc0cff15f87a7e226c502c9323fc2593b4d7576e83979be5015bf8ed0ed3465",
+    bytes: 222,
+  },
+  "bundle.json": {
+    sha256: "13deaace6e9b22b9eaabd6b62192582dd9ed70b9623650df7420af73b68cae05",
+    bytes: 630,
+  },
+  "textures/base.png": {
+    sha256: "667a99bf67db740cd737bf58a2d05afb77ec0460cd541bafd45c48eb23edad58",
+    bytes: 68,
+  },
+  "web-avatar.json": {
+    sha256: "035d12a2897c893580a624f5f9723c4d8635ecdf3c612f1136f6c606e4455810",
+    bytes: 11887,
+  },
+};
+
+test("runWebAvatarPipeline golden: halfbody v1.2.0 + applyAlphaSanitation 기본 경로 sha256 고정", () => {
+  const tpl = loadTemplate(templateDir);
+  const outDir = scratch();
+  try {
+    const res = runWebAvatarPipeline(tpl, outDir);
+    const byPath = new Map(res.files.map((f) => [f.path, f] as const));
+    for (const [path, expected] of Object.entries(GOLDEN_V1_2_0_PIPELINE)) {
+      const got = byPath.get(path);
+      assert.ok(got, `pipeline 출력에 ${path} 없음`);
+      assert.equal(
+        got.sha256,
+        expected.sha256,
+        `${path} sha256 drift — pngjs/applyAlphaSanitation/exporter-core 중 어느 곳의 변경인지 확인 후 GOLDEN 상수 업데이트`,
+      );
+      assert.equal(got.bytes, expected.bytes, `${path} bytes drift`);
+    }
+    // 누락 없이 정확히 4 개 — 더 많으면 새로 emit 된 파일이 있음.
+    assert.equal(
+      res.files.length,
+      Object.keys(GOLDEN_V1_2_0_PIPELINE).length,
+      `예상 산출물 개수와 다름: ${res.files.map((f) => f.path).join(", ")}`,
+    );
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test("runWebAvatarPipeline golden: 원본 base.png 와 post-sanitation base.png 의 sha256 이 다름 (증거)", () => {
+  // raw PNG 와 sanitation 후 재인코딩 결과가 byte-equal 이면 파이프라인이 실질적으로
+  // 아무 일도 안 했다는 뜻. 이 단언은 "파이프라인이 실제로 바이트를 건드렸다" 는 증거.
+  const tpl = loadTemplate(templateDir);
+  const rawSrc = tpl.textures[0]!;
+  const outDir = scratch();
+  try {
+    const res = runWebAvatarPipeline(tpl, outDir);
+    const sanitized = res.files.find((f) => f.path === rawSrc.path);
+    assert.ok(sanitized);
+    assert.notEqual(
+      sanitized!.sha256,
+      rawSrc.sha256,
+      "파이프라인이 원본 PNG 를 그대로 통과시킴 — sanitation 이 무효",
+    );
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
