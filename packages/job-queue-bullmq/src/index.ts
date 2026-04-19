@@ -10,6 +10,7 @@
 export {
   createBullMQJobStore,
   type BullMQJobStore,
+  type BullMQJobStoreMode,
   type CreateBullMQJobStoreOptions,
   type JobRecord,
   type JobStatus,
@@ -39,3 +40,18 @@ export {
   type QueueState,
   type Scheduler,
 } from "./metrics-sampler.js";
+
+export {
+  processWithMetrics,
+  defaultClassifyQueueError,
+  type ConsumerMetricsSink,
+  type ProcessWithMetricsOptions,
+  type QueueFailureReason,
+  type QueueProcessOutcome,
+} from "./processor-metrics.js";
+
+export {
+  createBullMQConsumer,
+  type BullMQConsumer,
+  type CreateBullMQConsumerOptions,
+} from "./consumer-redis.js";

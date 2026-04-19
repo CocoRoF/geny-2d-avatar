@@ -336,6 +336,65 @@ test("createBullMQJobStore: drain() — 대기/실행 중 잡이 모두 최종 �
   await store.stop();
 });
 
+// ─── mode="producer-only": submit 만 큐에 넣고 in-process orchestrate 훅 skip ─
+
+test("createBullMQJobStore: mode='producer-only' 은 setImmediate(orchestrate) 훅 skip (세션 65)", async () => {
+  let calls = 0;
+  const driver = createFakeDriver();
+  const store = createBullMQJobStore({
+    driver,
+    mode: "producer-only",
+    orchestrate: async (task) => {
+      calls++;
+      return sampleOutcome(task);
+    },
+  });
+  const rec = await store.submit(sampleTask({ idempotency_key: "po-key-001" }));
+  assert.equal(rec.status, "queued");
+  // setImmediate 이 실행될 수 있게 매크로태스크 한 번 양보.
+  await new Promise((ok) => setImmediate(ok));
+  assert.equal(calls, 0, "producer-only 에서는 in-process orchestrate 미호출");
+
+  // 잡은 driver 에 남아 있음 — consumer 프로세스가 읽을 수 있는 상태.
+  const entry = driver.__store.get("po-key-001");
+  assert.ok(entry, "driver 에 잡이 enqueue 되어 있어야 함");
+  assert.equal(entry.state, "waiting");
+  await store.stop();
+});
+
+test("createBullMQJobStore: mode='producer-only' 은 orchestrate 생략 허용 (세션 65)", async () => {
+  const driver = createFakeDriver();
+  const store = createBullMQJobStore({ driver, mode: "producer-only" });
+  const rec = await store.submit(sampleTask({ idempotency_key: "po-key-002" }));
+  assert.equal(rec.status, "queued");
+  await store.stop();
+});
+
+test("createBullMQJobStore: mode='inline' (기본) 에서 orchestrate 누락 시 throw (세션 65)", () => {
+  const driver = createFakeDriver();
+  assert.throws(
+    () => createBullMQJobStore({ driver }),
+    /mode="inline" 은 orchestrate 콜백이 필수/,
+  );
+});
+
+// ─── onEnqueued: 새 enqueue 시에만 호출, 재제출 dedupe 에서는 미호출 ─────────
+
+test("createBullMQJobStore: onEnqueued 는 새 enqueue 시에만 1회 — 재제출 dedupe 시 미호출 (세션 65)", async () => {
+  const events: string[] = [];
+  const driver = createFakeDriver();
+  const store = createBullMQJobStore({
+    driver,
+    mode: "producer-only",
+    onEnqueued: (task) => events.push(task.idempotency_key),
+  });
+  await store.submit(sampleTask({ idempotency_key: "enq-001" }));
+  await store.submit(sampleTask({ idempotency_key: "enq-001" })); // dedupe
+  await store.submit(sampleTask({ idempotency_key: "enq-002" }));
+  assert.deepEqual(events, ["enq-001", "enq-002"]);
+  await store.stop();
+});
+
 // ─── stop() idempotent + closes driver ──────────────────────────────────────
 
 test("createBullMQJobStore: stop() — 드라이버 close 멱등 호출", async () => {

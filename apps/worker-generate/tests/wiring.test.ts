@@ -364,3 +364,73 @@ test("wiring: geny_queue_depth sampler → /metrics exposition (세션 64)", asy
     await sampler.stop();
   }
 });
+
+/**
+ * 세션 65 — producer 역할(mode="producer-only") 로 잡 submit 시 `onEnqueued` 훅이 registry
+ * counter 를 증가시키는 경로를 회귀한다. 재제출 dedupe 는 counter 미증가. fake driver 기반
+ * (BullMQ Worker/Redis 없이) — producer 쪽 enqueue counter 배선만 검증.
+ *
+ * consumer 측 (failed_total + duration_seconds) 은 processor-metrics 단위 테스트에서 커버,
+ * 실 Worker 결선은 `REDIS_URL` integration 세션에서 perf-harness 로 검증.
+ */
+test("wiring: producer-only store.onEnqueued → geny_queue_enqueued_total 증가 (세션 65)", async () => {
+  const { driver, jobs } = makeFakeBullMQDriver();
+  const queueName = "geny-prod-only";
+
+  let counterInc: ((labels: { queue_name: string }) => void) | undefined;
+  const onEnqueued = (): void => {
+    counterInc?.({ queue_name: queueName });
+  };
+
+  const worker = createWorkerGenerate({
+    storeFactory: (_orchestrate) =>
+      createBullMQJobStore({
+        driver,
+        mode: "producer-only",
+        onEnqueued,
+      }),
+  });
+  const counter = worker.service.registry.counter(
+    "geny_queue_enqueued_total",
+    "큐에 투입된 누적 잡 수 (catalog §2.1)",
+  );
+  counterInc = (labels) => counter.inc(labels);
+
+  try {
+    await withHttp(worker, async (port) => {
+      const body = {
+        schema_version: "v1",
+        task_id: "t-prod-1",
+        slot_id: "hair_front",
+        prompt: "p",
+        negative_prompt: "",
+        size: [512, 512],
+        deadline_ms: 5000,
+        budget_usd: 0.1,
+        idempotency_key: "idem-prod-001",
+        capability_required: ["edit"],
+      };
+      const r1 = await reqJson(port, "POST", "/jobs", body);
+      assert.equal(r1.status, 202);
+      const r2 = await reqJson(port, "POST", "/jobs", body); // dedupe — counter 미증가
+      assert.equal(r2.status, 202);
+      const body2 = { ...body, idempotency_key: "idem-prod-002", task_id: "t-prod-2" };
+      const r3 = await reqJson(port, "POST", "/jobs", body2);
+      assert.equal(r3.status, 202);
+
+      // producer-only 라 jobs 는 fake driver 에 남아 있고 orchestrate 는 미실행.
+      assert.ok(jobs.has("idem-prod-001"));
+      assert.ok(jobs.has("idem-prod-002"));
+
+      const metrics = await reqJson(port, "GET", "/metrics");
+      assert.equal(metrics.status, 200);
+      assert.match(metrics.body, /# TYPE geny_queue_enqueued_total counter/);
+      assert.match(
+        metrics.body,
+        /geny_queue_enqueued_total\{queue_name="geny-prod-only"\} 2/,
+      );
+    });
+  } finally {
+    await worker.store.stop();
+  }
+});
