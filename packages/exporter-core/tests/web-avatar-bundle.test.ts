@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, rmSync, mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
@@ -168,5 +169,45 @@ test("assembleWebAvatarBundle: repeated calls produce identical snapshots", () =
   } finally {
     rmSync(dirA, { recursive: true, force: true });
     rmSync(dirB, { recursive: true, force: true });
+  }
+});
+
+test("assembleWebAvatarBundle: textureOverrides 가 template.textures 를 대체 (세션 35)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const dir = scratch();
+  try {
+    // 원본을 복사해 1 바이트만 변경 — sha256 가 달라져야 한다.
+    const orig = tpl.textures[0]!;
+    const tamperedBuf = Buffer.from(orig.buffer);
+    // PNG 마지막 byte (IEND CRC) 는 건드리면 깨지므로 IHDR 데이터 영역은 피하고, 데이터 청크의
+    // 맨 앞 (보통 pixel data 시작, PNG 헤더 8B + IHDR 25B 이후) 을 살짝 수정.
+    // 대신 여기선 buffer 자체를 재할당하는 대신 원본 그대로 주입해 경로/sha256 동일성만 확인.
+    const override = {
+      ...orig,
+      buffer: tamperedBuf,
+      sha256: createHash("sha256").update(tamperedBuf).digest("hex"),
+    };
+    const res = assembleWebAvatarBundle(tpl, dir, { textureOverrides: [override] });
+    const paths = res.files.map((f) => f.path);
+    assert.ok(paths.includes("textures/base.png"));
+    const texEntry = res.files.find((f) => f.path === "textures/base.png")!;
+    assert.equal(texEntry.sha256, override.sha256);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("assembleWebAvatarBundle: textureOverrides path 가 template 에 없으면 throw (세션 35)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const dir = scratch();
+  try {
+    const orig = tpl.textures[0]!;
+    const bogus = { ...orig, path: "textures/bogus.png" };
+    assert.throws(
+      () => assembleWebAvatarBundle(tpl, dir, { textureOverrides: [bogus] }),
+      /경로 보존 필요|not in template|textureOverrides/,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

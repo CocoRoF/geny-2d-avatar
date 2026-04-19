@@ -25,7 +25,8 @@
 //     통합 폴백 순서(nano-banana → sdxl → flux-fill) + HttpSDXLClient · HttpFluxFillClient 회귀 (세션 25/28).
 // 13) @geny/post-processing tests — docs/06 §4 Stage 1 alpha sanitation (premult 라운드트립 + noise threshold +
 //     tight bbox + 파이프라인 결과 sha256 golden, 세션 26) + §6 Stage 3 color normalize (RGB Reinhard + Lab*
-//     경로 + fit-to-palette k-means k=4 ΔE ≤ cap 이동 + pre-atlas hook, 세션 29/32). 85 tests.
+//     경로 + fit-to-palette k-means k=4 ΔE ≤ cap 이동 + pre-atlas hook, 세션 29/32) + §4 step 3/4/5 확장
+//     (morph close + feather + UV clip + 파이프라인 순서 회귀, 세션 35). 111 tests.
 // 14) rig-template migrate — v1.0.0→v1.3.0 체인 + v1.2.0→v1.3.0 단일 hop + 결정론 (세션 27).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 

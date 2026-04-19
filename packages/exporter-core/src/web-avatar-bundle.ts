@@ -50,6 +50,14 @@ export interface AssembleWebAvatarBundleOptions extends ConvertWebAvatarOptions 
    * false 로 두면 Stage 1 이하 동작 (web-avatar.json + bundle.json 만).
    */
   includeTextures?: boolean;
+  /**
+   * texture emit 직전 훅 (세션 35). 제공되면 `template.textures` 대신 이 배열을 사용.
+   * 호출자는 원본 `template.textures` 를 디코딩하고 `@geny/post-processing` 의
+   * `applyPreAtlasNormalization` / `applyAlphaSanitation` 등을 태운 뒤, 다시 PNG/WebP 로
+   * 재인코딩해 이 옵션으로 주입한다. exporter-core 자체는 이미지 디코딩 의존성이 없다.
+   * 각 항목의 `path` 는 원본과 동일해야 번들 매니페스트의 슬롯 참조가 깨지지 않는다.
+   */
+  textureOverrides?: readonly TemplateTextureFile[];
 }
 
 const DEFAULT_WEB_AVATAR_FILE = "web-avatar.json";
@@ -89,8 +97,19 @@ export function assembleWebAvatarBundle(
   let atlasRef: WebAvatarAtlasRef | null = null;
 
   const templateTextures: TemplateTextureFile[] = includeTextures
-    ? template.textures
+    ? (opts.textureOverrides ? [...opts.textureOverrides] : template.textures)
     : [];
+
+  if (opts.textureOverrides && includeTextures) {
+    const expectedPaths = new Set(template.textures.map((t) => t.path));
+    for (const t of opts.textureOverrides) {
+      if (!expectedPaths.has(t.path)) {
+        throw new Error(
+          `textureOverrides path '${t.path}' 는 template.textures 에 없음 — 경로 보존 필요`,
+        );
+      }
+    }
+  }
 
   if (templateTextures.length > 0) {
     for (const t of templateTextures) {

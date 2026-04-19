@@ -9,6 +9,14 @@ export { straightToPremultiplied, premultipliedToStraight } from "./alpha-premul
 export { cleanAlphaNoise } from "./alpha-threshold.js";
 export type { AlphaThresholdOptions } from "./alpha-threshold.js";
 
+export { morphCloseAlpha } from "./morph-close.js";
+export type { MorphCloseOptions } from "./morph-close.js";
+
+export { featherAlpha } from "./feather.js";
+export type { FeatherOptions } from "./feather.js";
+
+export { clipToUvBox } from "./uv-clip.js";
+
 export { computeAlphaBbox } from "./alpha-bbox.js";
 export type { AlphaBBoxOptions } from "./alpha-bbox.js";
 
