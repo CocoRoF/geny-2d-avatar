@@ -98,6 +98,11 @@ jobs:
           echo "maxmemory-policy=$policy"
           test "$policy" = "noeviction"
 
+      - name: Build dependencies
+        # job-queue-bullmq 의 tsc 는 `@geny/ai-adapter-core` 의 dist/*.d.ts 를 요구.
+        # golden lane 은 earlier step 에서 빌드하지만 이 독립 lane 은 직접 선행 빌드.
+        run: pnpm -F @geny/ai-adapter-core build
+
       - name: BullMQ integration tests
         run: pnpm -F @geny/job-queue-bullmq test
 
