@@ -23,6 +23,10 @@ importers:
       '@geny/web-avatar':
         specifier: workspace:*
         version: link:../../packages/web-avatar
+    devDependencies:
+      happy-dom:
+        specifier: ^15.11.7
+        version: 15.11.7
 
   apps/worker-generate:
     dependencies:

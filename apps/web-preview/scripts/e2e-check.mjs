@@ -8,10 +8,14 @@
  *   3) `/`, `/public/sample/bundle.json` 을 HTTP 로 가져와 200 / content-type 검증.
  *   4) 컴파일된 `@geny/web-avatar/loader` 로 서버 URL 에 대해
  *      `loadWebAvatarBundle` 을 호출 → bundle→meta→atlas 체인 검증.
- *   5) 서버 종료 + exit 0 (실패 시 non-zero).
+ *   5) (세션 45) happy-dom 으로 `<geny-avatar>` 실 DOM 라이프사이클을 HTTP URL 에 대해 검증 —
+ *      setAttribute("src") → ready 이벤트 페이로드가 D-시각 체크리스트(상태/Manifest/Meta/Atlas)와
+ *      1:1 대응하는지 어서션. Exit #1 의 "브라우저 수동 pass-through" 를 CI 로 승격.
+ *   6) 서버 종료 + exit 0 (실패 시 non-zero).
  *
  * Playwright 같은 무거운 브라우저 자동화를 피하고 Node runtime 에서 루프를 완주.
- * Custom Element 렌더링은 Stage 3+ 에서 별도 테스트 (happy-dom/jsdom 주입) 가능.
+ * happy-dom 은 loader 가 쓰는 `globalThis.fetch` 를 건드리지 않음 — Node 22 의 native fetch 가
+ * HTTP 경로로 번들을 읽는다 (세션 23 의 file:// 경로 테스트와 상보적).
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -47,6 +51,7 @@ try {
   await checkHttp(`${base}/public/sample/textures/base.png`, "image/png");
   await checkHttp(`${base}/public/vendor/index.js`, "text/javascript");
   await runLoaderChain(`${base}/public/sample/bundle.json`);
+  await runDomLifecycle(`${base}/public/sample/bundle.json`);
   log("✅ web-preview e2e pass");
 } catch (err) {
   log(`✖ ${err?.message ?? err}`);
@@ -145,6 +150,89 @@ async function runLoaderChain(bundleUrl) {
   assert.equal(bundle.atlas.textures[0].path, "textures/base.png");
 
   log(`  ✓ manifest files=${bundle.manifest.files.length}, meta parameters=${bundle.meta.parameters.length}, atlas textures=${bundle.atlas.textures.length}`);
+}
+
+/**
+ * 세션 45 — `<geny-avatar>` DOM 라이프사이클을 HTTP URL 에 대해 happy-dom 으로 검증.
+ *
+ * Exit #1 D-시각 체크리스트(상태 박스 / Bundle Manifest / Web Avatar Meta / Atlas) 의
+ * 각 필드가 ready 이벤트 payload 에 존재·값 일치하는지 어서션. index.html 인라인 스크립트는
+ * ev.detail 을 그대로 DOM 에 포맷할 뿐이므로 payload 검증이 DOM 렌더 정합성을 함의한다.
+ *
+ * 전략:
+ *  - happy-dom Window 에서 HTMLElement/customElements/CustomEvent/Event/document 를 globalThis 주입.
+ *  - globalThis.fetch 는 Node native 로 남겨두어 HTTP 경로가 그대로 동작.
+ *    (세션 23 의 file:// 테스트는 happy-dom fetch 가 file:// 미지원이라 fs-fetch 로 override 했음.)
+ *  - 컴파일된 element.js 의 registerGenyAvatar() 호출 → <geny-avatar> 생성 → src 세팅 → ready 대기.
+ */
+async function runDomLifecycle(bundleUrl) {
+  log("<geny-avatar> DOM lifecycle (happy-dom + HTTP)");
+  const { Window } = await import("happy-dom");
+  const elementUrl = pathToFileURL(
+    resolve(repoRoot, "packages/web-avatar/dist/element.js"),
+  ).toString();
+  const { registerGenyAvatar } = await import(elementUrl);
+
+  const window = new Window({ url: `${new URL(bundleUrl).origin}/` });
+  const g = globalThis;
+  const KEYS = ["HTMLElement", "customElements", "CustomEvent", "Event", "document", "window"];
+  const saved = {};
+  for (const k of KEYS) saved[k] = g[k];
+  try {
+    for (const k of ["HTMLElement", "customElements", "CustomEvent", "Event", "document"]) {
+      g[k] = window[k];
+    }
+    g.window = window;
+    registerGenyAvatar();
+
+    const doc = window.document;
+    const el = doc.createElement("geny-avatar");
+    doc.body.appendChild(el);
+    const ready = waitForEvent(el, "ready", 5000);
+    el.setAttribute("src", bundleUrl);
+    const evt = await ready;
+    const { manifest, meta, atlas } = evt.detail.bundle;
+
+    assert.equal(manifest.kind, "web-avatar-bundle", "manifest.kind");
+    assert.equal(manifest.template_id, "tpl.base.v1.halfbody", "manifest.template_id");
+    assert.equal(manifest.template_version, "1.2.0", "manifest.template_version");
+    assert.equal(manifest.avatar_id, "avt.preview.halfbody.demo", "manifest.avatar_id");
+    assert.equal(manifest.files.length, 3, "manifest.files.length === 3");
+
+    assert.ok(meta.parameters.length > 0, "meta.parameters >= 1");
+    assert.ok(meta.parts.length > 0, "meta.parts >= 1");
+    assert.ok(meta.motions.length > 0, "meta.motions >= 1");
+    assert.ok(meta.expressions.length > 0, "meta.expressions >= 1");
+    assert.ok(meta.physics_summary, "meta.physics_summary present");
+    assert.ok(meta.atlas, "meta.atlas ref present");
+
+    assert.ok(atlas, "atlas resolved");
+    assert.equal(atlas.textures.length, 1, "atlas.textures.length === 1");
+    assert.equal(atlas.textures[0].path, "textures/base.png", "atlas textures[0].path");
+    assert.equal(atlas.textures[0].width, 4, "atlas textures[0].width");
+    assert.equal(atlas.textures[0].height, 4, "atlas textures[0].height");
+    assert.equal(atlas.textures[0].format, "png", "atlas textures[0].format");
+
+    log(
+      `  ✓ ready payload: ${manifest.template_id}@${manifest.template_version}, ` +
+        `files=${manifest.files.length}, motions=${meta.motions.length}, ` +
+        `expressions=${meta.expressions.length}, atlas=${atlas.textures[0].path}`,
+    );
+  } finally {
+    await window.happyDOM.close().catch(() => undefined);
+    for (const k of KEYS) g[k] = saved[k];
+  }
+}
+
+function waitForEvent(target, name, timeoutMs) {
+  return new Promise((resolveFn, rejectFn) => {
+    const t = setTimeout(() => rejectFn(new Error(`timeout waiting for "${name}"`)), timeoutMs);
+    const onEvt = (evt) => {
+      clearTimeout(t);
+      resolveFn(evt);
+    };
+    target.addEventListener(name, onEvt, { once: true });
+  });
 }
 
 // ---- unused but kept for debug ergonomics ----
