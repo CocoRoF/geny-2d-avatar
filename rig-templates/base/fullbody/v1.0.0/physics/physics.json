@@ -1,0 +1,790 @@
+{
+  "schema_version": "v1",
+  "version": 3,
+  "notes": "fullbody v1.0.0 물리 팩. halfbody v1.3.0 12 settings 전부 유지 + 하반신 5 신규 (skirt_sway_phys / skirt_fuwa_phys / leg_sway_phys_l/r / hip_phys) = 17. Setting11 accessory_sway_phys 는 3rd output 으로 cloth_cape_sway 편승 (추가 setting 생성 회피, 세션 57 D3). docs/03 §6.2, §12.1.",
+  "meta": {
+    "physics_setting_count": 17,
+    "total_input_count": 43,
+    "total_output_count": 19,
+    "vertex_count": 34,
+    "fps": 30,
+    "effective_forces": {
+      "gravity": { "x": 0, "y": -1 },
+      "wind": { "x": 0, "y": 0 }
+    }
+  },
+  "physics_dictionary": [
+    {
+      "id": "PhysicsSetting1",
+      "name": { "en": "Hair Front Sway", "ko": "앞머리 흔들림", "ja": "前髪 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting2",
+      "name": { "en": "Hair Side Sway (L)", "ko": "왼옆머리 흔들림", "ja": "左側髪 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting3",
+      "name": { "en": "Hair Side Sway (R)", "ko": "오른옆머리 흔들림", "ja": "右側髪 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting4",
+      "name": { "en": "Hair Back Sway", "ko": "뒷머리 흔들림", "ja": "後髪 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting5",
+      "name": { "en": "Hair Front Fuwa", "ko": "앞머리 부풀림", "ja": "前髪 フワ" }
+    },
+    {
+      "id": "PhysicsSetting6",
+      "name": { "en": "Hair Side Fuwa (L)", "ko": "왼옆머리 부풀림", "ja": "左側髪 フワ" }
+    },
+    {
+      "id": "PhysicsSetting7",
+      "name": { "en": "Hair Side Fuwa (R)", "ko": "오른옆머리 부풀림", "ja": "右側髪 フワ" }
+    },
+    {
+      "id": "PhysicsSetting8",
+      "name": { "en": "Hair Back Fuwa", "ko": "뒷머리 부풀림", "ja": "後髪 フワ" }
+    },
+    {
+      "id": "PhysicsSetting9",
+      "name": { "en": "Cloth Main Fuwa", "ko": "상의 부풀림", "ja": "衣装 フワ" }
+    },
+    {
+      "id": "PhysicsSetting10",
+      "name": { "en": "Ahoge Sway", "ko": "아호게 흔들림", "ja": "アホ毛 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting11",
+      "name": { "en": "Accessory Sway", "ko": "악세서리 흔들림", "ja": "アクセ 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting12",
+      "name": { "en": "Body Breath Phys", "ko": "호흡 2차 오프셋", "ja": "呼吸 2次オフセット" }
+    },
+    {
+      "id": "PhysicsSetting13",
+      "name": { "en": "Skirt Sway", "ko": "치마 좌우 흔들림", "ja": "スカート 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting14",
+      "name": { "en": "Skirt Fuwa", "ko": "치마 부풀림", "ja": "スカート フワ" }
+    },
+    {
+      "id": "PhysicsSetting15",
+      "name": { "en": "Leg Sway (L)", "ko": "왼다리 흔들림", "ja": "左脚 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting16",
+      "name": { "en": "Leg Sway (R)", "ko": "오른다리 흔들림", "ja": "右脚 揺れ" }
+    },
+    {
+      "id": "PhysicsSetting17",
+      "name": { "en": "Hip Phys", "ko": "골반 2차 오프셋", "ja": "腰 2次オフセット" }
+    }
+  ],
+  "physics_settings": [
+    {
+      "id": "PhysicsSetting1",
+      "enabled_by_default": true,
+      "notes": "앞머리 흔들림. mao_pro PhysicsSetting1 1:1 이식.",
+      "input": [
+        { "source_param": "head_angle_x", "weight": 60, "type": "X", "reflect": false },
+        { "source_param": "head_angle_z", "weight": 60, "type": "Angle", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_front_sway",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 10 },
+          "mobility": 0.95,
+          "delay": 0.8,
+          "acceleration": 1.12,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -10, "default": 0, "maximum": 10 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting2",
+      "enabled_by_default": true,
+      "notes": "캐릭터 왼쪽 옆머리 흔들림. v1.1.0 의 단일 side 설정을 L/R 로 분리(세션 07 D2). L 은 기본 축.",
+      "input": [
+        { "source_param": "head_angle_x", "weight": 60, "type": "X", "reflect": false },
+        { "source_param": "head_angle_z", "weight": 60, "type": "Angle", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_side_sway_l",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 10 },
+          "mobility": 0.95,
+          "delay": 0.8,
+          "acceleration": 1.12,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -10, "default": 0, "maximum": 10 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting3",
+      "enabled_by_default": true,
+      "notes": "캐릭터 오른쪽 옆머리 흔들림. L 과 대칭 — 모든 입력에 reflect=true 적용해 축을 반사.",
+      "input": [
+        { "source_param": "head_angle_x", "weight": 60, "type": "X", "reflect": true },
+        { "source_param": "head_angle_z", "weight": 60, "type": "Angle", "reflect": true },
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": true },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": true }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_side_sway_r",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 10 },
+          "mobility": 0.95,
+          "delay": 0.8,
+          "acceleration": 1.12,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -10, "default": 0, "maximum": 10 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting4",
+      "enabled_by_default": true,
+      "notes": "뒷머리 흔들림. deformers.hair_back_warp 는 overall_warp 직속이라 body/head pose 회전에 지연 효과 (docs/03 §4.2).",
+      "input": [
+        { "source_param": "head_angle_x", "weight": 60, "type": "X", "reflect": false },
+        { "source_param": "head_angle_z", "weight": 60, "type": "Angle", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_back_sway",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 10 },
+          "mobility": 0.9,
+          "delay": 0.7,
+          "acceleration": 1.2,
+          "radius": 12
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -10, "default": 0, "maximum": 10 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting5",
+      "enabled_by_default": true,
+      "notes": "앞머리 볼륨 팽창. body_breath 단일 입력 — 호흡 사이클에만 반응.",
+      "input": [
+        { "source_param": "body_breath", "weight": 100, "type": "X", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_front_fuwa",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 80,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.6,
+          "delay": 0.7,
+          "acceleration": 0.8,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 5 },
+          "mobility": 0.55,
+          "delay": 0.65,
+          "acceleration": 0.75,
+          "radius": 5
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": 0, "default": 0, "maximum": 1 },
+        "angle": { "minimum": -5, "default": 0, "maximum": 5 }
+      }
+    },
+    {
+      "id": "PhysicsSetting6",
+      "enabled_by_default": true,
+      "notes": "왼옆머리 볼륨. 호흡 + 머리 회전 방향 수정자. 머리를 오른쪽으로 돌릴수록 왼쪽 볼륨 증가.",
+      "input": [
+        { "source_param": "body_breath", "weight": 100, "type": "X", "reflect": false },
+        { "source_param": "head_angle_x", "weight": 40, "type": "X", "reflect": true }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_side_fuwa_l",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 80,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.6,
+          "delay": 0.7,
+          "acceleration": 0.8,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 5 },
+          "mobility": 0.55,
+          "delay": 0.65,
+          "acceleration": 0.75,
+          "radius": 5
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": 0, "default": 0, "maximum": 1 },
+        "angle": { "minimum": -5, "default": 0, "maximum": 5 }
+      }
+    },
+    {
+      "id": "PhysicsSetting7",
+      "enabled_by_default": true,
+      "notes": "오른옆머리 볼륨. L 과 좌우 대칭 — head_angle_x 가 reflect=false (L 은 reflect=true).",
+      "input": [
+        { "source_param": "body_breath", "weight": 100, "type": "X", "reflect": false },
+        { "source_param": "head_angle_x", "weight": 40, "type": "X", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_side_fuwa_r",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 80,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.6,
+          "delay": 0.7,
+          "acceleration": 0.8,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 5 },
+          "mobility": 0.55,
+          "delay": 0.65,
+          "acceleration": 0.75,
+          "radius": 5
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": 0, "default": 0, "maximum": 1 },
+        "angle": { "minimum": -5, "default": 0, "maximum": 5 }
+      }
+    },
+    {
+      "id": "PhysicsSetting8",
+      "enabled_by_default": true,
+      "notes": "뒷머리 볼륨. body_breath 단일 입력. 체인 길이(radius) 가 가장 커서 응답 가장 느림.",
+      "input": [
+        { "source_param": "body_breath", "weight": 100, "type": "X", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_back_fuwa",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 90,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.55,
+          "delay": 0.55,
+          "acceleration": 0.7,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 6 },
+          "mobility": 0.5,
+          "delay": 0.5,
+          "acceleration": 0.65,
+          "radius": 6
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": 0, "default": 0, "maximum": 1 },
+        "angle": { "minimum": -5, "default": 0, "maximum": 5 }
+      }
+    },
+    {
+      "id": "PhysicsSetting9",
+      "enabled_by_default": true,
+      "notes": "상의 볼륨 팽창. body_breath 주축 + body_angle_x 방향 수정자. 상반신이 기울면 한쪽으로 쏠림 표현.",
+      "input": [
+        { "source_param": "body_breath", "weight": 100, "type": "X", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 30, "type": "X", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "cloth_main_fuwa",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 75,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.5,
+          "delay": 0.6,
+          "acceleration": 0.6,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 8 },
+          "mobility": 0.45,
+          "delay": 0.55,
+          "acceleration": 0.55,
+          "radius": 8
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": 0, "default": 0, "maximum": 1 },
+        "angle": { "minimum": -5, "default": 0, "maximum": 5 }
+      }
+    },
+    {
+      "id": "PhysicsSetting10",
+      "enabled_by_default": true,
+      "notes": "아호게(머리 상단 안테나)흔들림. 머리 회전 2축 + 몸 좌우 흔들림. 체인이 짧고(짧은 radius) 가벼워(낮은 mobility/delay) 반응이 빠르고 오버슈트가 큼 — 캐릭터 호감도의 대표 시그널.",
+      "input": [
+        { "source_param": "head_angle_x", "weight": 70, "type": "X", "reflect": false },
+        { "source_param": "head_angle_y", "weight": 30, "type": "Y", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 20, "type": "X", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "ahoge_sway",
+          "vertex_index": 1,
+          "scale": 1.2,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 5 },
+          "mobility": 1,
+          "delay": 0.55,
+          "acceleration": 1.35,
+          "radius": 5
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -5, "default": 0, "maximum": 5 },
+        "angle": { "minimum": -12, "default": 0, "maximum": 12 }
+      }
+    },
+    {
+      "id": "PhysicsSetting11",
+      "enabled_by_default": true,
+      "notes": "액세서리 + 망토 2차 흔들림 — accessory_back / accessory_front 2 출력 + fullbody v1.0.0 의 cloth_cape_sway 편승 출력. body_angle_x/z 만 입력 — 머리 회전과는 분리되어 몸 기울임에만 반응. 세션 57 D3: 별도 cape_phys 생성 대신 공유해 17 settings 상한 유지. docs/03 §12.1.",
+      "input": [
+        { "source_param": "body_angle_x", "weight": 60, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "accessory_back_sway",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 80,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "destination_param": "accessory_front_sway",
+          "vertex_index": 1,
+          "scale": 0.8,
+          "weight": 70,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "destination_param": "cloth_cape_sway",
+          "vertex_index": 1,
+          "scale": 1.3,
+          "weight": 75,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.85,
+          "delay": 0.85,
+          "acceleration": 0.9,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 8 },
+          "mobility": 0.8,
+          "delay": 0.7,
+          "acceleration": 1.05,
+          "radius": 8
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -8, "default": 0, "maximum": 8 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting12",
+      "enabled_by_default": true,
+      "notes": "body_breath 2차 오프셋. 호흡 사이클에 미세한 수직 오프셋을 섞어 Cubism 기본 breath 와 레이어드. body_breath + body_angle_y 를 입력으로 body_breath_offset 파라미터를 구동. 헤드스왑·비상업 리그에서 호흡 강조에 사용.",
+      "input": [
+        { "source_param": "body_breath", "weight": 100, "type": "X", "reflect": false },
+        { "source_param": "body_angle_y", "weight": 20, "type": "Y", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "body_breath_phys",
+          "vertex_index": 1,
+          "scale": 0.6,
+          "weight": 60,
+          "type": "Y",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.4,
+          "delay": 0.8,
+          "acceleration": 0.5,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 4 },
+          "mobility": 0.38,
+          "delay": 0.75,
+          "acceleration": 0.48,
+          "radius": 4
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": 0, "default": 0, "maximum": 1 },
+        "angle": { "minimum": -3, "default": 0, "maximum": 3 }
+      }
+    },
+    {
+      "id": "PhysicsSetting13",
+      "enabled_by_default": true,
+      "notes": "치마 좌우 흔들림. 몸 기울임(body_angle_x/z) + 다리 좌우 비대칭(leg_l_angle 정방향 / leg_r_angle reflect=true 로 반사) 합성. 걸음걸이 시 leg_l-leg_r 차이가 sway 유도. radius 10 중간 체인.",
+      "input": [
+        { "source_param": "body_angle_x", "weight": 50, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false },
+        { "source_param": "leg_l_angle", "weight": 25, "type": "X", "reflect": false },
+        { "source_param": "leg_r_angle", "weight": 25, "type": "X", "reflect": true }
+      ],
+      "output": [
+        {
+          "destination_param": "cloth_skirt_sway",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.9,
+          "delay": 0.8,
+          "acceleration": 1.1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 10 },
+          "mobility": 0.85,
+          "delay": 0.7,
+          "acceleration": 1.15,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -10, "default": 0, "maximum": 10 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting14",
+      "enabled_by_default": true,
+      "notes": "치마 볼륨. body_breath 주 입력 + body_angle_x 로 한쪽 쏠림 표현. cloth_main Fuwa(Setting9) 와 유사 파라미터화하되 chain 이 더 길어 응답 지연(radius 6, mobility 0.5).",
+      "input": [
+        { "source_param": "body_breath", "weight": 100, "type": "X", "reflect": false },
+        { "source_param": "body_angle_x", "weight": 20, "type": "X", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "cloth_skirt_fuwa",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 70,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.5,
+          "delay": 0.6,
+          "acceleration": 0.7,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 6 },
+          "mobility": 0.45,
+          "delay": 0.55,
+          "acceleration": 0.65,
+          "radius": 6
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": 0, "default": 0, "maximum": 1 },
+        "angle": { "minimum": -5, "default": 0, "maximum": 5 }
+      }
+    },
+    {
+      "id": "PhysicsSetting15",
+      "enabled_by_default": true,
+      "notes": "왼다리 2차 흔들림. body_angle_x + leg_l_angle 합성 — 몸이 기울거나 왼다리가 움직이면 2차로 흔들려 말단 리얼리즘. radius 12 긴 체인, mobility 0.85.",
+      "input": [
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": false },
+        { "source_param": "leg_l_angle", "weight": 60, "type": "X", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "leg_sway_l",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.85,
+          "delay": 0.75,
+          "acceleration": 1.1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 12 },
+          "mobility": 0.8,
+          "delay": 0.7,
+          "acceleration": 1.15,
+          "radius": 12
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -12, "default": 0, "maximum": 12 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting16",
+      "enabled_by_default": true,
+      "notes": "오른다리 2차 흔들림. Setting15 좌우 대칭 — 모든 입력에 reflect=true 적용. L/R 는 독립 시뮬(공유 시 대칭 걸음이 상쇄되어 버려 분리 필수).",
+      "input": [
+        { "source_param": "body_angle_x", "weight": 40, "type": "X", "reflect": true },
+        { "source_param": "leg_r_angle", "weight": 60, "type": "X", "reflect": true }
+      ],
+      "output": [
+        {
+          "destination_param": "leg_sway_r",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.85,
+          "delay": 0.75,
+          "acceleration": 1.1,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 12 },
+          "mobility": 0.8,
+          "delay": 0.7,
+          "acceleration": 1.15,
+          "radius": 12
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -12, "default": 0, "maximum": 12 },
+        "angle": { "minimum": -10, "default": 0, "maximum": 10 }
+      }
+    },
+    {
+      "id": "PhysicsSetting17",
+      "enabled_by_default": true,
+      "notes": "골반 2차 오프셋 (body_breath_phys 와 대칭, 하반신 축). body_angle_x/z 로 몸이 기울거나 흔들릴 때 골반이 지연되어 따라옴 → 상/하체 연결 유연화. 낮은 weight (70) · 높은 delay (0.8) 로 은은하게.",
+      "input": [
+        { "source_param": "body_angle_x", "weight": 60, "type": "X", "reflect": false },
+        { "source_param": "body_angle_z", "weight": 40, "type": "Angle", "reflect": false }
+      ],
+      "output": [
+        {
+          "destination_param": "hip_phys",
+          "vertex_index": 1,
+          "scale": 0.7,
+          "weight": 70,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": { "x": 0, "y": 0 },
+          "mobility": 0.7,
+          "delay": 0.8,
+          "acceleration": 0.9,
+          "radius": 0
+        },
+        {
+          "position": { "x": 0, "y": 8 },
+          "mobility": 0.65,
+          "delay": 0.75,
+          "acceleration": 0.85,
+          "radius": 8
+        }
+      ],
+      "normalization": {
+        "position": { "minimum": -8, "default": 0, "maximum": 8 },
+        "angle": { "minimum": -5, "default": 0, "maximum": 5 }
+      }
+    }
+  ],
+  "presets": {
+    "normal": {
+      "damping_multiplier": 1.0,
+      "wind": { "x": 0, "y": 0 }
+    },
+    "light": {
+      "damping_multiplier": 0.7,
+      "wind": { "x": 0, "y": 0 }
+    },
+    "heavy": {
+      "damping_multiplier": 1.4,
+      "wind": { "x": 0, "y": 0 }
+    }
+  }
+}
