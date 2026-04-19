@@ -52,6 +52,9 @@ export async function orchestrate(
   if (opts.cache) routeOpts.cache = opts.cache;
   if (opts.safety) routeOpts.safety = opts.safety;
   if (opts.maxAttempts !== undefined) routeOpts.maxAttempts = opts.maxAttempts;
+  if (opts.metrics) routeOpts.metrics = opts.metrics;
+  if (opts.stage !== undefined) routeOpts.stage = opts.stage;
+  if (opts.now) routeOpts.now = opts.now;
 
   const outcome = await routeWithFallback(registry, task, routeOpts);
   const provenance = buildProvenancePartEntry(task, outcome.result, {

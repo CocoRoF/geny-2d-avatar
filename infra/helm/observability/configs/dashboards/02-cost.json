@@ -226,6 +226,70 @@
           "legendFormat": "{{budget_scope}}"
         }
       ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "AI 폴백 발생 (from → to, reason)",
+      "description": "geny_ai_fallback_total — orchestrator 폴백 트레이스 (docs/05 §12.3). 세션 33 추가.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (from_vendor, to_vendor, reason) (rate(geny_ai_fallback_total[5m]))",
+          "legendFormat": "{{from_vendor}}→{{to_vendor}} ({{reason}})"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "AI 호출 p95 지연 (벤더별)",
+      "description": "histogram_quantile(0.95, rate(geny_ai_call_duration_seconds_bucket[5m])) — 세션 33 orchestrator hook 출력. docs/05 §7.3 health score 재료.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, vendor) (rate(geny_ai_call_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{vendor}}"
+        }
+      ]
     }
   ]
 }

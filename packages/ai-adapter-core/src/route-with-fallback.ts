@@ -35,11 +35,28 @@ import { deterministicSeed } from "./deterministic-seed.js";
 import type { SafetyFilter } from "./safety.js";
 import type { AIAdapter, GenerationResult, GenerationTask } from "./types.js";
 import type { AdapterRegistry } from "./registry.js";
+import {
+  mapErrorToStatus,
+  NoopMetricsHook,
+  type MetricsHook,
+} from "./metrics.js";
 
 export interface RouteWithFallbackOptions {
   cache?: AdapterCache;
   safety?: SafetyFilter;
   maxAttempts?: number;
+  /**
+   * docs/02 §9 — 호출별로 catalog §3 메트릭을 방출할 hook. 기본은 no-op.
+   * `InMemoryMetricsRegistry` + `createRegistryMetricsHook()` 를 쓰면 즉시 /metrics 출력.
+   */
+  metrics?: MetricsHook;
+  /**
+   * 메트릭 `stage` 레이블. docs/02 §9 의 파이프라인 스테이지 이름. 기본 "generation".
+   * 저카디널리티 — 5~10개 고정 값만 허용.
+   */
+  stage?: string;
+  /** 테스트/결정론을 위한 clock. 기본 `Date.now`. */
+  now?: () => number;
 }
 
 export interface FallbackAttemptTrace {
@@ -79,6 +96,9 @@ export async function routeWithFallback(
   opts: RouteWithFallbackOptions = {},
 ): Promise<RouteWithFallbackOutcome> {
   const candidates = registry.route(task);
+  const metrics = opts.metrics ?? NoopMetricsHook;
+  const stage = opts.stage ?? "generation";
+  const now = opts.now ?? (() => Date.now());
   if (candidates.length === 0) {
     throw new AdapterError("routeWithFallback: no candidates", "NO_ELIGIBLE_ADAPTER", {
       task_id: task.task_id,
@@ -116,6 +136,7 @@ export async function routeWithFallback(
 
   for (let i = 0; i < limit; i++) {
     const adapter = candidates[i] as AIAdapter;
+    const callStart = now();
     try {
       const result = await adapter.generate(task);
       if (opts.safety) {
@@ -137,6 +158,21 @@ export async function routeWithFallback(
             errorCode: err.code,
             errorMessage: err.message,
           });
+          metrics.onCall({
+            vendor: adapter.meta.name,
+            model: adapter.meta.version,
+            stage,
+            status: "unsafe",
+            durationSeconds: (now() - callStart) / 1000,
+          });
+          const next = candidates[i + 1];
+          if (next) {
+            metrics.onFallback({
+              fromVendor: adapter.meta.name,
+              toVendor: next.meta.name,
+              reason: "unsafe",
+            });
+          }
           lastError = err;
           continue;
         }
@@ -145,6 +181,15 @@ export async function routeWithFallback(
         adapter: adapter.meta.name,
         modelVersion: adapter.meta.version,
         ok: true,
+      });
+      const durationSeconds = (now() - callStart) / 1000;
+      metrics.onCall({
+        vendor: adapter.meta.name,
+        model: adapter.meta.version,
+        stage,
+        status: "success",
+        durationSeconds,
+        costUsd: result.cost_usd,
       });
       if (opts.cache) {
         const key = buildCacheKey({
@@ -171,9 +216,25 @@ export async function routeWithFallback(
         errorCode: code,
         errorMessage: (err as Error).message,
       });
+      const status = mapErrorToStatus(err);
+      metrics.onCall({
+        vendor: adapter.meta.name,
+        model: adapter.meta.version,
+        stage,
+        status,
+        durationSeconds: (now() - callStart) / 1000,
+      });
       lastError = err;
       if (!shouldFallback(err)) {
         throw err;
+      }
+      const next = candidates[i + 1];
+      if (next) {
+        metrics.onFallback({
+          fromVendor: adapter.meta.name,
+          toVendor: next.meta.name,
+          reason: status,
+        });
       }
       // 다음 후보로 계속
     }

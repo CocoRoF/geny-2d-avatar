@@ -40,3 +40,18 @@ export type {
 } from "./catalog.js";
 export { orchestrate } from "./orchestrator.js";
 export type { OrchestrateOptions, OrchestrateOutcome } from "./orchestrator.js";
+export {
+  NoopMetricsHook,
+  InMemoryMetricsRegistry,
+  createRegistryMetricsHook,
+  mapErrorToStatus,
+  CounterHandle,
+  HistogramHandle,
+  DEFAULT_DURATION_BUCKETS_SECONDS,
+} from "./metrics.js";
+export type {
+  MetricsHook,
+  AdapterCallEvent,
+  AdapterFallbackEvent,
+  AdapterCallStatus,
+} from "./metrics.js";

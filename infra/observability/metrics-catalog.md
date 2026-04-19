@@ -44,13 +44,14 @@ Geny 2D Avatar 플랫폼이 방출하는 Prometheus 메트릭의 **단일 진실
 ## 3. AI vendor calls
 
 외부 AI 어댑터 호출. 대시보드 #2 (Cost) 공급원.
+**방출 지점**: `@geny/ai-adapter-core` 의 `routeWithFallback`/`orchestrate` 가 시도(attempt)마다 `MetricsHook.onCall()`, 폴백마다 `onFallback()` 을 부른다. `createRegistryMetricsHook(registry)` 가 아래 4 메트릭을 직접 채운다 (세션 33).
 
 | 메트릭 | 타입 | 레이블 | 설명 |
 |---|---|---|---|
-| `geny_ai_call_total` | counter | `vendor`, `model`, `stage`, `status` | `vendor`=`nano_banana|gemini|sora|…`, `status`=`success|4xx|5xx|timeout`. 5xx 비율 > 20% 10분 → P2 (§9.3). |
+| `geny_ai_call_total` | counter | `vendor`, `model`, `stage`, `status` | `vendor`=`nano_banana|gemini|sora|…`, `status`=`success|4xx|5xx|timeout|unsafe|other`. 5xx 비율 > 20% 10분 → P2 (§9.3). |
 | `geny_ai_call_duration_seconds` | histogram | `vendor`, `model`, `stage` | 지연. p95 가 벤더 health score 재료 (docs/05 §7.3). |
-| `geny_ai_call_cost_usd` | counter | `vendor`, `model`, `stage` | 호출 단가(USD). 1아바타당 단가 = `cost_usd / completed_jobs`. |
-| `geny_ai_fallback_total` | counter | `from_vendor`, `to_vendor`, `reason` | 벤더 페일오버 발생. |
+| `geny_ai_call_cost_usd` | counter | `vendor`, `model`, `stage` | 호출 단가(USD). **성공 호출에서만** 누적. 1아바타당 단가 = `cost_usd / completed_jobs`. |
+| `geny_ai_fallback_total` | counter | `from_vendor`, `to_vendor`, `reason` | 벤더 페일오버. `reason`=`5xx|timeout|unsafe|other`. |
 
 ## 4. Cost aggregates
 
