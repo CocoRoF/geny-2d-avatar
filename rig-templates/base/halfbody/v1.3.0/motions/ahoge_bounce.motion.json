@@ -1,0 +1,29 @@
+{
+  "schema_version": "v1",
+  "pack_id": "ahoge.bounce",
+  "version": "1.0.0",
+  "format": 3,
+  "notes": "1.5초 동안 head_angle_x/y 로 3회 빠른 끄덕. ahoge_sway_phys(head_angle_x 70w + head_angle_y 30w) 가 아호게 2차 흔들림을 생성. docs/03 §12.1 #2 데모용.",
+  "meta": {
+    "duration_sec": 1.5,
+    "fps": 30,
+    "fade_in_sec": 0.15,
+    "fade_out_sec": 0.2,
+    "loop": false,
+    "curve_count": 2,
+    "total_segment_count": 7,
+    "total_point_count": 9
+  },
+  "curves": [
+    {
+      "target": "parameter",
+      "target_id": "head_angle_x",
+      "segments": [0, 0, 0, 0.5, 8, 0, 1.0, -4, 0, 1.5, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "head_angle_y",
+      "segments": [0, 0, 0, 0.25, -15, 0, 0.75, -10, 0, 1.25, -6, 0, 1.5, 0]
+    }
+  ]
+}

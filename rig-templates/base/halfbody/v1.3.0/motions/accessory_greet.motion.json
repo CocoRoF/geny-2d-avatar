@@ -1,0 +1,34 @@
+{
+  "schema_version": "v1",
+  "pack_id": "accessory.greet",
+  "version": "1.0.0",
+  "format": 3,
+  "notes": "2초 인사. body_angle_z(좌우 기울임) + body_angle_x + arm_r_angle 웨이브. accessory_sway_phys(body_angle_x 60w + body_angle_z 40w) 로 앞/뒷 악세서리 2차 흔들림을 생성. docs/03 §12.1 #1 데모용.",
+  "meta": {
+    "duration_sec": 2.0,
+    "fps": 30,
+    "fade_in_sec": 0.25,
+    "fade_out_sec": 0.35,
+    "loop": false,
+    "curve_count": 3,
+    "total_segment_count": 10,
+    "total_point_count": 13
+  },
+  "curves": [
+    {
+      "target": "parameter",
+      "target_id": "body_angle_z",
+      "segments": [0, 0, 0, 0.5, 6, 0, 1.0, -4, 0, 1.5, 4, 0, 2.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "body_angle_x",
+      "segments": [0, 0, 0, 1.0, 5, 0, 2.0, 0]
+    },
+    {
+      "target": "parameter",
+      "target_id": "arm_r_angle",
+      "segments": [0, 0, 0, 0.5, 25, 0, 1.0, 5, 0, 1.5, 25, 0, 2.0, 0]
+    }
+  ]
+}
