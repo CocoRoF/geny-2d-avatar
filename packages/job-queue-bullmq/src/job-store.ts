@@ -181,10 +181,25 @@ export function createBullMQJobStore(opts: CreateBullMQJobStoreOptions): BullMQJ
 
     async get(id) {
       const cached = records.get(id);
-      if (cached) return cached;
+      // 터미널 상태 캐시는 권위 — driver 가 `removeOnComplete` 로 스냅을 지웠어도 결과 보존.
+      if (cached && (cached.status === "succeeded" || cached.status === "failed")) {
+        return cached;
+      }
+      // `inline` 모드에선 같은 프로세스가 `execute()` 로 rec 를 갱신하므로 캐시가 권위.
+      if (cached && mode === "inline") return cached;
+      // `producer-only` 모드: 캐시가 `queued`/`running` 이면 별 프로세스 Worker 가 진행했을
+      // 수 있으므로 driver 에서 최신 state 조회. 세션 73 외부 하네스 경로 전제.
       const snap = await driver.getJob(id);
-      if (!snap) return undefined;
-      return snapshotToRecord(snap.data.payload as GenerationTask, snap);
+      if (!snap) return cached;
+      const fresh = snapshotToRecord(snap.data.payload as GenerationTask, snap);
+      if (cached) {
+        cached.status = fresh.status;
+        if (fresh.started_at) cached.started_at = fresh.started_at;
+        if (fresh.finished_at) cached.finished_at = fresh.finished_at;
+        if (fresh.status === "succeeded" || fresh.status === "failed") fulfillWaiters(cached);
+        return cached;
+      }
+      return fresh;
     },
 
     async list() {

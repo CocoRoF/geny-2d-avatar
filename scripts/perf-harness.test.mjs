@@ -11,7 +11,7 @@
 
 import assert from "node:assert/strict";
 
-import { runHarness, parseMetrics } from "./perf-harness.mjs";
+import { runHarness, parseMetrics, parseTargetUrl } from "./perf-harness.mjs";
 
 async function main() {
   // 1) smoke 실행 — Foundation Mock 파이프라인은 CI 머신에서도 이 정도면 통과해야 함.
@@ -126,6 +126,25 @@ async function main() {
     assert.equal(miss.enqueued_total, undefined);
     assert.equal(miss.depth, undefined);
     console.log("  ✓ parseMetrics — enqueued_total + depth{state=*} label 필터링 (세션 72)");
+  }
+
+  // 7) 세션 73 — parseTargetUrl: http(s) 스킴 + 포트 디폴트 + 오입력 방어.
+  {
+    assert.deepEqual(
+      parseTargetUrl("http://127.0.0.1:9091"),
+      { host: "127.0.0.1", port: 9091 },
+    );
+    assert.deepEqual(
+      parseTargetUrl("http://producer.internal/"),
+      { host: "producer.internal", port: 80 },
+    );
+    assert.deepEqual(
+      parseTargetUrl("https://producer.example/"),
+      { host: "producer.example", port: 443 },
+    );
+    assert.throws(() => parseTargetUrl("ftp://nope"), /--target-url 은 http/);
+    assert.throws(() => parseTargetUrl("not a url"), /--target-url 파싱 실패/);
+    console.log("  ✓ parseTargetUrl — http(s) + port 디폴트 + 오입력 throw (세션 73)");
   }
 
   console.log("[perf-harness] ✅ all checks pass");

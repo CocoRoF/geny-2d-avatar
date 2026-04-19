@@ -24,10 +24,19 @@
 //   --concurrency C    동시 in-flight POST 수 (기본 8)
 //   --smoke            SLO 임계 완화 (CI 빠른 회귀 용 — p95 ≤ 2s, err ≤ 5%)
 //   --report PATH      JSON 보고서 저장. 생략 시 stdout 만.
-//   --driver KIND      in-memory | bullmq (기본 in-memory).
+//   --driver KIND      in-memory | bullmq (기본 in-memory). in-process 경로.
 //                      bullmq 는 REDIS_URL 환경변수와 미리 기동된 Redis 7+ 필요.
 //                      ADR 0006 §4 X+4 staging 회귀에 사용.
 //   --queue-name N     BullMQ queue 이름 (기본 geny-perf).
+//   --target-url URL   외부 하네스 모드 (세션 73) — 이미 기동된 producer HTTP endpoint 를
+//                      지정하면 하네스는 in-process worker 를 띄우지 않고 URL 로만 투하.
+//                      orchestrate latency 는 GET /jobs/{id} polling (지수 backoff 2~50ms) 으로 측정.
+//                      독립 프로세스 배포 형상(producer+consumer+redis 3프로세스) 의 p95/tput 실측
+//                      용 — `docker compose -f docker-compose.staging.yml up redis` +
+//                      `pnpm -F @geny/worker-generate start -- --role producer` +
+//                      `... --role consumer` 를 각각 띄운 뒤 이 플래그로 producer URL 을 가리킨다.
+//                      `--driver` / `--queue-name` 은 report 라벨링 목적으로만 사용 (실 큐 wiring
+//                      은 외부 프로세스 책임).
 //
 // SLO 임계 (Foundation, Mock 파이프라인 기준 — 실측 재조정 가능):
 //   - accept_latency_ms       p95 ≤ 100
@@ -60,6 +69,7 @@ const CONFIG = {
   reportPath: ARGV.report ?? null,
   driver: DRIVER,
   queueName: ARGV["queue-name"] ?? "geny-perf",
+  targetUrl: typeof ARGV["target-url"] === "string" ? ARGV["target-url"] : null,
 };
 
 const SLO = SMOKE
@@ -81,11 +91,41 @@ const SLO = SMOKE
 export async function runHarness(overrides = {}) {
   const cfg = { ...CONFIG, ...overrides };
   const slo = { ...SLO, ...(overrides.slo ?? {}) };
+  const external = cfg.targetUrl ? parseTargetUrl(cfg.targetUrl) : null;
 
-  const { worker, cleanup: driverCleanup } = await buildWorker(cfg);
-  const server = worker.createServer();
-  await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
-  const port = server.address().port;
+  // 두 경로 공통: host/port 로 HTTP 클라이언트만 빌드. external 경로는 worker/server 생략.
+  let worker, driverCleanup, server, host, port;
+  if (external) {
+    host = external.host;
+    port = external.port;
+  } else {
+    const built = await buildWorker(cfg);
+    worker = built.worker;
+    driverCleanup = built.cleanup;
+    server = worker.createServer();
+    await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
+    host = "127.0.0.1";
+    port = server.address().port;
+  }
+
+  // terminal 상태 관측 — external 은 HTTP GET polling, in-process 는 store.waitFor.
+  const terminalStates = new Set(["succeeded", "failed"]);
+  const waitTerminal = external
+    ? async (jobId, timeoutMs = 15_000) => {
+        const deadline = Date.now() + timeoutMs;
+        let delay = 2;
+        while (Date.now() < deadline) {
+          const rec = await getJobHttp(host, port, jobId);
+          if (rec && terminalStates.has(rec.status)) return rec;
+          await new Promise((ok) => setTimeout(ok, delay));
+          delay = Math.min(50, Math.floor(delay * 1.8));
+        }
+        throw new Error(`waitTerminal timeout: ${jobId}`);
+      }
+    : async (jobId, timeoutMs = 15_000) => {
+        await worker.store.waitFor(jobId, timeoutMs);
+        return worker.store.get(jobId);
+      };
 
   const runStart = Date.now();
   const acceptLatencies = [];
@@ -103,7 +143,7 @@ export async function runHarness(overrides = {}) {
         const postStart = process.hrtime.bigint();
         let jobId;
         try {
-          const res = await postJob(port, task);
+          const res = await postJob(host, port, task);
           const postEnd = process.hrtime.bigint();
           acceptLatencies.push(nsToMs(postEnd - postStart));
           if (res.status !== 202) {
@@ -118,11 +158,10 @@ export async function runHarness(overrides = {}) {
 
         const orchStart = postStart;
         try {
-          await worker.store.waitFor(jobId, 15_000);
+          const rec = await waitTerminal(jobId, 15_000);
           const orchEnd = process.hrtime.bigint();
-          const rec = await worker.store.get(jobId);
           if (rec?.status !== "succeeded") {
-            errors.push({ i, phase: "orchestrate", reason: rec?.error ?? "non-succeeded" });
+            errors.push({ i, phase: "orchestrate", reason: rec?.error ?? rec?.status ?? "non-succeeded" });
           }
           orchestrateLatencies.push(nsToMs(orchEnd - orchStart));
         } catch (err) {
@@ -136,18 +175,20 @@ export async function runHarness(overrides = {}) {
     );
   } finally {
     // bullmq 경로에서는 서버 종료 전에 /metrics 를 한 번 긁어 queue counter 를 캡처.
-    // in-memory 는 counter 가 없으므로 skip.
-    if (cfg.driver === "bullmq") {
+    // in-memory 는 counter 가 없으므로 skip. external 경로도 target /metrics 를 긁어 동일 수집.
+    if (cfg.driver === "bullmq" || external) {
       try {
-        const text = await fetchMetrics(port);
+        const text = await fetchMetrics(host, port);
         queueMetrics = parseMetrics(text, { queueName: cfg.queueName });
       } catch (err) {
         queueMetrics = { error: String(err?.message ?? err) };
       }
     }
-    await new Promise((ok) => server.close(() => ok()));
-    await worker.store.stop();
-    if (driverCleanup) await driverCleanup();
+    if (!external) {
+      await new Promise((ok) => server.close(() => ok()));
+      await worker.store.stop();
+      if (driverCleanup) await driverCleanup();
+    }
   }
 
   const runMs = Date.now() - runStart;
@@ -190,8 +231,9 @@ export async function runHarness(overrides = {}) {
       jobs: cfg.jobs,
       concurrency: cfg.concurrency,
       smoke: !!cfg.smoke,
-      driver: cfg.driver ?? "in-memory",
+      driver: external ? "external" : (cfg.driver ?? "in-memory"),
       queueName: cfg.queueName ?? null,
+      targetUrl: cfg.targetUrl ?? null,
     },
     slo,
     stats,
@@ -262,12 +304,12 @@ function buildTask(i) {
   };
 }
 
-function postJob(port, body) {
+function postJob(host, port, body) {
   return new Promise((ok, fail) => {
     const payload = JSON.stringify(body);
     const req = httpRequest(
       {
-        host: "127.0.0.1",
+        host,
         port,
         method: "POST",
         path: "/jobs",
@@ -290,10 +332,48 @@ function postJob(port, body) {
   });
 }
 
-function fetchMetrics(port) {
+function getJobHttp(host, port, jobId) {
   return new Promise((ok, fail) => {
     const req = httpRequest(
-      { host: "127.0.0.1", port, method: "GET", path: "/metrics" },
+      { host, port, method: "GET", path: `/jobs/${encodeURIComponent(jobId)}` },
+      (res) => {
+        const chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => {
+          const status = res.statusCode ?? 0;
+          if (status === 404) return ok(null);
+          if (status !== 200) return fail(new Error(`GET /jobs/${jobId} status=${status}`));
+          try {
+            ok(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+          } catch (err) {
+            fail(err);
+          }
+        });
+      },
+    );
+    req.on("error", fail);
+    req.end();
+  });
+}
+
+export function parseTargetUrl(raw) {
+  let u;
+  try {
+    u = new URL(raw);
+  } catch (err) {
+    throw new Error(`--target-url 파싱 실패: ${raw}`);
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    throw new Error(`--target-url 은 http(s) 만 허용: ${raw}`);
+  }
+  const port = u.port ? Number(u.port) : u.protocol === "https:" ? 443 : 80;
+  return { host: u.hostname, port };
+}
+
+function fetchMetrics(host, port) {
+  return new Promise((ok, fail) => {
+    const req = httpRequest(
+      { host, port, method: "GET", path: "/metrics" },
       (res) => {
         const chunks = [];
         res.on("data", (c) => chunks.push(c));
@@ -408,7 +488,7 @@ if (isEntrypoint) {
 function printReport(r) {
   process.stdout.write(
     [
-      `[perf] driver=${r.config.driver ?? "in-memory"}${r.config.queueName ? ` queue=${r.config.queueName}` : ""} jobs=${r.stats.jobs} concurrency=${r.config.concurrency} run_ms=${r.stats.run_ms}`,
+      `[perf] driver=${r.config.driver ?? "in-memory"}${r.config.queueName ? ` queue=${r.config.queueName}` : ""}${r.config.targetUrl ? ` target=${r.config.targetUrl}` : ""} jobs=${r.stats.jobs} concurrency=${r.config.concurrency} run_ms=${r.stats.run_ms}`,
       `[perf] accept  p50=${r.stats.accept_latency_ms.p50}ms p95=${r.stats.accept_latency_ms.p95}ms p99=${r.stats.accept_latency_ms.p99}ms`,
       `[perf] orch    p50=${r.stats.orchestrate_latency_ms.p50}ms p95=${r.stats.orchestrate_latency_ms.p95}ms p99=${r.stats.orchestrate_latency_ms.p99}ms`,
       `[perf] tput=${r.stats.throughput_jobs_per_s}/s err=${r.stats.error_rate} (${r.stats.error_count}/${r.stats.jobs})`,

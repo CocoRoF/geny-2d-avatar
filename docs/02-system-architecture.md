@@ -437,14 +437,15 @@ cost_estimate:
 
 - **CI 게이트**: `test:golden` step 20 `perf-harness smoke` 가 완화 SLO (p95 ≤ 2s, 에러 ≤ 5%, tput ≥ 1/s) 로 20 잡 1회 회귀. 전체 벤치는 수동 `node scripts/perf-harness.mjs --jobs 200 --concurrency 16`.
 - **실 벤더 부하**는 `--http` 플래그로 wire (`createHttpAdapterFactories`), Foundation 범위 밖.
-- **`--driver bullmq` 실측 베이스라인 (세션 72, Mock 파이프라인 · N=100 · C=8, 개발 맥북 기준)**:
+- **`--driver bullmq` / `--target-url` 실측 베이스라인 (세션 72·73, Mock 파이프라인 · N=100 · C=8, 개발 맥북 기준)**:
 
   | 드라이버 | run_ms | accept p95 (ms) | orch p95 (ms) | orch p99 (ms) | tput (/s) | 비고 |
   |---|---|---|---|---|---|---|
   | `in-memory` | 21 | 8.1 | 8.1 | 10.47 | 4761.9 | submit = setImmediate(orchestrate). 큐 오버헤드 0. |
-  | `bullmq` (local Redis) | 43 | 18.08 | 18.08 | 18.72 | 2325.58 | 큐/디스크 hop 포함. 임계선 대비 p95 는 18% · tput 은 232× 여유. |
+  | `bullmq` (local Redis, inline) | 43 | 18.08 | 18.08 | 18.72 | 2325.58 | 같은 프로세스에서 producer+consumer. 큐/디스크 hop 포함. |
+  | `external` (split producer/consumer) | 42 | 7.76 | 8.56 | 10.65 | 2380.95 | 세션 66 Helm chart 배포 형상 — 독립 프로세스 2개 + 공유 Redis, 하네스는 producer HTTP 만 호출. |
 
-  두 결과 모두 Foundation SLO 임계 (p95≤100/500, tput≥10) 대비 1 order-of-magnitude 이상 여유. Runtime 단계에서 실 벤더/실 Redis 배포 후 baseline 재캡처. 세션 72 는 perf-harness 에 `/metrics` 스크레이프 (`parseMetrics` — `geny_queue_enqueued_total` / `geny_queue_depth{state=*}`) 를 추가해 bullmq run 의 queue counter 가 투하 건수와 일치함을 보고서 `queue.enqueued_total` 필드로 자동 assert 가능케 함 (`enqueued_total=100 === jobs=100`).
+  셋 다 Foundation SLO 임계 (p95≤100/500, tput≥10) 대비 1 order-of-magnitude 이상 여유. `external` 행은 "producer Service(port 9091) → Redis(port 6380) → Worker Consumer(port 9092)" 토폴로지를 같은 호스트에서 재현한 결과로 ADR 0006 §D3 X+4 의 배포 형상 실측. 하네스의 `orch_latency` 는 client-observed wait-for-terminal 폴링 roundtrip 이라 `inline` 의 in-process orchestrate 구간과 직접 비교 불가 — 다만 동일 SLO 임계를 공유한다. Runtime 단계에서 실 벤더/실 Redis 배포 후 baseline 재캡처. 세션 72 는 perf-harness 에 `/metrics` 스크레이프 (`parseMetrics` — `geny_queue_enqueued_total` / `geny_queue_depth{state=*}`) 를 추가, 세션 73 은 `--target-url` 외부 모드 + `producer-only` 스토어의 `get(id)` 재조회 버그 수정으로 `queue.enqueued_total === jobs` 계약을 자동 assert 가능케 함.
 
 ---
 

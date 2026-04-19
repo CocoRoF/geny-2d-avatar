@@ -399,6 +399,36 @@ test("createBullMQJobStore: onEnqueued 는 새 enqueue 시에만 1회 — 재제
   await store.stop();
 });
 
+// ─── producer-only: get(id) 는 별 프로세스 consumer 의 터미널 전환을 driver 에서 재조회 ─
+
+test("createBullMQJobStore: mode='producer-only' 은 get(id) 에서 driver refresh (세션 73)", async () => {
+  const driver = createFakeDriver();
+  const store = createBullMQJobStore({ driver, mode: "producer-only" });
+
+  const rec = await store.submit(sampleTask({ idempotency_key: "po-refresh-001" }));
+  assert.equal(rec.status, "queued");
+
+  // 별 프로세스 consumer 가 BullMQ state 를 completed 로 바꾼 상황을 시뮬.
+  const entry = driver.__store.get("po-refresh-001");
+  assert.ok(entry);
+  entry.state = "completed";
+  entry.processedOn = Date.parse("2026-04-20T00:00:00.000Z");
+  entry.finishedOn = Date.parse("2026-04-20T00:00:00.500Z");
+
+  const fresh = await store.get("po-refresh-001");
+  assert.ok(fresh);
+  assert.equal(fresh.status, "succeeded", "producer-only 에선 cached 'queued' 대신 driver 에서 재조회");
+  assert.equal(fresh.started_at, "2026-04-20T00:00:00.000Z");
+  assert.equal(fresh.finished_at, "2026-04-20T00:00:00.500Z");
+
+  // 터미널 캐시는 권위 — driver 가 removeOnComplete 로 스냅을 지워도 같은 rec 반환.
+  driver.__store.delete("po-refresh-001");
+  const stillCached = await store.get("po-refresh-001");
+  assert.ok(stillCached);
+  assert.equal(stillCached.status, "succeeded");
+  await store.stop();
+});
+
 // ─── stop() idempotent + closes driver ──────────────────────────────────────
 
 test("createBullMQJobStore: stop() — 드라이버 close 멱등 호출", async () => {
