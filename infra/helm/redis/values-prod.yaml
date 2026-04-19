@@ -1,0 +1,36 @@
+# prod 환경 override — 자체 관리 배포가 **아니라** managed endpoint 참조 (ADR 0006 §1.2).
+# 실 URL/credential 은 external-secrets/SealedSecret 으로 `external.existingSecret` 에
+# 주입하고, values 의 url 필드는 덮어쓰지 않는다 (평문 Git commit 방지).
+mode: external
+
+external:
+  # 평문 URL 은 사용하지 않고 Secret 참조.
+  # existingSecret 는 external-secrets 가 SSM/Secrets Manager 에서 sync 한 결과.
+  existingSecret: "geny-redis-connection"
+  existingSecretKey: "REDIS_URL"
+
+# in-cluster 설정은 렌더에 사용되지 않지만, managed 교체가 일시 실패해
+# in-cluster 전환이 필요할 때를 위한 Fallback 정책 기록.
+inCluster:
+  replicas:
+    primary: 1
+    readReplicas: 1              # ADR 0006 §1.2 prod 토폴로지
+  auth:
+    enabled: true
+    existingSecret: "geny-redis-auth"
+    existingSecretKey: password
+  persistence:
+    enabled: true
+    size: 50Gi
+  config:
+    maxmemoryPolicy: noeviction
+    # prod 는 RDB + AOF 동반. 관리형으론 불필요하지만 fallback 시 참조.
+    save: "3600 1 300 100"
+    appendonly: "yes"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi

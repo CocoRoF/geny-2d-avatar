@@ -13,16 +13,21 @@
 // 실 벤더 부하는 별도 staging 환경에서 `--http` 로 재활용.
 //
 // 사용:
-//   node scripts/perf-harness.mjs                    # 기본 (N=50, C=8)
+//   node scripts/perf-harness.mjs                    # 기본 (N=50, C=8, driver=in-memory)
 //   node scripts/perf-harness.mjs --jobs 200 --concurrency 16
 //   node scripts/perf-harness.mjs --jobs 20 --concurrency 4 --smoke
 //   node scripts/perf-harness.mjs --report /tmp/perf.json
+//   REDIS_URL=redis://127.0.0.1:6379 node scripts/perf-harness.mjs --driver bullmq
 //
 // 옵션:
 //   --jobs N           총 잡 수 (기본 50)
 //   --concurrency C    동시 in-flight POST 수 (기본 8)
 //   --smoke            SLO 임계 완화 (CI 빠른 회귀 용 — p95 ≤ 2s, err ≤ 5%)
 //   --report PATH      JSON 보고서 저장. 생략 시 stdout 만.
+//   --driver KIND      in-memory | bullmq (기본 in-memory).
+//                      bullmq 는 REDIS_URL 환경변수와 미리 기동된 Redis 7+ 필요.
+//                      ADR 0006 §4 X+4 staging 회귀에 사용.
+//   --queue-name N     BullMQ queue 이름 (기본 geny-perf).
 //
 // SLO 임계 (Foundation, Mock 파이프라인 기준 — 실측 재조정 가능):
 //   - accept_latency_ms       p95 ≤ 100
@@ -43,12 +48,18 @@ import { createWorkerGenerate } from "../apps/worker-generate/dist/index.js";
 
 const ARGV = parseArgv(process.argv.slice(2));
 const SMOKE = ARGV.smoke;
+const DRIVER = ARGV.driver ?? "in-memory";
+if (DRIVER !== "in-memory" && DRIVER !== "bullmq") {
+  throw new Error(`--driver 는 "in-memory" | "bullmq" 만 허용: ${DRIVER}`);
+}
 
 const CONFIG = {
   jobs: Number(ARGV.jobs ?? (SMOKE ? 20 : 50)),
   concurrency: Number(ARGV.concurrency ?? (SMOKE ? 4 : 8)),
   smoke: SMOKE,
   reportPath: ARGV.report ?? null,
+  driver: DRIVER,
+  queueName: ARGV["queue-name"] ?? "geny-perf",
 };
 
 const SLO = SMOKE
@@ -71,7 +82,7 @@ export async function runHarness(overrides = {}) {
   const cfg = { ...CONFIG, ...overrides };
   const slo = { ...SLO, ...(overrides.slo ?? {}) };
 
-  const worker = createWorkerGenerate();
+  const { worker, cleanup: driverCleanup } = await buildWorker(cfg);
   const server = worker.createServer();
   await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
   const port = server.address().port;
@@ -125,6 +136,7 @@ export async function runHarness(overrides = {}) {
   } finally {
     await new Promise((ok) => server.close(() => ok()));
     await worker.store.stop();
+    if (driverCleanup) await driverCleanup();
   }
 
   const runMs = Date.now() - runStart;
@@ -162,7 +174,13 @@ export async function runHarness(overrides = {}) {
   const report = {
     schema: "geny-perf-v1",
     timestamp: new Date().toISOString(),
-    config: { jobs: cfg.jobs, concurrency: cfg.concurrency, smoke: !!cfg.smoke },
+    config: {
+      jobs: cfg.jobs,
+      concurrency: cfg.concurrency,
+      smoke: !!cfg.smoke,
+      driver: cfg.driver ?? "in-memory",
+      queueName: cfg.queueName ?? null,
+    },
     slo,
     stats,
     violations,
@@ -175,6 +193,34 @@ export async function runHarness(overrides = {}) {
   }
 
   return report;
+}
+
+async function buildWorker(cfg) {
+  if (cfg.driver === "in-memory") {
+    return { worker: createWorkerGenerate(), cleanup: undefined };
+  }
+  // bullmq — ADR 0006 §4 X+4 staging 경로. REDIS_URL 필수.
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    throw new Error("--driver bullmq 는 REDIS_URL 환경변수를 요구한다 (예: redis://127.0.0.1:6379)");
+  }
+  const { Redis } = await import("ioredis");
+  const { createBullMQDriverFromRedis, createBullMQJobStore } = await import(
+    "../packages/job-queue-bullmq/dist/index.js"
+  );
+  const client = new Redis(redisUrl, { maxRetriesPerRequest: null });
+  const driver = createBullMQDriverFromRedis(client, { queueName: cfg.queueName });
+  const storeFactory = (orchestrate) =>
+    createBullMQJobStore({ driver, orchestrate, mode: "inline" });
+  const worker = createWorkerGenerate({ storeFactory });
+  const cleanup = async () => {
+    try {
+      await client.quit();
+    } catch {
+      client.disconnect();
+    }
+  };
+  return { worker, cleanup };
 }
 
 function buildTask(i) {
@@ -277,7 +323,7 @@ if (isEntrypoint) {
 function printReport(r) {
   process.stdout.write(
     [
-      `[perf] jobs=${r.stats.jobs} concurrency=${r.config.concurrency} run_ms=${r.stats.run_ms}`,
+      `[perf] driver=${r.config.driver ?? "in-memory"}${r.config.queueName ? ` queue=${r.config.queueName}` : ""} jobs=${r.stats.jobs} concurrency=${r.config.concurrency} run_ms=${r.stats.run_ms}`,
       `[perf] accept  p50=${r.stats.accept_latency_ms.p50}ms p95=${r.stats.accept_latency_ms.p95}ms p99=${r.stats.accept_latency_ms.p99}ms`,
       `[perf] orch    p50=${r.stats.orchestrate_latency_ms.p50}ms p95=${r.stats.orchestrate_latency_ms.p95}ms p99=${r.stats.orchestrate_latency_ms.p99}ms`,
       `[perf] tput=${r.stats.throughput_jobs_per_s}/s err=${r.stats.error_rate} (${r.stats.error_count}/${r.stats.jobs})`,

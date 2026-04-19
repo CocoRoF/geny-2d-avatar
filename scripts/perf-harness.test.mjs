@@ -68,6 +68,34 @@ async function main() {
     console.log("  ✓ jobs=0 경계 — error_rate=0, p* 전부 0, throughput 위반만 발생");
   }
 
+  // 4) 세션 66 — report.config.driver 가 실제 경로를 반영한다.
+  //    in-memory 경로: driver 필드가 "in-memory" 로 렌더.
+  {
+    const report = await runHarness({ jobs: 1, concurrency: 1, smoke: true });
+    assert.equal(report.config.driver, "in-memory");
+    assert.equal(report.config.queueName ?? "geny-perf", "geny-perf");
+    console.log("  ✓ config.driver=in-memory 기본값 (세션 66)");
+  }
+
+  // 5) 세션 66 — bullmq 경로 가드. REDIS_URL 없으면 안전하게 즉시 실패.
+  {
+    const savedRedis = process.env.REDIS_URL;
+    delete process.env.REDIS_URL;
+    try {
+      let threw = null;
+      try {
+        await runHarness({ jobs: 1, concurrency: 1, smoke: true, driver: "bullmq" });
+      } catch (err) {
+        threw = err;
+      }
+      assert.ok(threw, "REDIS_URL 미설정 + driver=bullmq → throw 기대");
+      assert.match(String(threw.message ?? threw), /REDIS_URL/);
+      console.log("  ✓ driver=bullmq + REDIS_URL 미설정 → 가드 동작 (세션 66)");
+    } finally {
+      if (savedRedis !== undefined) process.env.REDIS_URL = savedRedis;
+    }
+  }
+
   console.log("[perf-harness] ✅ all checks pass");
 }
 

@@ -1,0 +1,62 @@
+{{- if eq .Values.mode "in-cluster" -}}
+# Headless service — StatefulSet 의 stable DNS 를 위해 필수.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geny-redis.headlessServiceName" . }}
+  labels:
+    {{- include "geny-redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis-headless
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: redis
+      port: {{ .Values.inCluster.service.port }}
+      targetPort: redis
+      protocol: TCP
+  selector:
+    {{- include "geny-redis.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+---
+# Primary service — writer/consumer 접속 (ordinal 0 만 셀렉트)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geny-redis.primaryServiceName" . }}
+  labels:
+    {{- include "geny-redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis-primary
+spec:
+  type: {{ .Values.inCluster.service.type }}
+  ports:
+    - name: redis
+      port: {{ .Values.inCluster.service.port }}
+      targetPort: redis
+      protocol: TCP
+  selector:
+    {{- include "geny-redis.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+    statefulset.kubernetes.io/pod-name: {{ include "geny-redis.fullname" . }}-0
+{{- if gt (int .Values.inCluster.replicas.readReplicas) 0 }}
+---
+# Read-replica service — 관측/백업 전용. BullMQ 는 미사용.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geny-redis.fullname" . }}-replicas
+  labels:
+    {{- include "geny-redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis-replicas
+spec:
+  type: {{ .Values.inCluster.service.type }}
+  ports:
+    - name: redis
+      port: {{ .Values.inCluster.service.port }}
+      targetPort: redis
+      protocol: TCP
+  selector:
+    {{- include "geny-redis.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+{{- end }}
+{{- end }}

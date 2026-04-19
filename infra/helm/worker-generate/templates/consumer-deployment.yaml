@@ -1,0 +1,89 @@
+{{- if .Values.consumer.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "geny-worker-generate.consumerFullname" . }}
+  labels:
+    {{- include "geny-worker-generate.labels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer
+spec:
+  replicas: {{ .Values.consumer.replicas }}
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "geny-worker-generate.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: consumer
+  template:
+    metadata:
+      labels:
+        {{- include "geny-worker-generate.labels" . | nindent 8 }}
+        app.kubernetes.io/component: consumer
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker-generate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --role
+            - {{ .Values.consumer.role | quote }}
+            - --port
+            - {{ .Values.consumer.port | quote }}
+            - --host
+            - "0.0.0.0"
+            {{- include "geny-worker-generate.commonArgs" . | nindent 12 }}
+            {{- range .Values.consumer.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          env:
+            {{- include "geny-worker-generate.commonEnv" . | nindent 12 }}
+            # BullMQ Worker concurrency 주입 — future CLI flag (session 67 후보) 가 읽는다.
+            - name: GENY_WORKER_CONCURRENCY
+              value: {{ .Values.consumer.concurrency | quote }}
+          {{- with include "geny-worker-generate.envFrom" . }}
+          envFrom:
+            {{- . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.consumer.port }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.consumer.resources | nindent 12 }}
+          {{- with include "geny-worker-generate.catalogVolumeMount" . }}
+          volumeMounts:
+            {{- . | nindent 12 }}
+          {{- end }}
+      {{- with include "geny-worker-generate.catalogVolume" . }}
+      volumes:
+        {{- . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.consumer.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.consumer.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.consumer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,28 @@
+apiVersion: v2
+name: geny-worker-generate
+description: |
+  `apps/worker-generate` (AI 어댑터 orchestrator) 의 K8s 배포 chart.
+
+  세션 65 에서 도입된 `--role producer|consumer|both` 에 따라 두 개의 Deployment 를
+  별도로 기동한다:
+    - producer — HTTP `/jobs` 수신 + BullMQ `Queue.add()`. geny_queue_enqueued_total /
+                 geny_queue_depth 메트릭 노출.
+    - consumer — BullMQ `Worker` 전용. /jobs 라우터 미노출. geny_queue_failed_total /
+                 geny_queue_duration_seconds 메트릭 노출.
+
+  두 Deployment 는 **같은 image** 를 공유하고 `--role` CLI flag 로만 구분한다 (ADR 0006
+  §D3 X+3). REDIS_URL 은 `geny-redis` chart 가 렌더한 Secret 을 secretKeyRef 로 주입.
+
+  driver 기본값은 `bullmq` — 인-메모리 는 dev 전용(`worker.driver=in-memory` override).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - worker
+  - orchestrator
+  - bullmq
+  - geny
+sources:
+  - https://github.com/CocoRoF/geny-2d-avatar
+maintainers:
+  - name: Geny Platform

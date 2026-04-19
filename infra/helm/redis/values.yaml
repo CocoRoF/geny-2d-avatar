@@ -1,0 +1,82 @@
+# 기본 values — dev 가정 (in-cluster, 인증/영속성 off).
+# staging/prod 는 values-<env>.yaml 에서 override.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# 배포 모드 — "in-cluster" | "external"
+#   in-cluster : StatefulSet 으로 redis:7.2-alpine 를 직접 기동. dev/CI.
+#   external   : 본 chart 는 redis 배포 X, Secret 만 렌더하거나 외부 Secret 참조.
+#                관리형 Redis(ElastiCache/Memorystore/Upstash) 가정.
+mode: in-cluster
+
+# -----------------------------------------------------------------
+# 공통 — consumer (worker-generate) 가 참조하는 Secret 이름.
+# mode=external 에서 외부 URL 을 이 이름의 Secret 으로 마운트.
+# mode=in-cluster 에서 auth.enabled=true 일 때도 동일 이름으로 렌더.
+# -----------------------------------------------------------------
+connectionSecret:
+  # 렌더된 Secret 이름. 비우면 `{release}-geny-redis-connection` 사용.
+  name: ""
+  # 이 Secret 안에서 REDIS_URL 이 들어갈 키 이름.
+  urlKey: REDIS_URL
+
+# -----------------------------------------------------------------
+# external 모드
+# -----------------------------------------------------------------
+external:
+  # 전체 접속 URL. TLS 는 rediss:// 스킴 사용. prod 는 Secret/SealedSecret 으로 교체.
+  url: "rediss://PLACEHOLDER_EXTERNAL_REDIS:6380/0"
+  # 지정 시 위 url 대신 해당 Secret 을 그대로 참조.
+  existingSecret: ""
+  existingSecretKey: "REDIS_URL"
+
+# -----------------------------------------------------------------
+# in-cluster 모드
+# -----------------------------------------------------------------
+inCluster:
+  image:
+    repository: redis
+    tag: "7.2-alpine"
+    pullPolicy: IfNotPresent
+
+  # primary 1 + readReplicas N. ADR 0006 §1.2 prod 기본 = primary + 1 replica.
+  # BullMQ 는 replica 를 안 쓰므로 replica 는 관측/백업 전용.
+  replicas:
+    primary: 1
+    readReplicas: 0      # dev 는 0, prod-like 는 1.
+
+  # 인증. dev 는 끔, prod 는 켠다.
+  auth:
+    enabled: false
+    # existingSecret 지정 시 해당 Secret 의 password 키를 redis-server --requirepass 에 주입.
+    existingSecret: ""
+    existingSecretKey: password
+
+  # redis.conf 반영 항목 — ADR 0006 §1.2 요구사항 고정.
+  config:
+    maxmemoryPolicy: noeviction   # 큐 키 축출 금지. 하드 디폴트 — override 금지.
+    save: ""                      # dev: RDB off. prod 는 "3600 1 300 100" 등.
+    appendonly: "no"              # dev: AOF off. prod 는 "yes".
+    # extraDirectives 로 자유 라인 append 가능.
+    extraDirectives: []
+
+  persistence:
+    enabled: false
+    storageClassName: ""
+    size: 10Gi
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  service:
+    type: ClusterIP
+    port: 6379
+
+commonLabels:
+  app.kubernetes.io/part-of: geny-queue

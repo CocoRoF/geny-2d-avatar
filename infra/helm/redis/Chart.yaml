@@ -1,0 +1,30 @@
+apiVersion: v2
+name: geny-redis
+description: |
+  Geny 2D Avatar BullMQ 백엔드 Redis wrapping chart (ADR 0006 §D1 / bullmq-driver-prework §1).
+
+  두 가지 모드:
+    - in-cluster  — redis:7.2-alpine StatefulSet 직접 기동 (dev/CI). primary + readReplicas.
+                    dev 기본은 RDB/AOF off + emptyDir — 프로세스 재시작 = 상태 초기화.
+    - external    — managed Redis(AWS ElastiCache / GCP Memorystore / Upstash) endpoint 참조만
+                    렌더. Secret ref 로 접속 URL/credential 주입. 본 chart 자체는 redis 를
+                    배포하지 않는다.
+
+  ADR 0006 §1.2 고정 요구사항 (prod):
+    - Redis 7.2+ (BullMQ 5.x 가 FCALL/LMPOP/XAUTOCLAIM 사용)
+    - primary + 1 read-replica (BullMQ 는 replica 를 미사용, 관측/백업 전용)
+    - maxmemory-policy = noeviction  ← 큐 키 축출 금지, 본 chart 의 하드 디폴트
+    - Cluster 모드는 β 이전까지 **거부** (BullMQ hash-tag 제약)
+    - TLS (rediss://) 는 external 모드에서만 의미, in-cluster dev 는 non-TLS 허용
+type: application
+version: 0.1.0
+appVersion: "7.2"
+keywords:
+  - redis
+  - bullmq
+  - queue
+  - geny
+sources:
+  - https://github.com/CocoRoF/geny-2d-avatar
+maintainers:
+  - name: Geny Platform

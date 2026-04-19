@@ -1,0 +1,103 @@
+# 기본 values — dev 가정. staging/prod 는 values-<env>.yaml 에서 override.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/cocorof/geny-worker-generate
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# -----------------------------------------------------------------
+# worker 공통 설정 — 두 Deployment 가 공유
+# -----------------------------------------------------------------
+worker:
+  # driver: in-memory | bullmq — prod 는 bullmq 하드 디폴트.
+  driver: bullmq
+  queueName: geny-generate
+  # --catalog PATH 로 전달. configMap 마운트 경로.
+  catalog:
+    configMapName: ""              # 비우면 기본 /etc/geny/catalog.json 에 기본 catalog 마운트 X (이미지 내장 catalog 사용)
+    configKey: "catalog.json"
+    mountPath: "/etc/geny/catalog.json"
+  # --http 플래그 — HTTP adapter 활성화 (실 벤더 호출). API key Secret 주입 필요.
+  httpAdapters:
+    enabled: false
+    existingSecret: ""             # API key env 들을 담은 Secret
+  # 추가 CLI args (공통 부분). producer/consumer 가 각자 extraArgs 로 override 가능.
+  extraArgs: []
+
+# -----------------------------------------------------------------
+# Redis 접속 Secret — geny-redis chart 의 connection Secret 과 계약 일치
+# -----------------------------------------------------------------
+redis:
+  existingSecret: "redis-geny-redis-connection"
+  existingSecretKey: "REDIS_URL"
+
+# -----------------------------------------------------------------
+# producer Deployment — HTTP /jobs + BullMQ enqueue
+# -----------------------------------------------------------------
+producer:
+  enabled: true
+  replicas: 1
+  role: producer                    # --role producer
+  port: 9091
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  service:
+    type: ClusterIP
+    port: 9091
+    # metrics 는 같은 포트의 /metrics
+    metricsPath: /metrics
+  extraArgs: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -----------------------------------------------------------------
+# consumer Deployment — BullMQ Worker
+# -----------------------------------------------------------------
+consumer:
+  enabled: true
+  replicas: 2
+  role: consumer                    # --role consumer
+  # BullMQ Worker concurrency — 세션 65 `createBullMQConsumer(opts.concurrency)` 에 전달 예정.
+  # 현재 CLI flag 미노출 (session 67 후보) — 본 값은 Deployment env `GENY_WORKER_CONCURRENCY`
+  # 로 주입되고 future CLI 가 읽는다 (idempotent upgrade 를 위한 선행 배선).
+  concurrency: 4
+  port: 9092
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  service:
+    type: ClusterIP
+    port: 9092
+    metricsPath: /metrics
+  extraArgs: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -----------------------------------------------------------------
+# Prometheus scrape — ServiceMonitor CRD 가 있는 클러스터에서만 활성화.
+# 없으면 observability chart 의 prometheus.yml 에 static scrape 추가.
+# -----------------------------------------------------------------
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+
+commonLabels:
+  app.kubernetes.io/part-of: geny-worker

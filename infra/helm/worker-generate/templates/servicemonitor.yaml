@@ -1,0 +1,49 @@
+{{- if .Values.serviceMonitor.enabled -}}
+{{- if .Values.producer.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "geny-worker-generate.producerFullname" . }}
+  labels:
+    {{- include "geny-worker-generate.labels" . | nindent 4 }}
+    app.kubernetes.io/component: producer
+    {{- range $k, $v := .Values.serviceMonitor.labels }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "geny-worker-generate.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: producer
+  endpoints:
+    - port: http
+      path: {{ .Values.producer.service.metricsPath | quote }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+{{- end }}
+{{- if .Values.consumer.enabled }}
+{{- if .Values.producer.enabled }}
+---
+{{- end }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "geny-worker-generate.consumerFullname" . }}
+  labels:
+    {{- include "geny-worker-generate.labels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer
+    {{- range $k, $v := .Values.serviceMonitor.labels }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "geny-worker-generate.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: consumer
+  endpoints:
+    - port: metrics
+      path: {{ .Values.consumer.service.metricsPath | quote }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+{{- end }}
+{{- end }}

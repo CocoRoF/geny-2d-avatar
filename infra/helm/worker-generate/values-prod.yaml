@@ -1,0 +1,37 @@
+# prod 환경 override — HTTP 어댑터 활성, Redis 은 managed (geny-redis chart mode=external).
+worker:
+  driver: bullmq
+  queueName: geny-generate
+  httpAdapters:
+    enabled: true
+    existingSecret: "geny-adapter-keys"
+
+# managed Redis 사용 시 geny-redis chart 의 prod values 가 렌더한 Secret 이름을 맞춘다.
+redis:
+  existingSecret: "geny-redis-connection"
+  existingSecretKey: "REDIS_URL"
+
+producer:
+  replicas: 2                       # producer 도 HA 를 위해 2 이상
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+consumer:
+  replicas: 3
+  concurrency: 8
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+serviceMonitor:
+  enabled: true
+  interval: 30s

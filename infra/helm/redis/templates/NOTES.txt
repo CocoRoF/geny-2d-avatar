@@ -1,0 +1,30 @@
+geny-redis release {{ .Release.Name }} (namespace={{ .Release.Namespace }}) — mode={{ .Values.mode }}
+
+{{- if eq .Values.mode "in-cluster" }}
+
+in-cluster StatefulSet 이 기동됐습니다.
+  - primary pod FQDN : {{ include "geny-redis.primaryPodFqdn" . }}
+  - primary service  : {{ include "geny-redis.primaryServiceName" . }}:{{ .Values.inCluster.service.port }}
+  - read replicas    : {{ .Values.inCluster.replicas.readReplicas }}
+  - maxmemory-policy : {{ .Values.inCluster.config.maxmemoryPolicy }}   (ADR 0006 §1.2 — queue 키 축출 금지)
+  - persistence      : {{ if .Values.inCluster.persistence.enabled }}PVC {{ .Values.inCluster.persistence.size }}{{ else }}emptyDir (dev){{ end }}
+
+consumer 주입용 REDIS_URL (평문 — dev):
+  {{ include "geny-redis.inClusterUrl" . }}
+또는 Secret `{{ include "geny-redis.connectionSecretName" . }}` 의 `{{ .Values.connectionSecret.urlKey }}` 키로 주입됩니다.
+
+{{- else if eq .Values.mode "external" }}
+
+external managed Redis endpoint 을 참조합니다.
+Secret `{{ include "geny-redis.connectionSecretName" . }}` 의 `{{ .Values.connectionSecret.urlKey }}` 키를 consumer 에 valueFrom.secretKeyRef 로 주입하세요.
+
+ADR 0006 §1.2 체크리스트:
+  - Redis 7.2+                 ✓ (엔드포인트 프로비저닝에서 고정)
+  - primary + 1 read-replica   ✓ (managed 측 설정)
+  - maxmemory-policy=noeviction ✓ (**배포 전 필수 확인** — 큐 키 축출 금지)
+  - TLS rediss://              ✓ (values.external.url 또는 Secret 의 스킴)
+
+{{- end }}
+
+포트포워딩 예:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "geny-redis.primaryServiceName" . }} 6379:{{ .Values.inCluster.service.port }}

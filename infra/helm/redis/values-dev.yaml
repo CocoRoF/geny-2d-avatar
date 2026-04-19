@@ -1,0 +1,22 @@
+# dev 환경 override — 단일 pod, emptyDir, 인증 off. 프로세스 재시작 = 상태 초기화.
+mode: in-cluster
+
+inCluster:
+  replicas:
+    primary: 1
+    readReplicas: 0
+  auth:
+    enabled: false
+  persistence:
+    enabled: false
+  config:
+    maxmemoryPolicy: noeviction
+    save: ""
+    appendonly: "no"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi

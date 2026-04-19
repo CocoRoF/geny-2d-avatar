@@ -1,0 +1,47 @@
+{{- if .Values.producer.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geny-worker-generate.producerFullname" . }}
+  labels:
+    {{- include "geny-worker-generate.labels" . | nindent 4 }}
+    app.kubernetes.io/component: producer
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: {{ .Values.producer.service.metricsPath | quote }}
+    prometheus.io/port: {{ .Values.producer.service.port | quote }}
+spec:
+  type: {{ .Values.producer.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.producer.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "geny-worker-generate.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: producer
+{{- end }}
+{{- if .Values.consumer.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geny-worker-generate.consumerFullname" . }}
+  labels:
+    {{- include "geny-worker-generate.labels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: {{ .Values.consumer.service.metricsPath | quote }}
+    prometheus.io/port: {{ .Values.consumer.service.port | quote }}
+spec:
+  type: {{ .Values.consumer.service.type }}
+  ports:
+    - name: metrics
+      port: {{ .Values.consumer.service.port }}
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "geny-worker-generate.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer
+{{- end }}

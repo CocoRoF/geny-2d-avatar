@@ -1,0 +1,101 @@
+{{- if eq .Values.mode "in-cluster" -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "geny-redis.fullname" . }}
+  labels:
+    {{- include "geny-redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  serviceName: {{ include "geny-redis.headlessServiceName" . }}
+  replicas: {{ add (int .Values.inCluster.replicas.primary) (int .Values.inCluster.replicas.readReplicas) }}
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      {{- include "geny-redis.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "geny-redis.labels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: "{{ .Values.inCluster.image.repository }}:{{ .Values.inCluster.image.tag }}"
+          imagePullPolicy: {{ .Values.inCluster.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - /etc/redis/entrypoint.sh
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- if .Values.inCluster.auth.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "inCluster.auth.existingSecret 필수 (auth.enabled=true 시)" .Values.inCluster.auth.existingSecret }}
+                  key: {{ .Values.inCluster.auth.existingSecretKey }}
+            {{- end }}
+          ports:
+            - name: redis
+              containerPort: {{ .Values.inCluster.service.port }}
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - -p
+                - "{{ .Values.inCluster.service.port }}"
+                {{- if .Values.inCluster.auth.enabled }}
+                - -a
+                - "$(REDIS_PASSWORD)"
+                {{- end }}
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.inCluster.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/redis
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "geny-redis.fullname" . }}-config
+            defaultMode: 0755
+        {{- if not .Values.inCluster.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.inCluster.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "geny-redis.labels" . | nindent 10 }}
+          app.kubernetes.io/component: redis
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- if .Values.inCluster.persistence.storageClassName }}
+        storageClassName: {{ .Values.inCluster.persistence.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.inCluster.persistence.size }}
+  {{- end }}
+{{- end }}

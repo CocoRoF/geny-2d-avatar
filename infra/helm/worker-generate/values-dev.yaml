@@ -1,0 +1,25 @@
+# dev 환경 override — 단일 consumer replica, in-memory driver 를 드라이런 옵션으로도 지원.
+worker:
+  driver: bullmq
+  queueName: geny-generate-dev
+
+producer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+consumer:
+  replicas: 1
+  concurrency: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

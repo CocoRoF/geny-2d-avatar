@@ -1,0 +1,40 @@
+{{- if eq .Values.mode "in-cluster" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "geny-redis.fullname" . }}-config
+  labels:
+    {{- include "geny-redis.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  redis.conf: |
+    # ADR 0006 §1.2 하드 디폴트 — 큐 키 축출 금지
+    maxmemory-policy {{ .Values.inCluster.config.maxmemoryPolicy }}
+    save {{ .Values.inCluster.config.save | quote }}
+    appendonly {{ .Values.inCluster.config.appendonly }}
+    bind 0.0.0.0 -::*
+    protected-mode no
+    {{- range .Values.inCluster.config.extraDirectives }}
+    {{ . }}
+    {{- end }}
+  entrypoint.sh: |
+    #!/bin/sh
+    set -eu
+    # StatefulSet ordinal 기반 role 결정:
+    #   pod-0  → primary
+    #   pod-N  → replicaof pod-0 (read replica)
+    ord="${HOSTNAME##*-}"
+    primary_host="{{ include "geny-redis.fullname" . }}-0.{{ include "geny-redis.headlessServiceName" . }}"
+    primary_port="{{ .Values.inCluster.service.port }}"
+    args="--port ${primary_port} --include /etc/redis/redis.conf"
+    {{- if .Values.inCluster.auth.enabled }}
+    if [ -n "${REDIS_PASSWORD:-}" ]; then
+      args="${args} --requirepass ${REDIS_PASSWORD} --masterauth ${REDIS_PASSWORD}"
+    fi
+    {{- end }}
+    if [ "${ord}" != "0" ]; then
+      args="${args} --replicaof ${primary_host} ${primary_port}"
+    fi
+    echo "[geny-redis] starting ord=${ord} role=$([ "${ord}" = "0" ] && echo primary || echo replica)"
+    exec redis-server ${args}
+{{- end }}

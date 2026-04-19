@@ -1,0 +1,21 @@
+geny-worker-generate release {{ .Release.Name }} (namespace={{ .Release.Namespace }})
+
+driver   : {{ .Values.worker.driver }}
+queue    : {{ .Values.worker.queueName }}
+producer : {{ if .Values.producer.enabled }}enabled replicas={{ .Values.producer.replicas }} port={{ .Values.producer.port }}{{ else }}disabled{{ end }}
+consumer : {{ if .Values.consumer.enabled }}enabled replicas={{ .Values.consumer.replicas }} port={{ .Values.consumer.port }} concurrency={{ .Values.consumer.concurrency }}{{ else }}disabled{{ end }}
+redis    : secretKeyRef {{ .Values.redis.existingSecret }}/{{ .Values.redis.existingSecretKey }}
+
+{{- if and (eq .Values.worker.driver "bullmq") (or (not .Values.producer.enabled) (not .Values.consumer.enabled)) }}
+
+⚠ driver=bullmq 에서 producer/consumer 둘 중 하나라도 disabled 면 잡이 정체됩니다.
+  producer 만 돌면 enqueue 는 되지만 처리 불가, consumer 만 돌면 enqueue 가 외부에서 들어와야 합니다.
+{{- end }}
+
+HTTP 확인:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "geny-worker-generate.producerFullname" . }} {{ .Values.producer.port }}:{{ .Values.producer.service.port }}
+  curl -XPOST http://localhost:{{ .Values.producer.port }}/jobs -H 'content-type: application/json' -d '…'
+
+메트릭 확인:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "geny-worker-generate.consumerFullname" . }} {{ .Values.consumer.port }}:{{ .Values.consumer.service.port }}
+  curl http://localhost:{{ .Values.consumer.port }}{{ .Values.consumer.service.metricsPath }} | grep geny_queue_
