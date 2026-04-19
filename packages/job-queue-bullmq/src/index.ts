@@ -23,3 +23,8 @@ export {
   type BullMQJobState,
   type BullMQQueueCounts,
 } from "./driver.js";
+
+export {
+  createBullMQDriverFromRedis,
+  type CreateBullMQDriverFromRedisOptions,
+} from "./driver-redis.js";
