@@ -1,0 +1,13 @@
+{
+  "schema_version": "v1",
+  "avatar_id": "av_02JBNMBTC8X6GS1YZBVX39Q8A6",
+  "template_id": "tpl.base.v1.fullbody",
+  "template_version": "1.0.0",
+  "bundle_name": "zoe",
+  "moc_path": "zoe.moc3",
+  "texture_paths": [
+    "textures/zoe_00.png"
+  ],
+  "lipsync": "precise",
+  "notes": "Foundation 샘플 (세션 59). 실 moc3/텍스처는 Editor 저작 시 채워짐. fullbody v1.0.0 첫 aria 급 번들 — halfbody v1.2.0 대비 motions 9 + 하반신 5 physics + 38 parts."
+}

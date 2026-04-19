@@ -1,0 +1,12 @@
+{
+  "schema_version": "v1",
+  "id": "av_02JBNMBTC8X6GS1YZBVX39Q8A6",
+  "prj_id": "prj_01JBMBTC8W0DVKP3KF5QP56YAR",
+  "name": "Zoe",
+  "template_id": "tpl.base.v1.fullbody",
+  "template_version": "1.0.0",
+  "status": "draft",
+  "created_by": "usr_01JBMBTC8W3YB3JYHG2PRAG1FR",
+  "created_at": "2026-04-19T12:00:00Z",
+  "tags": ["demo", "foundation", "fullbody_v1"]
+}

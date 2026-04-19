@@ -1,0 +1,15 @@
+{
+  "schema_version": "v1",
+  "expression_id": "expression.wink",
+  "version": "1.0.0",
+  "format": 3,
+  "name": { "en": "Wink", "ko": "윙크", "ja": "ウィンク" },
+  "notes": "Multiply 모드 — 왼쪽 눈 강제 감기(EyeLOpen × 0). 오른쪽은 Add 로 살짝 미소.",
+  "fade_in_sec": 0.2,
+  "fade_out_sec": 0.3,
+  "blends": [
+    { "target_id": "eye_open_l", "value": 0, "blend": "Multiply" },
+    { "target_id": "eye_smile_r", "value": 0.6, "blend": "Add" },
+    { "target_id": "mouth_up", "value": 0.5, "blend": "Add" }
+  ]
+}

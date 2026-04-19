@@ -1,0 +1,91 @@
+{
+  "file_count": 17,
+  "files": [
+    {
+      "bytes": 2786,
+      "path": "bundle.json",
+      "sha256": "3e6e2eff5b119d9ada91c3aa0d397b895d528b1e004b53e1d67f3f61b4cc3781"
+    },
+    {
+      "bytes": 969,
+      "path": "expressions/neutral.exp3.json",
+      "sha256": "b056730b5468d2f9a3a936db1d29285b320418e277acb7cfea826392fd6cd212"
+    },
+    {
+      "bytes": 505,
+      "path": "expressions/smile.exp3.json",
+      "sha256": "f4b296085bee8fb520e6695a61e30f81e5275c27ecd0aed9e27188641d2ee835"
+    },
+    {
+      "bytes": 351,
+      "path": "expressions/wink.exp3.json",
+      "sha256": "ae5e17e49c85dfe26fa82f0a6bd4d838710120cb2ac0a9eea39724ded4c47c0d"
+    },
+    {
+      "bytes": 1190,
+      "path": "motions/accessory_greet.motion3.json",
+      "sha256": "054e28eed6c21bbe6efb83472a1c6cfcacf288506b3842ae9cffb5ba4b836ddc"
+    },
+    {
+      "bytes": 922,
+      "path": "motions/ahoge_bounce.motion3.json",
+      "sha256": "406bfd5c009db72b20670e26d605d10286c72cdd3e90e83ac8df685a592a8d04"
+    },
+    {
+      "bytes": 885,
+      "path": "motions/blink_auto.motion3.json",
+      "sha256": "d7c1d47ff5c7fd13d110a8dec52fa48d3aa688ef16222c31441bddf2dd7142a3"
+    },
+    {
+      "bytes": 846,
+      "path": "motions/greet_wave.motion3.json",
+      "sha256": "d3cd6c1e3177880f3f603a4799e70f18f804d7f319061cc790ec1d906931ab01"
+    },
+    {
+      "bytes": 1750,
+      "path": "motions/idle_default.motion3.json",
+      "sha256": "638840132164ca544a5058140d1e142d329f204f4854991a489a60fa91974225"
+    },
+    {
+      "bytes": 977,
+      "path": "motions/idle_sleepy.motion3.json",
+      "sha256": "57cfa740e2c69514b7b0a60e8cf87e312513b6a0d5ba73a22648600ba3f82d1d"
+    },
+    {
+      "bytes": 1833,
+      "path": "motions/lipsync_mock.motion3.json",
+      "sha256": "b11000fa4d6ab01c856e5b151c71f0b971c8a3e2c9afb5a0428b77dda8ebe522"
+    },
+    {
+      "bytes": 644,
+      "path": "motions/nod_yes.motion3.json",
+      "sha256": "ade8ea4cc2a0da853dbd4f256eecd5b09998ee76f989cd81a3e6bbdd7d9067e9"
+    },
+    {
+      "bytes": 679,
+      "path": "motions/shake_no.motion3.json",
+      "sha256": "920a9248251b2f32393562708391fb152ab928e43503dea07ba986e4815b16e9"
+    },
+    {
+      "bytes": 9458,
+      "path": "zoe.cdi3.json",
+      "sha256": "132f35623b3bd5089e0f5f467d840b1625c61fca52d2bb9f7cc82800e780ed56"
+    },
+    {
+      "bytes": 2477,
+      "path": "zoe.model3.json",
+      "sha256": "829250bcec9ac7a3888cb556006e4735937cfa5237d217d281d63e6a20cb7620"
+    },
+    {
+      "bytes": 28393,
+      "path": "zoe.physics3.json",
+      "sha256": "e22186aaf98099a606d7b06fddc61e00b346de9a401c15d6600e0016ae6094c6"
+    },
+    {
+      "bytes": 343,
+      "path": "zoe.pose3.json",
+      "sha256": "1ef160383f7abc7044bb27badc33df92cf767dac28e85a15b0d46b81a2c2671a"
+    }
+  ],
+  "total_bytes": 55008
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": "v1",
+  "expression_id": "expression.neutral",
+  "version": "1.0.0",
+  "format": 3,
+  "name": { "en": "Neutral", "ko": "중립", "ja": "ニュートラル" },
+  "notes": "Overwrite 모드 — 기본 상태로 강제 복귀. 다른 표정 위에 올려서 리셋 트리거.",
+  "fade_in_sec": 0.3,
+  "fade_out_sec": 0.3,
+  "blends": [
+    { "target_id": "eye_smile_l", "value": 0, "blend": "Overwrite" },
+    { "target_id": "eye_smile_r", "value": 0, "blend": "Overwrite" },
+    { "target_id": "eye_form_l", "value": 0, "blend": "Overwrite" },
+    { "target_id": "eye_form_r", "value": 0, "blend": "Overwrite" },
+    { "target_id": "mouth_up", "value": 0, "blend": "Overwrite" },
+    { "target_id": "mouth_down", "value": 0, "blend": "Overwrite" },
+    { "target_id": "brow_l_y", "value": 0, "blend": "Overwrite" },
+    { "target_id": "brow_r_y", "value": 0, "blend": "Overwrite" },
+    { "target_id": "brow_l_form", "value": 0, "blend": "Overwrite" },
+    { "target_id": "brow_r_form", "value": 0, "blend": "Overwrite" }
+  ]
+}

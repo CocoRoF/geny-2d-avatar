@@ -158,6 +158,31 @@ test("assembleAvatarBundle: model3.json FileReferences reflects spec overrides",
   }
 });
 
+test("assembleAvatarBundle: fullbody zoe spec produces 17 files + snapshot matches golden (ADR 0005 L4)", () => {
+  const spec = readAvatarExportSpec(join(samplesDir, "sample-02-zoe-fullbody.export.json"));
+  const dir = scratch();
+  try {
+    const res = assembleAvatarBundle(spec, rigTemplatesRoot, dir);
+    const paths = res.files.map((f) => f.path);
+    // 9 motion packs + 4 sibling JSONs + 3 expressions + 1 bundle.json = 17 files.
+    assert.equal(res.files.length, 17);
+    assert.ok(paths.includes("zoe.model3.json"));
+    assert.ok(paths.includes("zoe.physics3.json"));
+    assert.ok(paths.includes("motions/idle_default.motion3.json"));
+    assert.ok(paths.includes("motions/ahoge_bounce.motion3.json"));
+    assert.ok(paths.includes("expressions/smile.exp3.json"));
+    assert.ok(paths.includes("bundle.json"));
+    const got = snapshotBundle(res);
+    const want = readFileSync(
+      join(samplesDir, "sample-02-zoe-fullbody.bundle.snapshot.json"),
+      "utf8",
+    );
+    assert.equal(got, want);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("assembleAvatarBundle: template_id mismatch vs manifest throws", () => {
   const spec: AvatarExportSpec = {
     ...ariaSpec(),

@@ -1,0 +1,164 @@
+{
+  "schema_version": "v1",
+  "description": "docs/08 §3.1 표준 포즈 — fullbody v1.0.0. halfbody v1.3.0 20 포즈 승계 + 하반신 8 포즈 추가 (세션 59). fullbody 전용 파라미터(leg_l/r_angle, foot_l/r_angle, body_breath) 및 physics_output 검증 지점(skirt_sway/hip_phys/cape_sway) 커버.",
+  "poses": [
+    {
+      "id": "neutral",
+      "category": "baseline",
+      "description": "모든 파라미터 기본값.",
+      "params": {}
+    },
+    {
+      "id": "blink_both",
+      "category": "eyes",
+      "description": "양 눈 깜빡임.",
+      "params": { "eye_open_l": 0, "eye_open_r": 0 }
+    },
+    {
+      "id": "blink_left",
+      "category": "eyes",
+      "description": "왼눈(캐릭터 기준)만 감김.",
+      "params": { "eye_open_l": 0 }
+    },
+    {
+      "id": "smile_big",
+      "category": "mouth",
+      "description": "큰 미소 — 입꼬리 + 눈 미소.",
+      "params": { "mouth_up": 1, "eye_smile_l": 1, "eye_smile_r": 1 }
+    },
+    {
+      "id": "mouth_open",
+      "category": "mouth",
+      "description": "입 크게 — v1.0.0 은 전용 파라미터 부재로 mouth_vowel_a 로 근사.",
+      "params": { "mouth_vowel_a": 1 }
+    },
+    {
+      "id": "mouth_a",
+      "category": "mouth",
+      "params": { "mouth_vowel_a": 1 }
+    },
+    {
+      "id": "mouth_i",
+      "category": "mouth",
+      "params": { "mouth_vowel_i": 1 }
+    },
+    {
+      "id": "mouth_u",
+      "category": "mouth",
+      "params": { "mouth_vowel_u": 1 }
+    },
+    {
+      "id": "mouth_e",
+      "category": "mouth",
+      "params": { "mouth_vowel_e": 1 }
+    },
+    {
+      "id": "mouth_o",
+      "category": "mouth",
+      "params": { "mouth_vowel_o": 1 }
+    },
+    {
+      "id": "head_turn_l30",
+      "category": "head",
+      "description": "캐릭터 기준 왼쪽 30° (뷰어 오른쪽).",
+      "params": { "head_angle_x": -30 }
+    },
+    {
+      "id": "head_turn_r30",
+      "category": "head",
+      "description": "캐릭터 기준 오른쪽 30°.",
+      "params": { "head_angle_x": 30 }
+    },
+    {
+      "id": "head_nod_up",
+      "category": "head",
+      "params": { "head_angle_y": 20 }
+    },
+    {
+      "id": "head_nod_down",
+      "category": "head",
+      "params": { "head_angle_y": -20 }
+    },
+    {
+      "id": "head_tilt_l",
+      "category": "head",
+      "params": { "head_angle_z": -20 }
+    },
+    {
+      "id": "head_tilt_r",
+      "category": "head",
+      "params": { "head_angle_z": 20 }
+    },
+    {
+      "id": "breath_peak",
+      "category": "body",
+      "description": "호흡 peak — body_breath 1 → Setting12 body_breath_phys + Setting14 cloth_skirt_fuwa 2차 오프셋 유도.",
+      "params": { "body_breath": 1 }
+    },
+    {
+      "id": "eyes_look_up_r",
+      "category": "eyes",
+      "description": "시선 우상. x/y 모두 +1.",
+      "params": { "eye_ball_x": 1, "eye_ball_y": 1 }
+    },
+    {
+      "id": "brows_up",
+      "category": "brow",
+      "params": { "brow_l_y": 1, "brow_r_y": 1 }
+    },
+    {
+      "id": "brows_frown",
+      "category": "brow",
+      "description": "찌푸림 — 안쪽으로 꺾임.",
+      "params": { "brow_l_angle": -1, "brow_r_angle": 1 }
+    },
+    {
+      "id": "body_sway_skirt",
+      "category": "body",
+      "description": "body_angle_x peak — Setting13 skirt_sway_phys (body_angle_x 50w) + Setting17 hip_phys (60w) + Setting11 cloth_cape_sway 2차 오프셋 유도.",
+      "params": { "body_angle_x": 10 }
+    },
+    {
+      "id": "leg_stride_l",
+      "category": "body",
+      "description": "왼다리 앞. leg_l_angle = 15° → Setting15 leg_sway_phys_l (leg_l_angle 60w) 유도. 오른다리는 0 유지 → skirt_sway 에 L/R 비대칭 입력.",
+      "params": { "leg_l_angle": 15 }
+    },
+    {
+      "id": "leg_stride_r",
+      "category": "body",
+      "description": "오른다리 앞. leg_r_angle = 15° → Setting16 leg_sway_phys_r 유도 (reflect). 좌우 대칭 회귀 검증.",
+      "params": { "leg_r_angle": 15 }
+    },
+    {
+      "id": "leg_stride_both",
+      "category": "body",
+      "description": "양다리 동일 각. Setting13 skirt_sway_phys 에서 leg_l(25w) vs leg_r(25w,reflect) 가 상쇄 → 치마 sway 는 body_angle_x 입력만 남음 (대칭 보행 시 sway 소거 검증).",
+      "params": { "leg_l_angle": 15, "leg_r_angle": 15 }
+    },
+    {
+      "id": "foot_flex_l",
+      "category": "body",
+      "description": "왼발 플렉스. foot_l_angle = 15° — foot_l_warp 단독 검증 (physics 입력 아님).",
+      "params": { "foot_l_angle": 15 }
+    },
+    {
+      "id": "foot_flex_r",
+      "category": "body",
+      "description": "오른발 플렉스.",
+      "params": { "foot_r_angle": 15 }
+    },
+    {
+      "id": "pose_walk_mid",
+      "category": "body",
+      "description": "걷기 중간 프레임 근사 — 왼다리 앞·오른다리 뒤 + 몸기울기. skirt/hip/cape/leg_sway_l/r 모든 physics_output 동시 활성 (시각 회귀 스냅샷 후보).",
+      "params": { "body_angle_x": 5, "leg_l_angle": 15, "leg_r_angle": -10 }
+    },
+    {
+      "id": "pose_idle_breathe",
+      "category": "body",
+      "description": "정적 아이들 + 호흡. body_breath 1 + 무게중심 살짝 좌로 — hip_phys / skirt_fuwa 동시 활성, 다리는 중립.",
+      "params": { "body_breath": 1, "body_angle_x": -3 }
+    }
+  ]
+}
