@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "cloth_cape",
+  "role": "clothing",
+  "required": false,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "cape_warp",
+  "category": "cloth",
+  "canvas_px": { "w": 2048, "h": 4096 },
+  "uv_box_px": { "x": 384, "y": 448, "w": 1280, "h": 3200 },
+  "anchor": {
+    "type": "shoulder_l",
+    "x_frac": 0.5,
+    "y_frac": 0.05,
+    "detect_method": "keypoint_model_body_v1"
+  },
+  "z_order": 12,
+  "visual": {
+    "alpha_edge_policy": "feather_4px",
+    "line_weight_hint_px": 2.0,
+    "color_context": "cloth_accent"
+  },
+  "generation": {
+    "prompt_scope": ["cape_silhouette", "fabric_drape", "clasp"],
+    "negative_prompt": ["face", "hair_detail", "text", "watermark"],
+    "reference_mask": "masks/cloth_cape_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["torso"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.1,
+    "max_alpha_area_frac": 0.55
+  },
+  "cubism_part_id": "PartClothCape",
+  "notes": "망토. cloth_cape_sway 물리 출력 바인딩. body_visual 직속(hip_warp 외부)이라 상반신 기준 sway — 다리 회전은 상속하지 않음. 세션 57 에서 accessory_sway_phys 와의 계수 분리/공유 결정."
+}

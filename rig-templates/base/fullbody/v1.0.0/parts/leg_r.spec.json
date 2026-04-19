@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "leg_r",
+  "role": "limb",
+  "required": true,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "leg_r_warp",
+  "category": "body",
+  "canvas_px": { "w": 2048, "h": 4096 },
+  "uv_box_px": { "x": 1024, "y": 2240, "w": 320, "h": 1408 },
+  "anchor": {
+    "type": "alpha_centroid",
+    "x_frac": 0.5,
+    "y_frac": 0.1,
+    "detect_method": "keypoint_model_body_v1"
+  },
+  "z_order": 16,
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.5,
+    "color_context": "skin"
+  },
+  "generation": {
+    "prompt_scope": ["leg_shape", "skin_tone", "knee_contour"],
+    "negative_prompt": ["face", "arms", "hair", "foot", "background", "text", "watermark"],
+    "reference_mask": "masks/leg_r_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["hip"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.04,
+    "max_alpha_area_frac": 0.25
+  },
+  "cubism_part_id": "PartLegR",
+  "notes": "캐릭터 오른쪽 다리. leg_r_angle 회전, leg_sway_r 2차 흔들림. L/R 은 독립 시뮬(세션 57 의 leg_sway_phys_l/r 별도 PhysicsSetting)."
+}

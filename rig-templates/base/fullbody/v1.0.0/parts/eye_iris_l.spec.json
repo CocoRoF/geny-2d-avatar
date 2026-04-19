@@ -1,0 +1,42 @@
+{
+  "schema_version": "v1",
+  "slot_id": "eye_iris_l",
+  "role": "eye_iris_l",
+  "required": true,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "eye_l_warp",
+  "category": "eye",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 1064, "y": 704, "w": 192, "h": 160 },
+  "anchor": {
+    "type": "eye_pupil_center_l",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "keypoint_model_iris_v1"
+  },
+  "z_order": 76,
+  "symmetry": {
+    "pair_with": "eye_iris_r",
+    "mirror_uv": true
+  },
+  "visual": {
+    "alpha_edge_policy": "feather_1px",
+    "line_weight_hint_px": 1.0,
+    "color_context": "eye"
+  },
+  "generation": {
+    "prompt_scope": ["iris_color", "iris_pattern", "highlight_style", "pupil_shape"],
+    "negative_prompt": ["face", "hair", "eyelid", "background", "text", "watermark"],
+    "reference_mask": "masks/eye_iris_l_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["face_base", "eye_white_l"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.20,
+    "max_alpha_area_frac": 0.85
+  },
+  "cubism_part_id": "PartEyeIrisL",
+  "notes": "홍채는 eye_white_l 의 내부에서 eye_ball_x/y 에 의해 평행이동. 흰자 바깥으로 나가지 않아야 함(docs/04 §9)."
+}

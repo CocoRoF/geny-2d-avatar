@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "ahoge",
+  "role": "hair_front",
+  "required": false,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "ahoge_warp",
+  "category": "hair",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 864, "y": 32, "w": 320, "h": 240 },
+  "anchor": {
+    "type": "head_top_center",
+    "x_frac": 0.5,
+    "y_frac": 0.05,
+    "detect_method": "alpha_bbox_center_v1"
+  },
+  "z_order": 94,
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.0,
+    "color_context": "hair"
+  },
+  "generation": {
+    "prompt_scope": ["ahoge_shape", "hair_color", "hair_texture"],
+    "negative_prompt": ["face", "eyes", "background", "text", "watermark"],
+    "reference_mask": "masks/ahoge_mask.png",
+    "max_iter": 2
+  },
+  "dependencies": ["hair_front"],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.002,
+    "max_alpha_area_frac": 0.05
+  },
+  "cubism_part_id": "PartAhoge",
+  "notes": "머리 상단 아호게(antenna hair). 앞머리와 별도 warp 로 분리되어 더 가볍고 빠른 2차 흔들림을 가진다. `ahoge_sway` 파라미터 바인딩. docs/03 §12.1 #2."
+}

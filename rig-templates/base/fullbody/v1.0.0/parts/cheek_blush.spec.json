@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "cheek_blush",
+  "role": "cheek_blush",
+  "required": false,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "head_pose_rot",
+  "category": "face",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 720, "y": 800, "w": 640, "h": 192 },
+  "anchor": {
+    "type": "bbox_center",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "alpha_bbox_center_v1"
+  },
+  "z_order": 72,
+  "visual": {
+    "alpha_edge_policy": "feather_4px",
+    "line_weight_hint_px": 0,
+    "color_context": "shadow"
+  },
+  "generation": {
+    "prompt_scope": ["blush_intensity", "blush_color"],
+    "negative_prompt": ["hair", "eyes", "mouth", "scar", "text", "watermark"],
+    "reference_mask": "masks/cheek_blush_mask.png",
+    "max_iter": 2
+  },
+  "dependencies": ["face_base"],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.05,
+    "max_alpha_area_frac": 0.60
+  },
+  "cubism_part_id": "PartCheekBlush",
+  "notes": "좌우 뺨에 분산 배치. cheek_blush 파라미터(확장)로 불투명도 제어."
+}

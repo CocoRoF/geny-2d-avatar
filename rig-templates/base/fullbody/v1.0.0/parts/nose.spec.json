@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "nose",
+  "role": "nose",
+  "required": true,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "head_pose_rot",
+  "category": "face",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 944, "y": 832, "w": 160, "h": 176 },
+  "anchor": {
+    "type": "nose_tip",
+    "x_frac": 0.5,
+    "y_frac": 0.85,
+    "detect_method": "keypoint_model_face_v1"
+  },
+  "z_order": 83,
+  "visual": {
+    "alpha_edge_policy": "feather_1px",
+    "line_weight_hint_px": 1.5,
+    "color_context": "skin"
+  },
+  "generation": {
+    "prompt_scope": ["nose_shape", "nose_style"],
+    "negative_prompt": ["mouth", "eyes", "beard", "text", "watermark"],
+    "reference_mask": "masks/nose_mask.png",
+    "max_iter": 2
+  },
+  "dependencies": ["face_base"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.05,
+    "max_alpha_area_frac": 0.60
+  },
+  "cubism_part_id": "PartNose",
+  "notes": "anime-style 은 점/라인으로 간소. 색 문맥은 skin (라인웨이트는 hair 와 다름)."
+}

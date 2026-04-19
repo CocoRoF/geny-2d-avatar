@@ -1,0 +1,42 @@
+{
+  "schema_version": "v1",
+  "slot_id": "eye_white_l",
+  "role": "eye_white_l",
+  "required": true,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "eye_l_warp",
+  "category": "eye",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 1040, "y": 720, "w": 240, "h": 160 },
+  "anchor": {
+    "type": "eye_pupil_center_l",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "keypoint_model_iris_v1"
+  },
+  "z_order": 74,
+  "symmetry": {
+    "pair_with": "eye_white_r",
+    "mirror_uv": true
+  },
+  "visual": {
+    "alpha_edge_policy": "feather_1px",
+    "line_weight_hint_px": 1.0,
+    "color_context": "eye"
+  },
+  "generation": {
+    "prompt_scope": ["eye_shape", "white_tone"],
+    "negative_prompt": ["face", "hair", "background", "text", "watermark"],
+    "reference_mask": "masks/eye_white_l_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["face_base"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.30,
+    "max_alpha_area_frac": 0.95
+  },
+  "cubism_part_id": "PartEyeWhiteL",
+  "notes": "흰자는 홍채의 좌표 컨테이너. eye_open_l 으로 상하 눈꺼풀 변형의 기준이 됨."
+}

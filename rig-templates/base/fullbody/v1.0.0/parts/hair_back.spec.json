@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "hair_back",
+  "role": "hair_back",
+  "required": true,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "hair_back_warp",
+  "category": "hair",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 384, "y": 112, "w": 1280, "h": 1632 },
+  "anchor": {
+    "type": "head_top_center",
+    "x_frac": 0.5,
+    "y_frac": 0.13,
+    "detect_method": "hair_parting_centroid_v1"
+  },
+  "z_order": 10,
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.5,
+    "color_context": "hair"
+  },
+  "generation": {
+    "prompt_scope": ["hair_style", "hair_color", "hair_length", "hair_volume"],
+    "negative_prompt": ["face", "body", "background", "text", "watermark"],
+    "reference_mask": "masks/hair_back_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": [],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.10,
+    "max_alpha_area_frac": 0.75
+  },
+  "cubism_part_id": "PartHairBack",
+  "notes": "docs/03 §4.1 — hair_back_warp 은 머리 pose warp 의 자식이 아니다. 몸 좌표계에서 별도 물리(hair_back_sway)."
+}

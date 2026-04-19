@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "hip",
+  "role": "torso",
+  "required": true,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "hip_warp",
+  "category": "body",
+  "canvas_px": { "w": 2048, "h": 4096 },
+  "uv_box_px": { "x": 640, "y": 1920, "w": 768, "h": 384 },
+  "anchor": {
+    "type": "alpha_centroid",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "keypoint_model_body_v1"
+  },
+  "z_order": 18,
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.5,
+    "color_context": "skin"
+  },
+  "generation": {
+    "prompt_scope": ["hip_shape", "skin_tone", "pelvis_proportion"],
+    "negative_prompt": ["face", "arms", "hair", "legs", "background", "text", "watermark"],
+    "reference_mask": "masks/hip_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["torso"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.05,
+    "max_alpha_area_frac": 0.35
+  },
+  "cubism_part_id": "PartHip",
+  "notes": "HitAreaHip 바인딩 대상. torso 하단과 leg 상단 사이를 연결. cloth_skirt 이 대부분 가리지만 맨살 노출 영역은 skin 문맥."
+}

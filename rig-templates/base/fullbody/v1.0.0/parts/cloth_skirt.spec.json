@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "cloth_skirt",
+  "role": "clothing",
+  "required": false,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "skirt_warp",
+  "category": "cloth",
+  "canvas_px": { "w": 2048, "h": 4096 },
+  "uv_box_px": { "x": 512, "y": 1888, "w": 1024, "h": 928 },
+  "anchor": {
+    "type": "alpha_centroid",
+    "x_frac": 0.5,
+    "y_frac": 0.4,
+    "detect_method": "keypoint_model_body_v1"
+  },
+  "z_order": 25,
+  "visual": {
+    "alpha_edge_policy": "feather_4px",
+    "line_weight_hint_px": 2.0,
+    "color_context": "cloth_main"
+  },
+  "generation": {
+    "prompt_scope": ["skirt_silhouette", "fabric_fold", "hem_line"],
+    "negative_prompt": ["face", "legs_detail", "text", "watermark"],
+    "reference_mask": "masks/cloth_skirt_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["hip"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.05,
+    "max_alpha_area_frac": 0.28
+  },
+  "cubism_part_id": "PartClothSkirt",
+  "notes": "치마. cloth_skirt_sway(수평 흔들림) + cloth_skirt_fuwa(볼륨 팽창) 2 물리 출력 바인딩. skirt_warp 가 hip_warp 자식이라 hip 이동/회전 상속."
+}

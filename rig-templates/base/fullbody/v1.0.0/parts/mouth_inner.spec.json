@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "slot_id": "mouth_inner",
+  "role": "mouth_inner",
+  "required": false,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "mouth_warp",
+  "category": "mouth",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 928, "y": 1000, "w": 192, "h": 144 },
+  "anchor": {
+    "type": "mouth_center",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "keypoint_model_mouth_v1"
+  },
+  "z_order": 84,
+  "visual": {
+    "alpha_edge_policy": "feather_1px",
+    "line_weight_hint_px": 1.0,
+    "color_context": "mouth"
+  },
+  "generation": {
+    "prompt_scope": ["teeth_style", "tongue_style", "oral_cavity_color"],
+    "negative_prompt": ["lip", "beard", "text", "watermark"],
+    "reference_mask": "masks/mouth_inner_mask.png",
+    "max_iter": 2
+  },
+  "dependencies": ["mouth_base"],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0.10,
+    "max_alpha_area_frac": 0.85
+  },
+  "cubism_part_id": "PartMouthInner",
+  "notes": "mouth_base 보다 z 가 뒤. mouth_open=1 일 때 mouth_base 알파홀을 통해 노출."
+}

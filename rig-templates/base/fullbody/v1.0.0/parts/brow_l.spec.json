@@ -1,0 +1,42 @@
+{
+  "schema_version": "v1",
+  "slot_id": "brow_l",
+  "role": "brow_l",
+  "required": true,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1",
+  "deformation_parent": "head_pose_rot",
+  "category": "brow",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 1040, "y": 608, "w": 224, "h": 80 },
+  "anchor": {
+    "type": "bbox_center",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "keypoint_model_head_v1"
+  },
+  "z_order": 82,
+  "symmetry": {
+    "pair_with": "brow_r",
+    "mirror_uv": true
+  },
+  "visual": {
+    "alpha_edge_policy": "hard",
+    "line_weight_hint_px": 3.0,
+    "color_context": "hair"
+  },
+  "generation": {
+    "prompt_scope": ["brow_shape", "brow_thickness", "brow_color"],
+    "negative_prompt": ["eyes", "background", "text", "watermark"],
+    "reference_mask": "masks/brow_l_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["face_base"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.10,
+    "max_alpha_area_frac": 0.55
+  },
+  "cubism_part_id": "PartBrowL",
+  "notes": "brow_l_y/x/angle/form 4 파라미터 바인딩. 색은 hair 문맥."
+}

@@ -1,0 +1,42 @@
+{
+  "schema_version": "v1",
+  "slot_id": "arm_l_a",
+  "role": "arm_l",
+  "required": true,
+  "template": "tpl.base.v1.fullbody",
+  "template_version": "^1.1",
+  "deformation_parent": "arm_l_warp",
+  "category": "body",
+  "canvas_px": { "w": 2048, "h": 2048 },
+  "uv_box_px": { "x": 1472, "y": 1440, "w": 448, "h": 608 },
+  "anchor": {
+    "type": "shoulder_l",
+    "x_frac": 0.15,
+    "y_frac": 0.1,
+    "detect_method": "keypoint_model_body_v1"
+  },
+  "z_order": 22,
+  "symmetry": {
+    "pair_with": "arm_r_a",
+    "mirror_uv": true
+  },
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 2.5,
+    "color_context": "skin"
+  },
+  "generation": {
+    "prompt_scope": ["arm_pose", "skin_tone", "sleeve_style"],
+    "negative_prompt": ["face", "torso", "background", "text", "watermark"],
+    "reference_mask": "masks/arm_l_a_mask.png",
+    "max_iter": 3
+  },
+  "dependencies": ["torso"],
+  "validation": {
+    "must_cover_anchor": true,
+    "min_alpha_area_frac": 0.10,
+    "max_alpha_area_frac": 0.70
+  },
+  "cubism_part_id": "PartArmLA",
+  "notes": "캐릭터 왼팔 variant A (중립 포즈). Pose3 mutex 로 arm_l_b 와 상호 배제. arm_pose_variant=0 일 때 활성."
+}
