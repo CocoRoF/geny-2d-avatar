@@ -29,6 +29,10 @@ paths = [
   '''packages/license-verifier/tests/.*''',
   '''packages/ai-adapter-nano-banana/tests/provenance-roundtrip\.test\.ts$''',
 
+  # BullMQ idempotency_key fixture (세션 70 schema narrow 후 `abc.123.def_456-789`
+  # entropy 가 generic-api-key 임계 초과). 테스트 상수 — 실키 아님.
+  '''packages/job-queue-bullmq/tests/.*\.test\.ts$''',
+
   # pnpm lockfile 은 base64 integrity 해시 덩어리라 generic-entropy 로 걸림.
   '''pnpm-lock\.yaml$''',
 
