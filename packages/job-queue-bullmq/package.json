@@ -1,0 +1,35 @@
+{
+  "name": "@geny/job-queue-bullmq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BullMQ-backed JobStore 드라이버 — ADR 0006 Runtime 단계 X 단계 (세션 60). `apps/worker-generate` 의 인-메모리 FIFO 를 대체할 수 있는 팩토리. 세션 60 은 BullMQ Queue 인터페이스 어댑터 + idempotency_key → jobId pass-through + 상태 매핑만 고정 — 실 `bullmq`/`ioredis` 결선은 X+1 (worker-generate wiring) 세션에서 추가.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "dependencies": {
+    "@geny/ai-adapter-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}

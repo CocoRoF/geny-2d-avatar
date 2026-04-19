@@ -49,6 +49,10 @@
 //     in-process 기동 후 HTTP POST /jobs 20건을 concurrency 4 로 투하, accept + orchestrate
 //     latency p50/p95/p99 + 에러율 + throughput 을 수집해 smoke 완화 SLO 대비 pass 확인.
 //     SLO 강제 위반 path + jobs=0 경계 포함 3 cases (세션 51).
+// 21) @geny/job-queue-bullmq tests — ADR 0006 §D3 X 단계. `BullMQDriver` 인터페이스 계약 +
+//     `createBullMQJobStore` 팩토리 — idempotency_key → jobId 패스스루 + 특수문자/128-char
+//     boundary + state 매핑 + orchestrate 실패 payload + drain/stop 멱등 (9 tests, 세션 60).
+//     실 bullmq/ioredis 바인딩은 X+1 세션에서 결선.
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -81,6 +85,7 @@ const STEPS = [
   { name: "rig-template physics-lint", run: runPhysicsLintTests },
   { name: "worker-generate tests", run: runWorkerGenerateTests },
   { name: "perf-harness smoke", run: runPerfHarnessSmoke },
+  { name: "job-queue-bullmq tests", run: runJobQueueBullMQTests },
 ];
 
 const failed = [];
@@ -341,6 +346,11 @@ async function runWorkerGenerateTests() {
 async function runPerfHarnessSmoke() {
   // worker-generate dist 가 이미 step 19 에서 빌드됨. 하네스는 ../apps/worker-generate/dist 직접 import.
   await run("node", ["scripts/perf-harness.test.mjs"], { cwd: repoRoot });
+}
+
+async function runJobQueueBullMQTests() {
+  // ai-adapter-core dist 는 step 8 에서 빌드됨 — job-queue-bullmq 의 workspace 참조가 풀린다.
+  await run("pnpm", ["-F", "@geny/job-queue-bullmq", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------
