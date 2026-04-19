@@ -37,12 +37,15 @@ import {
   type OrchestrateOutcome,
 } from "@geny/ai-adapter-core";
 import {
+  HttpNanoBananaClient,
   MockNanoBananaClient,
   NanoBananaAdapter,
 } from "@geny/ai-adapter-nano-banana";
 import {
   FluxFillAdapter,
   FluxFillMockClient,
+  HttpFluxFillClient,
+  HttpSDXLClient,
   SDXLAdapter,
   SDXLMockClient,
 } from "@geny/ai-adapters-fallback";
@@ -96,6 +99,116 @@ function aliasClient<T extends { readonly modelVersion: string }>(
   return Object.create(client, {
     modelVersion: { value: version, enumerable: true, writable: false },
   }) as T;
+}
+
+/**
+ * 카탈로그 엔트리의 `config.api_key_env` 가 가리키는 env 변수에서 실제 API 키를 수집.
+ * - 엔트리에 `api_key_env` 가 없거나, 그 env 가 process.env 에 없거나 빈 문자열이면 건너뜀.
+ * - 반환되는 맵의 키는 adapter `name`, 값은 API 키 문자열.
+ * - 이 결과를 `createHttpAdapterFactories(catalog, { apiKeys })` 에 그대로 넘기면,
+ *   키가 있는 어댑터만 HTTP 팩토리로 빌드되고 나머지는 호출자가 Mock 과 병합해 사용.
+ */
+export function loadApiKeysFromCatalogEnv(
+  catalog: AdapterCatalog,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const entry of catalog.adapters) {
+    const envKey = entry.config?.api_key_env;
+    if (!envKey) continue;
+    const value = env[envKey];
+    if (typeof value === "string" && value.length > 0) {
+      out[entry.name] = value;
+    }
+  }
+  return out;
+}
+
+export interface CreateHttpAdapterFactoriesOptions {
+  /**
+   * 어댑터 name → API 키. 누락된 어댑터는 팩토리가 생성되지 않음 (→ 호출자가 Mock 으로 폴백).
+   * `loadApiKeysFromCatalogEnv(catalog)` 로 env 기반 수집 가능.
+   */
+  apiKeys: Record<string, string>;
+  /** fetch 주입 — 테스트에서 네트워크 없이 검증하기 위함. */
+  fetch?: typeof fetch;
+}
+
+/**
+ * 카탈로그 엔트리의 `config.endpoint` / `api_key_env` / `model` / `timeout_ms` 를 읽어
+ * 각 벤더의 HTTP 클라이언트 → 어댑터 팩토리를 구성한다.
+ *
+ * 중요:
+ *  - 어댑터 `meta.version` 은 **카탈로그 `entry.version`** 으로 고정 (레지스트리 strict 매치).
+ *  - 벤더 API 에 실제로 전달되는 모델 식별자는 **`entry.config.model`** 로 분리 주입
+ *    (`HttpClient.apiModel` 옵션). 카탈로그 version 이 벤더 request body 의 `model` 로
+ *    누출되는 것을 방지.
+ *  - `apiKeys` 에 없는 어댑터는 결과 맵에 포함되지 않음 → 호출자가 Mock 팩토리와 병합:
+ *      `{ ...createMockAdapterFactories(), ...createHttpAdapterFactories(catalog, { apiKeys }) }`
+ */
+export function createHttpAdapterFactories(
+  catalog: AdapterCatalog,
+  opts: CreateHttpAdapterFactoriesOptions,
+): Record<string, AdapterFactory> {
+  const out: Record<string, AdapterFactory> = {};
+  for (const entry of catalog.adapters) {
+    const apiKey = opts.apiKeys[entry.name];
+    if (!apiKey) continue;
+    const endpoint = entry.config?.endpoint;
+    if (!endpoint) continue;
+    const apiModel = entry.config?.model;
+    const timeoutMs = entry.config?.timeout_ms;
+    const fetchImpl = opts.fetch;
+
+    if (entry.name === "nano-banana") {
+      out[entry.name] = (e) =>
+        new NanoBananaAdapter({
+          client: new HttpNanoBananaClient({
+            endpoint,
+            apiKey,
+            modelVersion: e.version,
+            costPerCallUsd: e.cost_per_call_usd,
+            ...(apiModel ? { apiModel } : {}),
+            ...(timeoutMs !== undefined ? { defaultTimeoutMs: timeoutMs } : {}),
+            ...(fetchImpl ? { fetch: fetchImpl } : {}),
+          }),
+          routingWeight: e.routing_weight,
+          maxParallel: e.max_parallel,
+        });
+    } else if (entry.name === "sdxl") {
+      out[entry.name] = (e) =>
+        new SDXLAdapter({
+          client: new HttpSDXLClient({
+            endpoint,
+            apiKey,
+            modelVersion: e.version,
+            costPerCallUsd: e.cost_per_call_usd,
+            ...(apiModel ? { apiModel } : {}),
+            ...(timeoutMs !== undefined ? { defaultTimeoutMs: timeoutMs } : {}),
+            ...(fetchImpl ? { fetch: fetchImpl } : {}),
+          }),
+          routingWeight: e.routing_weight,
+          maxParallel: e.max_parallel,
+        });
+    } else if (entry.name === "flux-fill") {
+      out[entry.name] = (e) =>
+        new FluxFillAdapter({
+          client: new HttpFluxFillClient({
+            endpoint,
+            apiKey,
+            modelVersion: e.version,
+            costPerCallUsd: e.cost_per_call_usd,
+            ...(apiModel ? { apiModel } : {}),
+            ...(timeoutMs !== undefined ? { defaultTimeoutMs: timeoutMs } : {}),
+            ...(fetchImpl ? { fetch: fetchImpl } : {}),
+          }),
+          routingWeight: e.routing_weight,
+          maxParallel: e.max_parallel,
+        });
+    }
+    // 미지원 name 은 skip — 카탈로그에 새 어댑터가 추가되더라도 팩토리는 명시적으로 확장.
+  }
+  return out;
 }
 
 export function createMockAdapterFactories(): Record<string, AdapterFactory> {

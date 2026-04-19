@@ -19,7 +19,13 @@ import type { SDXLClient, SDXLRequest, SDXLResponse } from "./sdxl-adapter.js";
 export interface HttpSDXLClientOptions {
   endpoint: string;
   apiKey: string;
+  /** 어댑터 계약(카탈로그) 버전. `adapter.meta.version` 으로 노출. */
   modelVersion?: string;
+  /**
+   * 벤더 API 의 실제 모델 식별자. 생략 시 `modelVersion` 으로 폴백.
+   * 카탈로그 factory 는 `entry.config.model` 을 이 필드에 주입.
+   */
+  apiModel?: string;
   costPerCallUsd?: number;
   fetch?: typeof fetch;
   defaultTimeoutMs?: number;
@@ -44,6 +50,7 @@ function mapHttpStatus(status: number): "VENDOR_ERROR_4XX" | "VENDOR_ERROR_5XX" 
 
 export class HttpSDXLClient implements SDXLClient {
   readonly modelVersion: string;
+  readonly apiModel: string;
   readonly costPerCallUsd: number;
   private readonly endpoint: string;
   private readonly apiKey: string;
@@ -56,6 +63,7 @@ export class HttpSDXLClient implements SDXLClient {
     this.endpoint = opts.endpoint.replace(/\/$/, "");
     this.apiKey = opts.apiKey;
     this.modelVersion = opts.modelVersion ?? "sdxl-1.0";
+    this.apiModel = opts.apiModel ?? this.modelVersion;
     this.costPerCallUsd = opts.costPerCallUsd ?? 0.008;
     const injected = opts.fetch;
     if (injected) {
@@ -81,7 +89,7 @@ export class HttpSDXLClient implements SDXLClient {
           "content-type": "application/json",
           authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify(toVendorRequest(req, this.modelVersion)),
+        body: JSON.stringify(toVendorRequest(req, this.apiModel)),
         signal: controller.signal,
       });
     } catch (err) {

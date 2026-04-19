@@ -19,7 +19,10 @@ import type {
 export interface HttpFluxFillClientOptions {
   endpoint: string;
   apiKey: string;
+  /** 어댑터 계약(카탈로그) 버전. */
   modelVersion?: string;
+  /** 벤더 API 의 실제 모델 식별자. 생략 시 `modelVersion` 으로 폴백. */
+  apiModel?: string;
   costPerCallUsd?: number;
   fetch?: typeof fetch;
   defaultTimeoutMs?: number;
@@ -44,6 +47,7 @@ function mapHttpStatus(status: number): "VENDOR_ERROR_4XX" | "VENDOR_ERROR_5XX" 
 
 export class HttpFluxFillClient implements FluxFillClient {
   readonly modelVersion: string;
+  readonly apiModel: string;
   readonly costPerCallUsd: number;
   private readonly endpoint: string;
   private readonly apiKey: string;
@@ -56,6 +60,7 @@ export class HttpFluxFillClient implements FluxFillClient {
     this.endpoint = opts.endpoint.replace(/\/$/, "");
     this.apiKey = opts.apiKey;
     this.modelVersion = opts.modelVersion ?? "flux-fill-1.0";
+    this.apiModel = opts.apiModel ?? this.modelVersion;
     this.costPerCallUsd = opts.costPerCallUsd ?? 0.012;
     const injected = opts.fetch;
     if (injected) {
@@ -81,7 +86,7 @@ export class HttpFluxFillClient implements FluxFillClient {
           "content-type": "application/json",
           authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify(toVendorRequest(req, this.modelVersion)),
+        body: JSON.stringify(toVendorRequest(req, this.apiModel)),
         signal: controller.signal,
       });
     } catch (err) {

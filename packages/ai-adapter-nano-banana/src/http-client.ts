@@ -23,7 +23,14 @@ import type {
 export interface HttpNanoBananaClientOptions {
   endpoint: string;
   apiKey: string;
+  /** 어댑터 계약(카탈로그) 버전 — `adapter.meta.version` 으로 노출. */
   modelVersion?: string;
+  /**
+   * 벤더 API 에 실제로 전달하는 모델 식별자 (예: `gemini-2.5-flash-image`).
+   * 생략 시 `modelVersion` 으로 폴백 (backward compat). 카탈로그 factory 는
+   * `entry.config.model` 을 이 필드로 주입해 카탈로그 version 과 분리.
+   */
+  apiModel?: string;
   costPerCallUsd?: number;
   /** 기본 `globalThis.fetch`. 테스트에서 mock 주입용. */
   fetch?: typeof fetch;
@@ -56,6 +63,7 @@ function mapHttpStatus(status: number): "VENDOR_ERROR_4XX" | "VENDOR_ERROR_5XX" 
 
 export class HttpNanoBananaClient implements NanoBananaClient {
   readonly modelVersion: string;
+  readonly apiModel: string;
   readonly costPerCallUsd: number;
   private readonly endpoint: string;
   private readonly apiKey: string;
@@ -68,6 +76,7 @@ export class HttpNanoBananaClient implements NanoBananaClient {
     this.endpoint = opts.endpoint.replace(/\/$/, "");
     this.apiKey = opts.apiKey;
     this.modelVersion = opts.modelVersion ?? "gemini-2.5-flash-image";
+    this.apiModel = opts.apiModel ?? this.modelVersion;
     this.costPerCallUsd = opts.costPerCallUsd ?? 0.015;
     const injected = opts.fetch;
     if (injected) {
@@ -99,7 +108,7 @@ export class HttpNanoBananaClient implements NanoBananaClient {
           "authorization": `Bearer ${this.apiKey}`,
           "x-idempotency-key": request.idempotency_key,
         },
-        body: JSON.stringify(toVendorRequest(request, this.modelVersion)),
+        body: JSON.stringify(toVendorRequest(request, this.apiModel)),
         signal: controller.signal,
       });
     } catch (err) {
@@ -199,10 +208,10 @@ export class HttpNanoBananaClient implements NanoBananaClient {
 
 function toVendorRequest(
   request: NanoBananaRequest,
-  modelVersion: string,
+  apiModel: string,
 ): Record<string, unknown> {
   return {
-    model: modelVersion,
+    model: apiModel,
     prompt: request.prompt,
     negative_prompt: request.negative_prompt,
     size: { width: request.size[0], height: request.size[1] },

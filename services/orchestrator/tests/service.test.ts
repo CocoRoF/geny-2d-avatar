@@ -4,12 +4,22 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { request as httpRequest } from "node:http";
 import { AddressInfo } from "node:net";
 
-import type { GenerationTask, MetricsHook } from "@geny/ai-adapter-core";
+import type {
+  AdapterCatalog,
+  GenerationTask,
+  MetricsHook,
+} from "@geny/ai-adapter-core";
 
-import { createOrchestratorService } from "../src/index.js";
+import {
+  createHttpAdapterFactories,
+  createMockAdapterFactories,
+  createOrchestratorService,
+  loadApiKeysFromCatalogEnv,
+} from "../src/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..", "..", "..");
@@ -158,4 +168,149 @@ test("catalog 와 catalogPath 를 동시에 주면 throw", () => {
       }),
     /동시에 지정할 수 없음/,
   );
+});
+
+/* ---------- 세션 42: HTTP 팩토리 주입 ---------- */
+
+function sha(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function realCatalog(): AdapterCatalog {
+  // infra/adapters/adapters.json 과 동일한 구조의 in-memory fixture.
+  return {
+    schema_version: "v1",
+    adapters: [
+      {
+        name: "nano-banana",
+        version: "0.1.0",
+        capability: ["edit", "style_ref", "mask"],
+        cost_per_call_usd: 0.015,
+        max_parallel: 8,
+        routing_weight: 100,
+        enabled: true,
+        config: {
+          endpoint: "https://nano-banana.test",
+          api_key_env: "NANO_BANANA_API_KEY",
+          model: "gemini-2.5-flash-image",
+          timeout_ms: 60000,
+        },
+      },
+      {
+        name: "sdxl",
+        version: "0.1.0",
+        capability: ["edit", "style_ref"],
+        cost_per_call_usd: 0.022,
+        max_parallel: 4,
+        routing_weight: 80,
+        enabled: true,
+        config: {
+          endpoint: "https://sdxl.test",
+          api_key_env: "SDXL_API_KEY",
+          model: "sdxl-inpaint-1.0",
+          timeout_ms: 90000,
+        },
+      },
+      {
+        name: "flux-fill",
+        version: "0.1.0",
+        capability: ["edit", "mask"],
+        cost_per_call_usd: 0.028,
+        max_parallel: 2,
+        routing_weight: 70,
+        enabled: true,
+        config: {
+          endpoint: "https://flux-fill.test",
+          api_key_env: "FLUX_FILL_API_KEY",
+          model: "flux-fill-pro-1.0",
+          timeout_ms: 90000,
+        },
+      },
+    ],
+  };
+}
+
+test("loadApiKeysFromCatalogEnv: env 에 있는 키만 수집 · 없거나 빈 문자열은 건너뜀", () => {
+  const env = {
+    NANO_BANANA_API_KEY: "nb-secret",
+    SDXL_API_KEY: "",
+    // FLUX_FILL_API_KEY 없음
+  };
+  const keys = loadApiKeysFromCatalogEnv(realCatalog(), env);
+  assert.deepEqual(keys, { "nano-banana": "nb-secret" });
+});
+
+test("createHttpAdapterFactories: apiKeys 에 있는 어댑터만 HTTP 팩토리로 빌드", () => {
+  const factories = createHttpAdapterFactories(realCatalog(), {
+    apiKeys: { "nano-banana": "nb", "flux-fill": "ff" },
+  });
+  assert.deepEqual(Object.keys(factories).sort(), ["flux-fill", "nano-banana"]);
+});
+
+test("createHttpAdapterFactories: 주입된 fetch 로 nano-banana HTTP 엔드포인트 호출 (orchestrate e2e)", async () => {
+  const calls: { url: string; body: unknown }[] = [];
+  const imageSha = sha("nano-banana-result");
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = typeof input === "string" ? input : (input as URL).toString();
+    const body = init?.body ? JSON.parse(init.body as string) : null;
+    calls.push({ url, body });
+    return new Response(
+      JSON.stringify({
+        image_sha256: imageSha,
+        alpha_sha256: null,
+        bbox: [0, 0, 512, 512],
+        latency_ms: 42,
+        vendor_metadata: { tier: "http" },
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  };
+  const catalog = realCatalog();
+  const factories = {
+    ...createMockAdapterFactories(),
+    ...createHttpAdapterFactories(catalog, {
+      apiKeys: { "nano-banana": "test-nb-key" },
+      fetch: fakeFetch,
+    }),
+  };
+  const svc = createOrchestratorService({ catalog, factories });
+  const outcome = await svc.orchestrate({
+    schema_version: "v1",
+    task_id: "t-http-1",
+    slot_id: "hair_front",
+    prompt: "soft pastel hair",
+    negative_prompt: "",
+    size: [512, 512],
+    deadline_ms: 5000,
+    budget_usd: 0.1,
+    idempotency_key: "idem-http-1",
+    capability_required: ["edit"],
+  });
+  assert.equal(outcome.result.vendor, "nano-banana");
+  assert.equal(outcome.result.image_sha256, imageSha);
+  assert.equal(calls.length, 1, "HTTP 팩토리가 실제로 주입된 fetch 를 호출");
+  assert.equal(calls[0]!.url, "https://nano-banana.test/v1/generate");
+  // 벤더 request body 의 `model` 은 카탈로그 config.model (gemini-2.5-flash-image) —
+  // 카탈로그 version "0.1.0" 이 누출되지 않아야 함 (apiModel 분리 검증).
+  assert.equal((calls[0]!.body as { model: string }).model, "gemini-2.5-flash-image");
+});
+
+test("createHttpAdapterFactories: 미등록 name 은 Mock 팩토리가 그대로 채움 (partial override)", async () => {
+  const catalog = realCatalog();
+  // SDXL 만 HTTP 로, 나머지는 Mock 으로 떨어짐.
+  const factories = {
+    ...createMockAdapterFactories(),
+    ...createHttpAdapterFactories(catalog, {
+      apiKeys: { sdxl: "sdxl-key" },
+      fetch: async () => new Response("{}", { status: 200 }),
+    }),
+  };
+  const svc = createOrchestratorService({ catalog, factories });
+  // 레지스트리에 3개 다 등록됨 — SDXL 은 HTTP, 나머지는 Mock.
+  assert.equal(svc.adapters.length, 3);
+});
+
+test("createHttpAdapterFactories: apiKey 없는 엔트리는 skip (빈 object 반환 가능)", () => {
+  const factories = createHttpAdapterFactories(realCatalog(), { apiKeys: {} });
+  assert.deepEqual(factories, {});
 });
