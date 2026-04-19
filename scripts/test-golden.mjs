@@ -33,6 +33,10 @@
 // 16) @geny/exporter-pipeline tests — PNG decode/encode 라운드트립 + 결정론 + 실 템플릿
 //     (halfbody/v1.2.0/textures/base.png) e2e + assembleWebAvatarBundle textureOverrides
 //     훅을 채워 번들 생성 + path 보존 가드 회귀 (8 tests, 세션 38).
+// 17) @geny/orchestrator-service tests — 최초 서비스 bootstrap. `infra/adapters/adapters.json`
+//     로딩 + Mock 어댑터 3종 wiring + orchestrate→/metrics registry 반영 + extraMetricsHook
+//     chain + createMetricsServer 실 HTTP 바인딩 + fallback 라우팅 + runWebAvatarPipeline 위임
+//     회귀 (7 tests, 세션 39).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -61,6 +65,7 @@ const STEPS = [
   { name: "rig-template migrate tests", run: runRigMigrateTests },
   { name: "metrics-http tests", run: runMetricsHttpTests },
   { name: "exporter-pipeline tests", run: runExporterPipelineTests },
+  { name: "orchestrator-service tests", run: runOrchestratorServiceTests },
 ];
 
 const failed = [];
@@ -293,6 +298,18 @@ async function runExporterPipelineTests() {
   await run("pnpm", ["-F", "@geny/exporter-core", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/post-processing", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/exporter-pipeline", "test"], { cwd: repoRoot });
+}
+
+async function runOrchestratorServiceTests() {
+  // 모든 runtime workspace dep 의 dist 가 필요. 개별로 빌드해 캐시 효과 유지.
+  await run("pnpm", ["-F", "@geny/ai-adapter-core", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/ai-adapter-nano-banana", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/ai-adapters-fallback", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/metrics-http", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/post-processing", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/exporter-core", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/exporter-pipeline", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/orchestrator-service", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

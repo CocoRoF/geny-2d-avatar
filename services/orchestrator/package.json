@@ -1,0 +1,41 @@
+{
+  "name": "@geny/orchestrator-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "최초 서비스 bootstrap — `@geny/ai-adapter-core`의 orchestrate() + `@geny/metrics-http`의 createMetricsServer + `@geny/exporter-pipeline`의 runWebAvatarPipeline 을 하나의 얇은 엔트리포인트로 묶는다. Foundation 단계 Mock 클라이언트 기반. docs/02 §4 초기 내부 JobRunner 자리.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "start": "node dist/main.js",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "dependencies": {
+    "@geny/ai-adapter-core": "workspace:*",
+    "@geny/ai-adapter-nano-banana": "workspace:*",
+    "@geny/ai-adapters-fallback": "workspace:*",
+    "@geny/exporter-core": "workspace:*",
+    "@geny/exporter-pipeline": "workspace:*",
+    "@geny/metrics-http": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}

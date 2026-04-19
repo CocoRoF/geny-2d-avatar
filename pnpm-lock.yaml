@@ -139,6 +139,34 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  services/orchestrator:
+    dependencies:
+      '@geny/ai-adapter-core':
+        specifier: workspace:*
+        version: link:../../packages/ai-adapter-core
+      '@geny/ai-adapter-nano-banana':
+        specifier: workspace:*
+        version: link:../../packages/ai-adapter-nano-banana
+      '@geny/ai-adapters-fallback':
+        specifier: workspace:*
+        version: link:../../packages/ai-adapters-fallback
+      '@geny/exporter-core':
+        specifier: workspace:*
+        version: link:../../packages/exporter-core
+      '@geny/exporter-pipeline':
+        specifier: workspace:*
+        version: link:../../packages/exporter-pipeline
+      '@geny/metrics-http':
+        specifier: workspace:*
+        version: link:../../packages/metrics-http
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.30
+        version: 20.19.39
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
 packages:
 
   '@types/node@20.19.39':
