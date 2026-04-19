@@ -49,7 +49,9 @@ export function createJobRouter(opts: JobRouterOptions): (req: IncomingMessage, 
       return;
     }
 
-    const m = /^\/jobs\/([A-Za-z0-9_.:-]+)$/.exec(path);
+    // 세션 70: 스키마 idempotency_key regex 가 `:` 제거 (BullMQ custom id 제약) — 본 path
+    // regex 도 정합하게 narrow. 세션 63 설정 이래 `:` 는 실제로 legal 인 적 없었음.
+    const m = /^\/jobs\/([A-Za-z0-9_.-]+)$/.exec(path);
     if (m && (req.method === "GET" || req.method === "HEAD")) {
       const id = m[1]!;
       void handleGet(res, store, id, req.method === "HEAD");

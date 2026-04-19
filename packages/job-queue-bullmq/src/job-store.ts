@@ -5,7 +5,7 @@
  *
  * ## 설계 축
  *
- *  - **idempotency_key → jobId 패스스루**: `task.idempotency_key` (`^[A-Za-z0-9._:-]{8,128}$`)
+ *  - **idempotency_key → jobId 패스스루**: `task.idempotency_key` (`^[A-Za-z0-9._-]{8,128}$`, 세션 70: BullMQ custom id `:` 불가)
  *    를 **원문 그대로** BullMQ `job.id` 로 씀. 해시/UUID 변환 없음. 동일 키 재제출 시 BullMQ
  *    `queue.add({ jobId })` 가 반환하는 기존 snapshot 을 그대로 반환 (`running`/`succeeded`/
  *    `failed` 상태 보존). ADR 0006 §D3.2 + bullmq-driver-prework §2.4 테스트 포인트 5 고정점.

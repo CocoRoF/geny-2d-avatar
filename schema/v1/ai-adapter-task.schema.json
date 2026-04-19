@@ -103,8 +103,8 @@
     },
     "idempotency_key": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9._:-]{8,128}$",
-      "description": "동일 키 재호출은 캐시 hit. seed=null 인 경우 시드 도출에도 사용 (docs/05 §10.1 + §7.1)."
+      "pattern": "^[A-Za-z0-9._-]{8,128}$",
+      "description": "동일 키 재호출은 캐시 hit. seed=null 인 경우 시드 도출에도 사용 (docs/05 §10.1 + §7.1). BullMQ 는 custom job id 에 `:` 를 허용하지 않으므로(Redis key 구분자) 정규식에서 제외 — ADR 0006 §D3.2 passthrough 를 깨지 않기 위한 narrow (세션 70)."
     },
     "capability_required": {
       "type": "array",

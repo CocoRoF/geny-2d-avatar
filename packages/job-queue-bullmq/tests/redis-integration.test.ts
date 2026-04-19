@@ -70,12 +70,14 @@ maybeTest("redis integration — add 동일 jobId 2회 → 동일 id, waiting co
   }
 });
 
-maybeTest("redis integration — 특수문자 jobId `abc:123.def_456-789` 저장/조회 (포인트 2)", async () => {
+maybeTest("redis integration — 특수문자 jobId `abc.123.def_456-789` 저장/조회 (포인트 2)", async () => {
   const client = await makeClient();
   const queueName = `geny-test-${Date.now() + 1}`;
   const driver = createBullMQDriverFromRedis(client, { queueName });
   try {
-    const id = `abc:123.def_456-789-${Date.now()}`;
+    // 세션 70: BullMQ 는 custom jobId 에 `:` 허용 않음 → 스키마 regex 에서 `:` 제거.
+    // 전 허용 특수문자 (`.`/`_`/`-`) 로 round-trip 검증.
+    const id = `abc.123.def_456-789-${Date.now()}`;
     const data = sampleData(id);
     const add = await driver.add({ jobId: id, data });
     assert.equal(add.id, id);
