@@ -1,0 +1,38 @@
+{
+  "name": "@geny/exporter-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "exporter-core + post-processing 의 e2e 파이프라인 — 실제 PNG decode/encode 를 수행하고 `assembleWebAvatarBundle` 의 `textureOverrides` 훅에 주입한다. exporter-core 의 'bytes-only 순수성' 을 유지하면서도 세션 35 훅을 실제로 쓰는 참조 구현.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "dependencies": {
+    "@geny/exporter-core": "workspace:*",
+    "@geny/post-processing": "workspace:*",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "^5.6.3"
+  }
+}

@@ -30,6 +30,9 @@
 // 14) rig-template migrate — v1.0.0→v1.3.0 체인 + v1.2.0→v1.3.0 단일 hop + 결정론 (세션 27).
 // 15) @geny/metrics-http tests — Node http `/metrics` + `/healthz` 핸들러 + createMetricsServer
 //     e2e (orchestrator hook → scrape 반영) + HEAD/405/404/query-string 회귀 (12 tests, 세션 36).
+// 16) @geny/exporter-pipeline tests — PNG decode/encode 라운드트립 + 결정론 + 실 템플릿
+//     (halfbody/v1.2.0/textures/base.png) e2e + assembleWebAvatarBundle textureOverrides
+//     훅을 채워 번들 생성 + path 보존 가드 회귀 (8 tests, 세션 38).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -57,6 +60,7 @@ const STEPS = [
   { name: "post-processing tests", run: runPostProcessingTests },
   { name: "rig-template migrate tests", run: runRigMigrateTests },
   { name: "metrics-http tests", run: runMetricsHttpTests },
+  { name: "exporter-pipeline tests", run: runExporterPipelineTests },
 ];
 
 const failed = [];
@@ -282,6 +286,13 @@ async function runMetricsHttpTests() {
   // @geny/metrics-http 는 @geny/ai-adapter-core 의 dist 에 의존. core 빌드 선행.
   await run("pnpm", ["-F", "@geny/ai-adapter-core", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/metrics-http", "test"], { cwd: repoRoot });
+}
+
+async function runExporterPipelineTests() {
+  // exporter-core, post-processing 의 dist 에 의존 (NodeNext type import + workspace:*).
+  await run("pnpm", ["-F", "@geny/exporter-core", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/post-processing", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/exporter-pipeline", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

@@ -3,6 +3,10 @@ export { loadTemplate } from "./loader.js";
 export type {
   Template,
   TemplateManifest,
+  TemplateTextureFile,
+  TemplateAtlasDoc,
+  TemplateAtlasTextureEntry,
+  TemplateAtlasSlotEntry,
   PartSpec,
   PoseDoc,
   PoseSlot,
