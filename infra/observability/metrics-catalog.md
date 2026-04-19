@@ -41,6 +41,24 @@ Geny 2D Avatar 플랫폼이 방출하는 Prometheus 메트릭의 **단일 진실
 | `geny_worker_gpu_utilization_ratio` | gauge | `worker_kind`, `gpu_model` | 0.0–1.0. GPU 효율 모니터. |
 | `geny_worker_memory_bytes` | gauge | `worker_kind`, `pod` | USE 신호. |
 
+### 2.1 Queue state (BullMQ, Runtime N+1)
+
+ADR 0006 의 Redis + BullMQ 채택에 맞춰, 드라이버 구현 전 **계약** 단계로 선정의한 큐 메트릭. `@geny/metrics-http` 가 노출할 수명 지표이며, 실제 `Queue.getJobCounts()` / `QueueEvents` 배선은 Runtime 축에서 진행 (세션 49 follow-up, 세션 50).
+
+| 메트릭 | 타입 | 레이블 | 설명 |
+|---|---|---|---|
+| `geny_queue_depth` | gauge | `queue_name`, `state` | BullMQ job state 별 큐 길이. `state`=`waiting|active|delayed|completed|failed`. `waiting` 이 1000 초과 10분 지속 → P2. `geny_worker_queue_depth` (worker_kind 집계) 보다 세밀. |
+| `geny_queue_enqueued_total` | counter | `queue_name` | 큐에 투입된 누적 건수. producer 쪽에서 `Queue.add()` 직후 증가. |
+| `geny_queue_failed_total` | counter | `queue_name`, `reason` | 재시도(`max_retries=3`, docs/02 §10.2) 소진 후 **terminal failure**. `reason`=`ai_timeout|ai_5xx|schema_violation|post_processing|export|other` (job 실패 reason 과 동일 vocabulary). `geny_job_failed_reason_total` 과 교차 확인 가능. |
+| `geny_queue_duration_seconds` | histogram | `queue_name`, `outcome` | enqueue → terminal 도달까지 대기+처리 포함 지연. `outcome`=`succeeded|failed`. p95 가 체감 SLO 재료 (세션 51 harness 공급원). |
+
+**파생 PromQL**:
+- 대기 버퍼: `sum by (queue_name) (geny_queue_depth{state="waiting"})`
+- terminal 실패율: `sum by (queue_name) (rate(geny_queue_failed_total[5m])) / clamp_min(sum by (queue_name) (rate(geny_queue_enqueued_total[5m])), 1)`
+- p95 queue latency: `histogram_quantile(0.95, sum by (le, queue_name) (rate(geny_queue_duration_seconds_bucket{outcome="succeeded"}[10m])))`
+
+카디널리티 상한: `queue_name` 은 ADR 0006 기준 Foundation ≤ 8 (`render`, `export`, `ai_call`, `postprocess` 등 pipeline stage 단위), `state`/`outcome`/`reason` 도 enum.
+
 ## 3. AI vendor calls
 
 외부 AI 어댑터 호출. 대시보드 #2 (Cost) 공급원.

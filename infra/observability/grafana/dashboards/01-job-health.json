@@ -235,6 +235,120 @@
           }
         }
       ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Queue depth by state (BullMQ)",
+      "description": "geny_queue_depth — waiting/active/delayed 적체 추이. waiting > 1000 10분 지속 → P2.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "stacking": { "mode": "normal", "group": "A" },
+            "spanNulls": false
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (queue_name, state) (geny_queue_depth{state=~\"waiting|active|delayed\"})",
+          "legendFormat": "{{queue_name}} / {{state}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Enqueue vs terminal failure rate",
+      "description": "geny_queue_enqueued_total / geny_queue_failed_total — 처리량과 종단 실패율.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "spanNulls": false
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*failed$" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (queue_name) (rate(geny_queue_enqueued_total[5m]))",
+          "legendFormat": "{{queue_name}} enqueued"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (queue_name) (rate(geny_queue_failed_total[5m]))",
+          "legendFormat": "{{queue_name}} failed"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Queue duration (p50 / p95) — succeeded",
+      "description": "geny_queue_duration_seconds — enqueue→terminal 지연. 체감 SLO (세션 51 harness 공급원).",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "spanNulls": false
+          },
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le, queue_name) (rate(geny_queue_duration_seconds_bucket{outcome=\"succeeded\"}[10m])))",
+          "legendFormat": "{{queue_name}} p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le, queue_name) (rate(geny_queue_duration_seconds_bucket{outcome=\"succeeded\"}[10m])))",
+          "legendFormat": "{{queue_name}} p95"
+        }
+      ]
     }
   ]
 }
