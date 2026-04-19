@@ -447,6 +447,18 @@ cost_estimate:
 
   셋 다 Foundation SLO 임계 (p95≤100/500, tput≥10) 대비 1 order-of-magnitude 이상 여유. `external` 행은 "producer Service(port 9091) → Redis(port 6380) → Worker Consumer(port 9092)" 토폴로지를 같은 호스트에서 재현한 결과로 ADR 0006 §D3 X+4 의 배포 형상 실측. 하네스의 `orch_latency` 는 client-observed wait-for-terminal 폴링 roundtrip 이라 `inline` 의 in-process orchestrate 구간과 직접 비교 불가 — 다만 동일 SLO 임계를 공유한다. Runtime 단계에서 실 벤더/실 Redis 배포 후 baseline 재캡처. 세션 72 는 perf-harness 에 `/metrics` 스크레이프 (`parseMetrics` — `geny_queue_enqueued_total` / `geny_queue_depth{state=*}`) 를 추가, 세션 73 은 `--target-url` 외부 모드 + `producer-only` 스토어의 `get(id)` 재조회 버그 수정으로 `queue.enqueued_total === jobs` 계약을 자동 assert 가능케 함.
 
+- **Consumer `--concurrency` 스윕 (세션 74, `scripts/perf-sweep-concurrency.mjs`, external 모드 · N=200, harness_C=16, Mock 파이프라인)**:
+
+  | consumer C | run_ms | accept p95 (ms) | orch p95 (ms) | orch p99 (ms) | tput (/s) | err | enqueued_total |
+  |---|---|---|---|---|---|---|---|
+  | 1 | 45 | 6.71 | 7.81 | 7.92 | 4444.44 | 0 | 200 |
+  | 2 | 46 | 6.36 | 7.47 | 7.58 | 4347.83 | 0 | 200 |
+  | 4 | 46 | 6.16 | 7.38 | 7.65 | 4347.83 | 0 | 200 |
+  | 8 | 48 | 6.40 | 7.44 | 7.84 | 4166.67 | 0 | 200 |
+  | 16 | 47 | 6.82 | 8.04 | 8.14 | 4255.32 | 0 | 200 |
+
+  **Mock 파이프라인에서는 consumer `--concurrency` 가 tput 포화점과 무관** — 처리 시간이 매우 짧아(Mock 어댑터 ~0.1ms 수준) 단일 Worker 슬롯도 큐를 즉시 비워서 병렬 슬롯을 만들어도 대기 잡이 없어 효과 없음. 관측된 ~4200-4400/s ceiling 은 harness HTTP submit + Redis enqueue roundtrip 오버헤드에 의해 결정. 실 벤더 HTTP 어댑터(수백 ms ~ 수 s 처리) 가 투입되면 이 곡선이 비로소 의미를 가지며 Runtime 단계에서 재캡처 필요. **Foundation 결론**: Helm chart `GENY_WORKER_CONCURRENCY` 기본값은 비용 절감 위해 보수적인 값 (dev=2, prod=8, 세션 66) 유지해도 Mock 파이프라인 성능 회귀 없음. `accept_p95` / `orch_p95` 는 C 와 무관하게 ±0.7ms 안에서 노이즈 수준.
+
 ---
 
 ## 13. 플러그인 확장점 (Extensibility Hooks)
