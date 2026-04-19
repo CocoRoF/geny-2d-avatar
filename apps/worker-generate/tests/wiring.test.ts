@@ -10,7 +10,10 @@ import {
   createMockAdapterFactories,
 } from "@geny/orchestrator-service";
 
-import { createBullMQJobStore } from "@geny/job-queue-bullmq";
+import {
+  createBullMQJobStore,
+  createQueueMetricsSampler,
+} from "@geny/job-queue-bullmq";
 import type {
   BullMQDriver,
   BullMQJobSnapshot,
@@ -295,4 +298,69 @@ test("wiring: storeFactory 주입 → BullMQ 경로로 submit 라우팅 (세션 
     assert.equal(parsed.status, "succeeded");
     assert.equal(parsed.result.vendor, "nano-banana");
   });
+});
+
+/**
+ * 세션 64 — `geny_queue_depth` gauge sampler 가 worker 의 `InMemoryMetricsRegistry` 에
+ * 바인딩되면 `/metrics` text exposition 에 5 상태 gauge 값이 그대로 실려야 한다. BullMQ
+ * Worker/Redis 없이 fake driver 가 반환하는 counts 만으로 배선 경로를 회귀한다.
+ */
+test("wiring: geny_queue_depth sampler → /metrics exposition (세션 64)", async () => {
+  const { driver } = makeFakeBullMQDriver();
+  // fake driver 의 기본 getCounts 는 jobs.size 를 waiting 에 싣는다 — 이번 테스트는 고정값으로
+  // 덮어써 assertion 을 결정적으로 만든다.
+  const fixedCounts: BullMQQueueCounts = {
+    waiting: 7,
+    active: 2,
+    delayed: 1,
+    completed: 42,
+    failed: 3,
+  };
+  const overriddenDriver: BullMQDriver = {
+    ...driver,
+    async getCounts() {
+      return fixedCounts;
+    },
+  };
+
+  const worker = createWorkerGenerate({
+    storeFactory: (orchestrate) => createBullMQJobStore({ driver: overriddenDriver, orchestrate }),
+  });
+
+  const gauge = worker.service.registry.gauge(
+    "geny_queue_depth",
+    "BullMQ queue depth by state (catalog §2.1)",
+  );
+  const sampler = createQueueMetricsSampler({
+    driver: overriddenDriver,
+    sink: {
+      setDepth(labels, value) {
+        gauge.set(labels, value);
+      },
+    },
+    queueName: "geny-test",
+  });
+  await sampler.tickOnce();
+
+  try {
+    await withHttp(worker, async (port) => {
+      const metrics = await reqJson(port, "GET", "/metrics");
+      assert.equal(metrics.status, 200);
+      assert.match(metrics.body, /# TYPE geny_queue_depth gauge/);
+      assert.match(
+        metrics.body,
+        /geny_queue_depth\{queue_name="geny-test",state="waiting"\} 7/,
+      );
+      assert.match(
+        metrics.body,
+        /geny_queue_depth\{queue_name="geny-test",state="active"\} 2/,
+      );
+      assert.match(
+        metrics.body,
+        /geny_queue_depth\{queue_name="geny-test",state="completed"\} 42/,
+      );
+    });
+  } finally {
+    await sampler.stop();
+  }
 });

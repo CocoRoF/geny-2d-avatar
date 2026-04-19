@@ -27,9 +27,14 @@ import { parseAdapterCatalog } from "@geny/ai-adapter-core";
 import {
   createBullMQDriverFromRedis,
   createBullMQJobStore,
+  createQueueMetricsSampler,
+  type BullMQDriver,
+  type QueueMetricsSampler,
 } from "@geny/job-queue-bullmq";
 
 import { createWorkerGenerate, type JobStoreFactory } from "./index.js";
+
+const DEFAULT_SAMPLER_INTERVAL_MS = 30_000;
 
 type DriverKind = "in-memory" | "bullmq";
 
@@ -101,6 +106,7 @@ function parseArgs(argv: readonly string[]): CliArgs {
  */
 async function buildBullMQStoreFactory(queueName: string): Promise<{
   factory: JobStoreFactory;
+  driver: BullMQDriver;
   closeConnection: () => Promise<void>;
 }> {
   const redisUrl = process.env["REDIS_URL"];
@@ -119,7 +125,7 @@ async function buildBullMQStoreFactory(queueName: string): Promise<{
       client.disconnect();
     }
   };
-  return { factory, closeConnection };
+  return { factory, driver, closeConnection };
 }
 
 async function main(): Promise<void> {
@@ -141,10 +147,12 @@ async function main(): Promise<void> {
 
   let storeFactory: JobStoreFactory | undefined;
   let closeConnection: (() => Promise<void>) | undefined;
+  let bullmqDriver: BullMQDriver | undefined;
   if (driver === "bullmq") {
     const built = await buildBullMQStoreFactory(queueName);
     storeFactory = built.factory;
     closeConnection = built.closeConnection;
+    bullmqDriver = built.driver;
   }
 
   const worker = createWorkerGenerate({
@@ -159,6 +167,35 @@ async function main(): Promise<void> {
       },
     },
   });
+
+  // 세션 64 — bullmq 드라이버 사용 시 geny_queue_depth gauge sampler 등록.
+  // gauge 는 worker.service.registry (InMemoryMetricsRegistry) 에 바인딩 → `/metrics`
+  // text exposition 에 그대로 노출. 폴링 주기 = 30s (catalog §2.1).
+  let sampler: QueueMetricsSampler | undefined;
+  if (bullmqDriver) {
+    const gauge = worker.service.registry.gauge(
+      "geny_queue_depth",
+      "BullMQ queue depth by state (catalog §2.1)",
+    );
+    sampler = createQueueMetricsSampler({
+      driver: bullmqDriver,
+      sink: {
+        setDepth(labels, value) {
+          gauge.set(labels, value);
+        },
+      },
+      queueName,
+      intervalMs: DEFAULT_SAMPLER_INTERVAL_MS,
+      onError(err) {
+        process.stderr.write(
+          `[worker-generate][sampler] getCounts 실패: ${(err as Error).message}\n`,
+        );
+      },
+    });
+    sampler.start();
+    // 초기 1회 즉시 샘플링 — listen 직후 /metrics scrape 에 0 이 아닌 값이 실릴 수 있게.
+    void sampler.tickOnce();
+  }
 
   const server = worker.createServer();
   await new Promise<void>((ok) => server.listen(port, host, ok));
@@ -176,6 +213,7 @@ async function main(): Promise<void> {
 
   const shutdown = async (signal: string): Promise<void> => {
     process.stderr.write(`[worker-generate] ${signal} — draining jobs\n`);
+    if (sampler) await sampler.stop();
     try {
       await worker.store.drain(10_000);
     } catch (err) {

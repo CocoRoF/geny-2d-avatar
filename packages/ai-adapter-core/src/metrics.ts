@@ -138,7 +138,19 @@ interface HistogramMetric {
   series: Map<string, HistogramSeries>;
 }
 
-type Metric = CounterMetric | HistogramMetric;
+interface GaugeSeries {
+  labels: LabelRecord;
+  value: number;
+}
+
+interface GaugeMetric {
+  name: string;
+  help: string;
+  type: "gauge";
+  series: Map<string, GaugeSeries>;
+}
+
+type Metric = CounterMetric | HistogramMetric | GaugeMetric;
 
 export class InMemoryMetricsRegistry {
   private readonly metrics = new Map<string, Metric>();
@@ -180,6 +192,19 @@ export class InMemoryMetricsRegistry {
     return new HistogramHandle(m);
   }
 
+  gauge(name: string, help: string): GaugeHandle {
+    const existing = this.metrics.get(name);
+    if (existing) {
+      if (existing.type !== "gauge") {
+        throw new Error(`metric ${name} already registered as ${existing.type}`);
+      }
+      return new GaugeHandle(existing);
+    }
+    const m: GaugeMetric = { name, help, type: "gauge", series: new Map() };
+    this.metrics.set(name, m);
+    return new GaugeHandle(m);
+  }
+
   /**
    * Prometheus text exposition format (v0.0.4) 로 직렬화. `/metrics` 엔드포인트에 그대로
    * 응답하면 Prometheus scrape 가능. 메트릭 이름 오름차순으로 deterministic.
@@ -195,6 +220,11 @@ export class InMemoryMetricsRegistry {
       if (m.type === "counter") {
         for (const sk of seriesKeys) {
           const s = m.series.get(sk)! as CounterSeries;
+          lines.push(formatSample(name, s.labels, s.value));
+        }
+      } else if (m.type === "gauge") {
+        for (const sk of seriesKeys) {
+          const s = m.series.get(sk)! as GaugeSeries;
           lines.push(formatSample(name, s.labels, s.value));
         }
       } else {
@@ -240,6 +270,13 @@ export class InMemoryMetricsRegistry {
     return m.series.get(key)?.sum ?? 0;
   }
 
+  getGauge(name: string, labels: LabelRecord): number {
+    const m = this.metrics.get(name);
+    if (!m || m.type !== "gauge") return 0;
+    const key = canonicalizeLabels(labels);
+    return m.series.get(key)?.value ?? 0;
+  }
+
   /** 레지스트리를 초기 상태로. 테스트 격리용. */
   reset(): void {
     this.metrics.clear();
@@ -268,6 +305,23 @@ export class CounterHandle {
       this.metric.series.set(key, s);
     }
     s.value += delta;
+  }
+}
+
+export class GaugeHandle {
+  constructor(private readonly metric: GaugeMetric) {}
+
+  set(labels: LabelRecord, value: number): void {
+    if (!Number.isFinite(value)) {
+      throw new Error(`gauge set requires finite value, got ${value}`);
+    }
+    const key = canonicalizeLabels(labels);
+    let s = this.metric.series.get(key);
+    if (!s) {
+      s = { labels: { ...labels }, value: 0 };
+      this.metric.series.set(key, s);
+    }
+    s.value = value;
   }
 }
 

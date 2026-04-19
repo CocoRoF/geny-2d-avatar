@@ -476,3 +476,36 @@ test("NoopMetricsHook: 아무 것도 안 함 (default)", async () => {
   const out = await routeWithFallback(r, task(), { metrics: NoopMetricsHook });
   assert.equal(out.used, "p");
 });
+
+// ---- 세션 64: Gauge 메트릭 (geny_queue_depth 등 큐 상태 노출용) ------------
+
+test("InMemoryMetricsRegistry: gauge set/getGauge + Prometheus text 'gauge' 타입", () => {
+  const reg = new InMemoryMetricsRegistry();
+  const g = reg.gauge("geny_queue_depth", "BullMQ queue depth by state");
+  g.set({ queue_name: "geny-generate", state: "waiting" }, 7);
+  g.set({ queue_name: "geny-generate", state: "active" }, 2);
+  g.set({ queue_name: "geny-generate", state: "waiting" }, 5); // 덮어쓰기 (counter 와 구분)
+
+  assert.equal(reg.getGauge("geny_queue_depth", { queue_name: "geny-generate", state: "waiting" }), 5);
+  assert.equal(reg.getGauge("geny_queue_depth", { queue_name: "geny-generate", state: "active" }), 2);
+  assert.equal(reg.getGauge("geny_queue_depth", { queue_name: "geny-generate", state: "failed" }), 0);
+
+  const text = reg.renderPrometheusText();
+  assert.match(text, /# HELP geny_queue_depth /);
+  assert.match(text, /# TYPE geny_queue_depth gauge/);
+  assert.match(text, /geny_queue_depth\{queue_name="geny-generate",state="waiting"\} 5/);
+  assert.match(text, /geny_queue_depth\{queue_name="geny-generate",state="active"\} 2/);
+});
+
+test("InMemoryMetricsRegistry: gauge 이름 타입 충돌 거부 + NaN/Infinity 거부", () => {
+  const reg = new InMemoryMetricsRegistry();
+  reg.counter("dual", "help");
+  assert.throws(() => reg.gauge("dual", "help"), /already registered as counter/);
+
+  reg.gauge("g1", "help");
+  assert.throws(() => reg.counter("g1", "help"), /already registered as gauge/);
+
+  const g = reg.gauge("g2", "help");
+  assert.throws(() => g.set({}, Number.NaN), /finite/);
+  assert.throws(() => g.set({}, Number.POSITIVE_INFINITY), /finite/);
+});

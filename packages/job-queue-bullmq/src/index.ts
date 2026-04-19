@@ -28,3 +28,14 @@ export {
   createBullMQDriverFromRedis,
   type CreateBullMQDriverFromRedisOptions,
 } from "./driver-redis.js";
+
+export {
+  createQueueMetricsSampler,
+  setIntervalScheduler,
+  QUEUE_STATES,
+  type QueueMetricsSampler,
+  type CreateQueueMetricsSamplerOptions,
+  type QueueDepthSink,
+  type QueueState,
+  type Scheduler,
+} from "./metrics-sampler.js";

@@ -47,6 +47,7 @@ export {
   mapErrorToStatus,
   CounterHandle,
   HistogramHandle,
+  GaugeHandle,
   DEFAULT_DURATION_BUCKETS_SECONDS,
 } from "./metrics.js";
 export type {
