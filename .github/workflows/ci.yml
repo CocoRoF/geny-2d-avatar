@@ -79,6 +79,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install redis-cli
+        # GitHub Actions ubuntu runner 호스트에는 redis-cli 가 기본 설치돼 있지 않음.
+        # service container 안에 있는 redis-cli 를 쓰려면 `docker exec` 우회가 필요한데, apt 로
+        # redis-tools 를 설치하는 쪽이 단순. 설치만 하고 서버는 service container 가 담당.
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends redis-tools
+          redis-cli --version
+
       - name: Enforce noeviction policy
         # Redis service container 는 `options` 에서 CMD 를 직접 덮지 못함 (BullMQ 가 `config SET`
         # 으로 런타임 변경 거부하는 케이스 방어). 세팅은 기본값 확인만 — 어긋나면 실패.

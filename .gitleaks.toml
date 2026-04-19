@@ -31,6 +31,12 @@ paths = [
 
   # pnpm lockfile 은 base64 integrity 해시 덩어리라 generic-entropy 로 걸림.
   '''pnpm-lock\.yaml$''',
+
+  # 문서류는 RFC 8032 fixture key 나 "trust=fixture" 예제 CLI 출력이 포함돼 있음. 실키가
+  # 실수로 섞이면 소스/테스트 파일에서 잡아야 하므로 문서 경로만 allowlist (세션 70 복구).
+  '''packages/license-verifier/README\.md$''',
+  '''scripts/README\.md$''',
+  '''progress/sessions/.*\.md$''',
 ]
 
 # 값 기반 허용 (IETF 공식 테스트 벡터 고정 핵사값)

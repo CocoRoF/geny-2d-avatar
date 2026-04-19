@@ -322,7 +322,9 @@ test("createBullMQJobStore: drain() — 대기/실행 중 잡이 모두 최종 �
   const store = createBullMQJobStore({
     driver,
     orchestrate: async (task) => {
-      await new Promise((ok) => setTimeout(ok, 20).unref?.());
+      // `.unref()` 금지: 이 timer 가 유일한 pending work 라 unref 시 CI lean runner 에서
+      // 프로세스가 조기 종료되어 이후 테스트까지 "Promise still pending" 로 연쇄 실패.
+      await new Promise((ok) => setTimeout(ok, 20));
       return sampleOutcome(task);
     },
   });

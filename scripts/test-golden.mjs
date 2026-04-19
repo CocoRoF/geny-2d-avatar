@@ -338,13 +338,17 @@ async function runOrchestratorServiceTests() {
 }
 
 async function runWorkerGenerateTests() {
-  // worker-generate 는 orchestrator-service dist 에 의존. 그 이전 체인은 이미 step 17 에서 빌드됨.
+  // worker-generate 는 orchestrator-service + job-queue-bullmq dist 에 의존 (세션 63+). 그 이전
+  // 체인은 이미 step 17 에서 빌드됨. CI clean runner 는 dist/ 캐시가 없으므로 명시 빌드.
   await run("pnpm", ["-F", "@geny/orchestrator-service", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/job-queue-bullmq", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/worker-generate", "test"], { cwd: repoRoot });
 }
 
 async function runPerfHarnessSmoke() {
-  // worker-generate dist 가 이미 step 19 에서 빌드됨. 하네스는 ../apps/worker-generate/dist 직접 import.
+  // 하네스는 `../apps/worker-generate/dist/index.js` 를 직접 import. step 19 의 `test` 는
+  // `build:test → dist-test/` 만 만들고 `dist/` 는 건드리지 않으므로 여기서 main build 를 명시.
+  await run("pnpm", ["-F", "@geny/worker-generate", "build"], { cwd: repoRoot });
   await run("node", ["scripts/perf-harness.test.mjs"], { cwd: repoRoot });
 }
 
