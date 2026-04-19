@@ -24,6 +24,22 @@ importers:
         specifier: workspace:*
         version: link:../../packages/web-avatar
 
+  apps/worker-generate:
+    dependencies:
+      '@geny/ai-adapter-core':
+        specifier: workspace:*
+        version: link:../../packages/ai-adapter-core
+      '@geny/orchestrator-service':
+        specifier: workspace:*
+        version: link:../../services/orchestrator
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.30
+        version: 20.19.39
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   packages/ai-adapter-core:
     devDependencies:
       '@types/node':

@@ -1,0 +1,37 @@
+{
+  "name": "@geny/worker-generate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Foundation 워커 skeleton — `@geny/orchestrator-service` 를 binding 해 POST /jobs 큐 훅 + orchestrate(task) 체인을 잇는 얇은 consumer. docs/02 §4 JobRunner → worker 분리 실험 (세션 44).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "start": "node dist/main.js",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "dependencies": {
+    "@geny/ai-adapter-core": "workspace:*",
+    "@geny/orchestrator-service": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}

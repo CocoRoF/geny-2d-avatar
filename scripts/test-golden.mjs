@@ -40,6 +40,11 @@
 // 18) rig-template physics-lint — halfbody v1.0.0..v1.3.0 physics.json 의 meta 카운트 무결성 +
 //     dictionary/settings id 1:1 + 파라미터 레퍼런스 + vertex_index 범위 + cubism_mapping 커버리지 +
 //     출력 네이밍 규약(`_(sway|phys|fuwa)(_[lr])?$`) + baseline diff 회귀 (9 checks, 세션 40).
+// 19) @geny/worker-generate tests — Foundation 워커 skeleton. JobStore (submit→FIFO→succeed/fail,
+//     stop guard, list ordering) + HTTP router (POST /jobs 202·GET /jobs/{id}·잘못된 JSON 400·
+//     잘못된 CT 415·필드 검증·405+Allow·404) + wiring e2e (Mock 로 orchestrate→/metrics 반영 +
+//     createHttpAdapterFactories 주입 fetch 로 config.model 이 request body `model` 로 전달되는
+//     ADR 0005 L4 apiModel 분리 재검증). 16 tests, 세션 44.
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -70,6 +75,7 @@ const STEPS = [
   { name: "exporter-pipeline tests", run: runExporterPipelineTests },
   { name: "orchestrator-service tests", run: runOrchestratorServiceTests },
   { name: "rig-template physics-lint", run: runPhysicsLintTests },
+  { name: "worker-generate tests", run: runWorkerGenerateTests },
 ];
 
 const failed = [];
@@ -319,6 +325,12 @@ async function runOrchestratorServiceTests() {
   await run("pnpm", ["-F", "@geny/exporter-core", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/exporter-pipeline", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/orchestrator-service", "test"], { cwd: repoRoot });
+}
+
+async function runWorkerGenerateTests() {
+  // worker-generate 는 orchestrator-service dist 에 의존. 그 이전 체인은 이미 step 17 에서 빌드됨.
+  await run("pnpm", ["-F", "@geny/orchestrator-service", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/worker-generate", "test"], { cwd: repoRoot });
 }
 
 // ---------- util ----------
