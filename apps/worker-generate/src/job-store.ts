@@ -1,9 +1,14 @@
 /**
  * 인-메모리 FIFO 잡 큐 + 상태 추적 (Foundation 범위). docs/02 §4 JobRunner 의 최초 내부
- * 참조 구현 — 실제 Redis/BullMQ 큐 결선은 Runtime 단계 이후로 미룸.
+ * 참조 구현 — 실제 Redis/BullMQ 큐 결선은 `@geny/job-queue-bullmq` (세션 60) 와 Runtime
+ * wiring (세션 62+).
  *
  * 설계:
  *  - `submit(task)` 이 동기적으로 `{ job_id, status: "queued" }` 를 반환.
+ *  - **`job_id = task.idempotency_key` 원문 패스스루** (세션 61, ADR 0006 §D3.2 + prework
+ *    §2.5). 해시/UUID 변환 없음 — traceability 유지 + BullMQ 드라이버와 계약 동일.
+ *  - **동일 `idempotency_key` 재제출은 기존 `JobRecord` 를 그대로 반환** (BullMQ
+ *    `queue.add({ jobId })` 의 멱등과 동일). 백그라운드 loop 는 새 엔트리를 만들지 않음.
  *  - 백그라운드 워커 루프가 큐에서 하나씩 꺼내 `orchestrate(task)` 를 호출.
  *  - 상태 전이: queued → running → (succeeded | failed).
  *  - `waitFor(id)` 는 최종 상태가 될 때까지 기다린다 (테스트에서 이벤트 루프 헬퍼).
@@ -33,8 +38,6 @@ export interface JobRecord {
 export interface CreateJobStoreOptions {
   /** orchestrate 호출자. `@geny/orchestrator-service` 의 `svc.orchestrate` 를 그대로 바인딩. */
   orchestrate: (task: GenerationTask) => Promise<OrchestrateOutcome>;
-  /** job_id 생성기 (기본 crypto.randomUUID). 테스트 결정론을 위해 주입 가능. */
-  jobIdFn?: () => string;
   /** 현재 시각 주입자 (ISO8601). 기본 `new Date().toISOString()`. */
   now?: () => string;
 }
@@ -56,7 +59,6 @@ export function createJobStore(opts: CreateJobStoreOptions): JobStore {
   const order: string[] = [];
   const pending: string[] = [];
   const waiters = new Map<string, Array<(rec: JobRecord) => void>>();
-  const jobIdFn = opts.jobIdFn ?? (() => cryptoRandomUUID());
   const now = opts.now ?? (() => new Date().toISOString());
 
   let running = false;
@@ -95,7 +97,11 @@ export function createJobStore(opts: CreateJobStoreOptions): JobStore {
   return {
     submit(task) {
       if (stopped) throw new Error("JobStore: 이미 정지됨 — 새 제출 불가");
-      const id = jobIdFn();
+      const id = task.idempotency_key;
+      // 동일 idempotency_key 재제출: 기존 record 그대로 반환, 새 엔트리/새 orchestrate 없음.
+      // BullMQ `queue.add({ jobId })` 와 계약 동일 (`@geny/job-queue-bullmq` 세션 60).
+      const existing = jobs.get(id);
+      if (existing) return existing;
       const rec: JobRecord = {
         job_id: id,
         task,
@@ -162,9 +168,4 @@ function delay(ms: number): Promise<void> {
   return new Promise((ok) => {
     setTimeout(ok, ms).unref?.();
   });
-}
-
-function cryptoRandomUUID(): string {
-  // Node 22+ 전역 `crypto` 가 web-compat API 로 제공. 접근자 래핑은 테스트 주입 여지를 남김.
-  return globalThis.crypto.randomUUID();
 }

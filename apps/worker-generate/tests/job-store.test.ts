@@ -52,22 +52,42 @@ function sampleOutcome(task: GenerationTask, vendor = "nano-banana"): Orchestrat
   return { result, primary: vendor, used: vendor, attempts: [], cached: false, provenance };
 }
 
-test("createJobStore: submit → queued → running → succeeded", async () => {
+test("createJobStore: submit → queued → running → succeeded (job_id = idempotency_key)", async () => {
   let calls = 0;
   const store = createJobStore({
     orchestrate: async (task) => {
       calls++;
       return sampleOutcome(task);
     },
-    jobIdFn: () => `job-${calls}-sync`,
   });
-  const rec = store.submit(sampleTask());
+  const rec = store.submit(sampleTask({ idempotency_key: "happy-001" }));
+  assert.equal(rec.job_id, "happy-001");
   assert.equal(rec.status, "queued");
   const done = await store.waitFor(rec.job_id, 2000);
   assert.equal(done.status, "succeeded");
   assert.equal(done.outcome?.result.vendor, "nano-banana");
   assert.ok(done.started_at);
   assert.ok(done.finished_at);
+  assert.equal(calls, 1);
+  await store.stop();
+});
+
+test("createJobStore: 동일 idempotency_key 재제출 → 같은 record, orchestrate 1회만 실행", async () => {
+  let calls = 0;
+  const store = createJobStore({
+    orchestrate: async (task) => {
+      calls++;
+      return sampleOutcome(task);
+    },
+  });
+  const task = sampleTask({ idempotency_key: "dup-inmem-01" });
+  const first = store.submit(task);
+  const second = store.submit(task);
+  assert.equal(first.job_id, second.job_id);
+  assert.strictEqual(first, second);
+  await store.waitFor(first.job_id, 2000);
+  assert.equal(calls, 1);
+  assert.equal(store.list().length, 1);
   await store.stop();
 });
 
@@ -89,7 +109,6 @@ test("createJobStore: orchestrate throw → failed + error payload", async () =>
 
 test("createJobStore: 2 잡 FIFO 직렬 처리", async () => {
   const seen: string[] = [];
-  let n = 0;
   const store = createJobStore({
     orchestrate: async (task) => {
       seen.push(`start:${task.task_id}`);
@@ -97,7 +116,6 @@ test("createJobStore: 2 잡 FIFO 직렬 처리", async () => {
       seen.push(`end:${task.task_id}`);
       return sampleOutcome(task);
     },
-    jobIdFn: () => `id-${++n}`,
   });
   const a = store.submit(sampleTask({ task_id: "A", idempotency_key: "kA" }));
   const b = store.submit(sampleTask({ task_id: "B", idempotency_key: "kB" }));
@@ -114,10 +132,8 @@ test("createJobStore: stop 후 submit throw", async () => {
 });
 
 test("createJobStore: list 는 제출 순서 보존", async () => {
-  let n = 0;
   const store = createJobStore({
     orchestrate: async (t) => sampleOutcome(t),
-    jobIdFn: () => `id-${++n}`,
   });
   store.submit(sampleTask({ task_id: "A", idempotency_key: "kA" }));
   store.submit(sampleTask({ task_id: "B", idempotency_key: "kB" }));

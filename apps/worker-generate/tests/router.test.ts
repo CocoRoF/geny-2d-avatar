@@ -124,27 +124,51 @@ test("validateTask: 최소 필드 통과 · 누락/형 오류 거부", () => {
   assert.match((validateTask(null) as { error: string }).error, /object/);
 });
 
-test("router: POST /jobs → 202 + GET /jobs/{id} → succeeded", async () => {
-  let n = 0;
+test("router: POST /jobs → 202 + GET /jobs/{idempotency_key} → succeeded", async () => {
   const store = createJobStore({
     orchestrate: async (task) => okOutcome(task),
-    jobIdFn: () => `job-${++n}`,
   });
   const handler = createJobRouter({ store });
   await withServer(handler, async (port) => {
-    const post = await doReq(port, "POST", "/jobs", sampleTaskBody());
+    const body = sampleTaskBody({ idempotency_key: "req-aaaa-0001" });
+    const post = await doReq(port, "POST", "/jobs", body);
     assert.equal(post.status, 202);
     const submit = JSON.parse(post.body);
     assert.equal(submit.status, "queued");
-    assert.equal(submit.job_id, "job-1");
+    assert.equal(submit.job_id, "req-aaaa-0001");
     // 최종 상태 기다림.
-    await store.waitFor("job-1", 2000);
-    const get = await doReq(port, "GET", "/jobs/job-1");
+    await store.waitFor("req-aaaa-0001", 2000);
+    const get = await doReq(port, "GET", "/jobs/req-aaaa-0001");
     assert.equal(get.status, 200);
     const parsed = JSON.parse(get.body);
     assert.equal(parsed.status, "succeeded");
     assert.equal(parsed.result.vendor, "nano-banana");
     assert.equal(parsed.result.attempts, 0);
+  });
+  await store.stop();
+});
+
+test("router: POST /jobs 같은 body 2회 → 같은 job_id (prework §2.4 포인트 5)", async () => {
+  let calls = 0;
+  const store = createJobStore({
+    orchestrate: async (task) => {
+      calls++;
+      return okOutcome(task);
+    },
+  });
+  await withServer(createJobRouter({ store }), async (port) => {
+    const body = sampleTaskBody({ idempotency_key: "dup-e2e-001" });
+    const r1 = await doReq(port, "POST", "/jobs", body);
+    const r2 = await doReq(port, "POST", "/jobs", body);
+    assert.equal(r1.status, 202);
+    assert.equal(r2.status, 202);
+    const id1 = JSON.parse(r1.body).job_id;
+    const id2 = JSON.parse(r2.body).job_id;
+    assert.equal(id1, "dup-e2e-001");
+    assert.equal(id1, id2);
+    await store.waitFor(id1, 2000);
+    assert.equal(calls, 1);
+    assert.equal(store.list().length, 1);
   });
   await store.stop();
 });
@@ -210,13 +234,11 @@ test("router: GET /jobs/{unknown} → 404", async () => {
 });
 
 test("router: GET /jobs 전체 목록 반환", async () => {
-  let n = 0;
   const store = createJobStore({
     orchestrate: async (t) => okOutcome(t),
-    jobIdFn: () => `j-${++n}`,
   });
   store.submit(sampleTaskBody() as unknown as GenerationTask);
-  store.submit({ ...sampleTaskBody(), task_id: "t2", idempotency_key: "k2" } as unknown as GenerationTask);
+  store.submit({ ...sampleTaskBody(), task_id: "t2", idempotency_key: "k2-list" } as unknown as GenerationTask);
   await store.drain(2000);
   await withServer(createJobRouter({ store }), async (port) => {
     const r = await doReq(port, "GET", "/jobs");
