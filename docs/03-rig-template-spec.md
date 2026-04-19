@@ -447,6 +447,17 @@ Live2D 공식 샘플 **`니지이로 마오 (Pro Version)`** 은 우리 `halfbod
 4. 물리는 **light/normal/heavy** 프리셋 3개 모두 동작해야 한다.
 5. `README.md` 에 템플릿의 "의도한 인상(intended vibe)" 을 한 단락으로 기술한다 (AI 프롬프트 엔진이 이를 참조).
 
+### 13.1 커밋 조건 — 저작 게이트 (ADR 0005)
+
+템플릿 변경을 커밋하기 전에 **반드시 다음 lint 들이 모두 pass 되어야 한다** (ADR 0005 L2 `physics-lint fatal` 계층). 실패는 경고 아닌 **차단** — warning 등급은 없다.
+
+- `pnpm run lint:rig-template -- <path>` (또는 `scripts/rig-template/physics-lint.mjs <path>`):
+  - §6.2 물리 파일 규약의 10 규칙(C1~C10) 을 검증. C10 은 물리 출력 파라미터 네이밍 regex `_(sway|phys|fuwa)(_[lr])?$` (세션 40 에 고정).
+- `pnpm run test:golden` 의 `rig-template migrate` step — 새 major 시 마이그레이터 chain 이 clean run.
+- 저작 판단이 들어가는 값(물리 weight/delay/mobility, 메쉬 vertex, 모션 커브 타이밍, 파츠 이미지) 은 lint 대상이 아니지만, 저작 결과물 자체가 **반드시 위 lint 를 통과한 상태**로 커밋돼야 한다.
+
+ADR 0005 의 L1 (migrator auto-patch) / L3 (저자 판단) / L4 (파이프라인 불변식) 도 참고. L4 의 `textureOverrides` path 불변성은 [`docs/06 §4`](./06-post-processing-pipeline.md#4-stage-1--alpha-sanitation) 와 [`ADR 0005`](../progress/adr/0005-rig-authoring-gate.md) 에서 상세화.
+
 ---
 
 ## 14. 열린 질문 (Open Questions)

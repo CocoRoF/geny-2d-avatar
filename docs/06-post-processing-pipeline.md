@@ -94,6 +94,12 @@
 - 외곽 1px 링에서 `min_alpha > 0 and max_alpha < 255` 인 픽셀 비율 ≥ 0.8 (페더가 고르게 되었는가).
 - 구멍 수 ≤ 슬롯별 한도.
 
+### 4.4 불변식 — 번들 path 보존 (ADR 0005 L4)
+
+Stage 1~6 의 모든 후처리는 **픽셀 데이터만 대체** 한다. `@geny/exporter-core` 의 `assembleWebAvatarBundle(tpl, outDir, { textureOverrides })` 가드는 override 의 `path` 가 원본 `TemplateTextureFile.path` 와 다르면 throw — 이것이 [ADR 0005 L4 파이프라인 불변식](../progress/adr/0005-rig-authoring-gate.md) 의 일부다. 근거: `path` 는 atlas/manifest 의 slot identity key 이며 웹 런타임·Cubism export 양쪽이 이 key 로 파일을 참조한다. 후처리가 파일을 "다른 이름으로" 저장하면 consumer 가 깨진다.
+
+`@geny/exporter-pipeline` (세션 38/41) 의 `runWebAvatarPipeline` 가 참조 구현: `decodePng → transform → encodePng → buildTextureOverride(src, transform)` 체인이 **항상 src.path 를 override.path 로 재사용**. golden step 16 (exporter-pipeline 10 tests) 이 byte-equal 회귀로 고정.
+
 ---
 
 ## 5. Stage 2 — Edge / Line Unification
