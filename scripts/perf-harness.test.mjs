@@ -11,7 +11,7 @@
 
 import assert from "node:assert/strict";
 
-import { runHarness } from "./perf-harness.mjs";
+import { runHarness, parseMetrics } from "./perf-harness.mjs";
 
 async function main() {
   // 1) smoke 실행 — Foundation Mock 파이프라인은 CI 머신에서도 이 정도면 통과해야 함.
@@ -94,6 +94,38 @@ async function main() {
     } finally {
       if (savedRedis !== undefined) process.env.REDIS_URL = savedRedis;
     }
+  }
+
+  // 6) 세션 72 — parseMetrics 파서: bullmq 경로 /metrics 스크레이프 계약.
+  //    enqueued_total 과 depth{state=...} 둘 다 queue_name 라벨로 필터링 돼야 함.
+  {
+    const sample = [
+      "# HELP geny_queue_enqueued_total 큐 투입",
+      "# TYPE geny_queue_enqueued_total counter",
+      'geny_queue_enqueued_total{queue_name="other"} 7',
+      'geny_queue_enqueued_total{queue_name="geny-perf-72"} 100',
+      "# HELP geny_queue_depth BullMQ depth",
+      "# TYPE geny_queue_depth gauge",
+      'geny_queue_depth{queue_name="geny-perf-72",state="waiting"} 0',
+      'geny_queue_depth{queue_name="geny-perf-72",state="active"} 3',
+      'geny_queue_depth{queue_name="geny-perf-72",state="completed"} 97',
+      'geny_queue_depth{queue_name="other",state="waiting"} 42',
+      "",
+    ].join("\n");
+
+    const got = parseMetrics(sample, { queueName: "geny-perf-72" });
+    assert.equal(got.enqueued_total, 100, "queue_name 라벨로 정확히 분기돼야 함");
+    assert.deepEqual(
+      got.depth,
+      { waiting: 0, active: 3, completed: 97 },
+      `depth: ${JSON.stringify(got.depth)}`,
+    );
+
+    // queue 가 없으면 그 섹션 자체가 생략.
+    const miss = parseMetrics("# nothing matching\n", { queueName: "geny-perf-72" });
+    assert.equal(miss.enqueued_total, undefined);
+    assert.equal(miss.depth, undefined);
+    console.log("  ✓ parseMetrics — enqueued_total + depth{state=*} label 필터링 (세션 72)");
   }
 
   console.log("[perf-harness] ✅ all checks pass");

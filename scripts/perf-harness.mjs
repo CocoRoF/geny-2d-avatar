@@ -91,6 +91,7 @@ export async function runHarness(overrides = {}) {
   const acceptLatencies = [];
   const orchestrateLatencies = [];
   const errors = [];
+  let queueMetrics; // bullmq 경로에서 /metrics 스크레이프 결과.
 
   try {
     let issued = 0;
@@ -134,6 +135,16 @@ export async function runHarness(overrides = {}) {
       Array.from({ length: cfg.concurrency }, () => worker_()),
     );
   } finally {
+    // bullmq 경로에서는 서버 종료 전에 /metrics 를 한 번 긁어 queue counter 를 캡처.
+    // in-memory 는 counter 가 없으므로 skip.
+    if (cfg.driver === "bullmq") {
+      try {
+        const text = await fetchMetrics(port);
+        queueMetrics = parseMetrics(text, { queueName: cfg.queueName });
+      } catch (err) {
+        queueMetrics = { error: String(err?.message ?? err) };
+      }
+    }
     await new Promise((ok) => server.close(() => ok()));
     await worker.store.stop();
     if (driverCleanup) await driverCleanup();
@@ -174,6 +185,7 @@ export async function runHarness(overrides = {}) {
   const report = {
     schema: "geny-perf-v1",
     timestamp: new Date().toISOString(),
+    ...(queueMetrics ? { queue: queueMetrics } : {}),
     config: {
       jobs: cfg.jobs,
       concurrency: cfg.concurrency,
@@ -210,9 +222,20 @@ async function buildWorker(cfg) {
   );
   const client = new Redis(redisUrl, { maxRetriesPerRequest: null });
   const driver = createBullMQDriverFromRedis(client, { queueName: cfg.queueName });
+  // `onEnqueued` 는 store 생성 이전에 필요하지만 counter 는 worker.service.registry 가 만들어진
+  // **이후** 등록 — closure 로 늦 바인딩 (apps/worker-generate/src/main.ts 와 동일 패턴).
+  let enqueueInc;
+  const onEnqueued = () => {
+    enqueueInc?.({ queue_name: cfg.queueName });
+  };
   const storeFactory = (orchestrate) =>
-    createBullMQJobStore({ driver, orchestrate, mode: "inline" });
+    createBullMQJobStore({ driver, orchestrate, mode: "inline", onEnqueued });
   const worker = createWorkerGenerate({ storeFactory });
+  const counter = worker.service.registry.counter(
+    "geny_queue_enqueued_total",
+    "큐에 투입된 누적 잡 수 (catalog §2.1)",
+  );
+  enqueueInc = (labels) => counter.inc(labels);
   const cleanup = async () => {
     try {
       await client.quit();
@@ -265,6 +288,68 @@ function postJob(port, body) {
     req.write(payload);
     req.end();
   });
+}
+
+function fetchMetrics(port) {
+  return new Promise((ok, fail) => {
+    const req = httpRequest(
+      { host: "127.0.0.1", port, method: "GET", path: "/metrics" },
+      (res) => {
+        const chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("end", () => {
+          if ((res.statusCode ?? 0) !== 200) {
+            fail(new Error(`/metrics status=${res.statusCode}`));
+            return;
+          }
+          ok(Buffer.concat(chunks).toString("utf8"));
+        });
+      },
+    );
+    req.on("error", fail);
+    req.end();
+  });
+}
+
+/**
+ * 미니멀 Prometheus text 파서 — 세션 72: perf-harness bullmq 경로 queue counter 캡처 목적만.
+ * 전체 exposition 문법을 다루지 않는다.
+ *
+ *  - `geny_queue_enqueued_total{queue_name="<q>"}` 의 값을 `enqueued_total` 로 추출.
+ *  - `geny_queue_depth{queue_name="<q>",state="<s>"}` 들을 `{ waiting, active, delayed, completed, failed }`
+ *    object 로 합산. 세션 72 에선 perf 실행 중 sampler 가 동작하지 않는 경로 (createWorkerGenerate
+ *    를 직접 쓰는 in-process 하네스) — 값이 없으면 `depth` 필드 자체를 생략.
+ *
+ * 계약:
+ *   input  : /metrics text body, `queueName` label
+ *   output : { enqueued_total?: number, depth?: { state: count } }
+ */
+export function parseMetrics(text, { queueName }) {
+  const out = {};
+  const escQ = queueName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const enqueuedRe = new RegExp(
+    `^geny_queue_enqueued_total\\{[^}]*queue_name="${escQ}"[^}]*\\}\\s+([0-9.eE+-]+)`,
+    "m",
+  );
+  const m = text.match(enqueuedRe);
+  if (m) {
+    const v = Number(m[1]);
+    if (Number.isFinite(v)) out.enqueued_total = v;
+  }
+  const depthRe = new RegExp(
+    `^geny_queue_depth\\{([^}]*queue_name="${escQ}"[^}]*)\\}\\s+([0-9.eE+-]+)`,
+    "gm",
+  );
+  const depth = {};
+  let hit;
+  while ((hit = depthRe.exec(text)) !== null) {
+    const labels = hit[1];
+    const value = Number(hit[2]);
+    const stateMatch = labels.match(/state="([^"]+)"/);
+    if (stateMatch && Number.isFinite(value)) depth[stateMatch[1]] = value;
+  }
+  if (Object.keys(depth).length > 0) out.depth = depth;
+  return out;
 }
 
 function percentiles(samples) {

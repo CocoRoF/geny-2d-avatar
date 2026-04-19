@@ -437,6 +437,14 @@ cost_estimate:
 
 - **CI 게이트**: `test:golden` step 20 `perf-harness smoke` 가 완화 SLO (p95 ≤ 2s, 에러 ≤ 5%, tput ≥ 1/s) 로 20 잡 1회 회귀. 전체 벤치는 수동 `node scripts/perf-harness.mjs --jobs 200 --concurrency 16`.
 - **실 벤더 부하**는 `--http` 플래그로 wire (`createHttpAdapterFactories`), Foundation 범위 밖.
+- **`--driver bullmq` 실측 베이스라인 (세션 72, Mock 파이프라인 · N=100 · C=8, 개발 맥북 기준)**:
+
+  | 드라이버 | run_ms | accept p95 (ms) | orch p95 (ms) | orch p99 (ms) | tput (/s) | 비고 |
+  |---|---|---|---|---|---|---|
+  | `in-memory` | 21 | 8.1 | 8.1 | 10.47 | 4761.9 | submit = setImmediate(orchestrate). 큐 오버헤드 0. |
+  | `bullmq` (local Redis) | 43 | 18.08 | 18.08 | 18.72 | 2325.58 | 큐/디스크 hop 포함. 임계선 대비 p95 는 18% · tput 은 232× 여유. |
+
+  두 결과 모두 Foundation SLO 임계 (p95≤100/500, tput≥10) 대비 1 order-of-magnitude 이상 여유. Runtime 단계에서 실 벤더/실 Redis 배포 후 baseline 재캡처. 세션 72 는 perf-harness 에 `/metrics` 스크레이프 (`parseMetrics` — `geny_queue_enqueued_total` / `geny_queue_depth{state=*}`) 를 추가해 bullmq run 의 queue counter 가 투하 건수와 일치함을 보고서 `queue.enqueued_total` 필드로 자동 assert 가능케 함 (`enqueued_total=100 === jobs=100`).
 
 ---
 
