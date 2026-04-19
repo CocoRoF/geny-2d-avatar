@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { diffPhysics, lintPhysics } from "./physics-lint.mjs";
+import { FAMILY_OUTPUT_RULES, diffPhysics, lintPhysics } from "./physics-lint.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..", "..");
@@ -91,7 +91,7 @@ async function main() {
     console.log("  ✓ C6 missing input source_param");
   }
 
-  // 2e) output naming convention violation
+  // 2e) output naming convention violation (C10-suffix)
   {
     const dir = await scratch();
     await copyV13(dir);
@@ -100,10 +100,10 @@ async function main() {
       p.physics_settings[0].output[0].destination_param = "arm_l_angle"; // 존재 but 규약 위반 + physics_output 없음
     });
     const res = await lintPhysics(dir);
-    assert.ok(res.errors.some((e) => e.startsWith("C10")), `expected C10, got: ${res.errors.join(" / ")}`);
+    assert.ok(res.errors.some((e) => e.startsWith("C10-suffix")), `expected C10-suffix, got: ${res.errors.join(" / ")}`);
     assert.ok(res.errors.some((e) => e.startsWith("C7")), `expected C7, got: ${res.errors.join(" / ")}`);
     await rm(dir, { recursive: true, force: true });
-    console.log("  ✓ C7 + C10 output 규약 위반");
+    console.log("  ✓ C7 + C10-suffix output 규약 위반");
   }
 
   // 2f) cubism_mapping 누락
@@ -129,6 +129,98 @@ async function main() {
     assert.ok(res.errors.some((e) => e.startsWith("C5")), `expected C5, got: ${res.errors.join(" / ")}`);
     await rm(dir, { recursive: true, force: true });
     console.log("  ✓ C5 dictionary/settings id mismatch");
+  }
+
+  // 2h) halfbody family forbidden prefix (세션 49) — leg_ 같은 하반신 접두사 차단
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    // parameters.json 에 `leg_sway` 를 physics_output:true 로 추가 → C7/C9 는 통과시키고,
+    // cubism_mapping 도 등록 → 오직 C10-forbidden 만 발생.
+    const parametersPath = join(dir, "parameters.json");
+    const manifestPath = join(dir, "template.manifest.json");
+    const params = JSON.parse(await readFile(parametersPath, "utf8"));
+    params.parameters.push({
+      id: "leg_sway",
+      display_name: "Leg Sway (synthetic test)",
+      range: [-1, 1],
+      default: 0,
+      physics_output: true,
+      kind: "extension",
+    });
+    await writeFile(parametersPath, JSON.stringify(params, null, 2));
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.cubism_mapping["leg_sway"] = "LegSway";
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+    await patchPhysics(dir, (p) => {
+      p.physics_settings[0].output[0].destination_param = "leg_sway";
+    });
+    const res = await lintPhysics(dir);
+    const forbidden = res.errors.filter((e) => e.startsWith("C10-forbidden"));
+    assert.ok(forbidden.length === 1, `expected 1 C10-forbidden, got: ${res.errors.join(" / ")}`);
+    assert.ok(forbidden[0].includes('family="halfbody"'));
+    assert.ok(forbidden[0].includes('"leg_"'));
+    // C10-suffix 는 `leg_sway` 가 `_sway` 로 끝나므로 통과해야 함.
+    assert.ok(
+      !res.errors.some((e) => e.startsWith("C10-suffix")),
+      `leg_sway 는 suffix 규약 통과해야 함: ${res.errors.join(" / ")}`,
+    );
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C10-forbidden halfbody 하반신 접두사 차단 (leg_sway)");
+  }
+
+  // 2i) --family override 로 fullbody 처럼 lint 하면 halfbody forbidden 이 사라짐 (세션 49)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const parametersPath = join(dir, "parameters.json");
+    const manifestPath = join(dir, "template.manifest.json");
+    const params = JSON.parse(await readFile(parametersPath, "utf8"));
+    params.parameters.push({
+      id: "leg_sway",
+      display_name: "Leg Sway",
+      range: [-1, 1],
+      default: 0,
+      physics_output: true,
+      kind: "extension",
+    });
+    await writeFile(parametersPath, JSON.stringify(params, null, 2));
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.cubism_mapping["leg_sway"] = "LegSway";
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+    await patchPhysics(dir, (p) => {
+      p.physics_settings[0].output[0].destination_param = "leg_sway";
+    });
+    const res = await lintPhysics(dir, { familyOverride: "fullbody" });
+    assert.equal(
+      res.errors.length,
+      0,
+      `fullbody override 하에서 clean 이어야 함: ${res.errors.join(" / ")}`,
+    );
+    assert.equal(res.summary.family, "fullbody");
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ --family fullbody override 가 하반신 파츠 허용");
+  }
+
+  // 2j) 알 수 없는 family → throw (세션 49)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    await assert.rejects(
+      () => lintPhysics(dir, { familyOverride: "alien_species" }),
+      /family="alien_species".+FAMILY_OUTPUT_RULES/s,
+    );
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ 미등록 family 는 explicit throw");
+  }
+
+  // 2k) FAMILY_OUTPUT_RULES 테이블이 schema 의 family enum 6종 전부 커버 (세션 49)
+  {
+    const expected = ["chibi", "halfbody", "fullbody", "masc_halfbody", "feline", "custom"];
+    for (const fam of expected) {
+      assert.ok(FAMILY_OUTPUT_RULES[fam], `family=${fam} rule 누락`);
+    }
+    console.log("  ✓ FAMILY_OUTPUT_RULES 가 schema enum 6종 커버");
   }
 
   // 3) diff v1.2.0 vs v1.3.0 — 3 신규 세팅

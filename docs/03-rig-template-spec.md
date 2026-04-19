@@ -205,6 +205,10 @@ root
 
 - `physics3.json` 의 물리 입력은 `head_angle_*`, `body_angle_*`, `body_breath` 만 사용.
 - 출력 파라미터는 `*_sway`, `*_phys`, `*_fuwa` 접미사만. 좌우 분리 시 `_l` / `_r` 뒤붙임 허용. (`_fuwa` 는 halfbody v1.2.0 / 세션 07 부터 공식 도입 — Live2D 의 볼륨 파라미터 명칭에서 차용.)
+- **Base family 별 추가 제약 (세션 49, ADR 0005 L2)** — physics-lint C10 은 family 별 rule 테이블 (`scripts/rig-template/physics-lint.mjs` `FAMILY_OUTPUT_RULES`) 을 적용:
+  - `halfbody` / `masc_halfbody`: 접두사 `leg_`, `foot_`, `skirt_`, `tail_` **금지** (상반신 템플릿에 하반신 물리는 불일치 증거). C10-forbidden 으로 기계 차단.
+  - `chibi` / `fullbody` / `feline` / `custom`: 금지 접두사 없음. 접미사는 동일(`_(sway|phys|fuwa)(_[lr])?$`).
+  - 새 family 추가 시 lint 는 explicit error — 반드시 rule 등록 PR 수반.
 - 진동 감쇠(damping), 바람(wind) 프리셋 3단계 제공: `light / normal / heavy`.
 - 커스텀 물리는 템플릿 파생(fork)에서만 허용, 원본 템플릿 수정 금지.
 
@@ -452,7 +456,7 @@ Live2D 공식 샘플 **`니지이로 마오 (Pro Version)`** 은 우리 `halfbod
 템플릿 변경을 커밋하기 전에 **반드시 다음 lint 들이 모두 pass 되어야 한다** (ADR 0005 L2 `physics-lint fatal` 계층). 실패는 경고 아닌 **차단** — warning 등급은 없다.
 
 - `pnpm run lint:rig-template -- <path>` (또는 `scripts/rig-template/physics-lint.mjs <path>`):
-  - §6.2 물리 파일 규약의 10 규칙(C1~C10) 을 검증. C10 은 물리 출력 파라미터 네이밍 regex `_(sway|phys|fuwa)(_[lr])?$` (세션 40 에 고정).
+  - §6.2 물리 파일 규약의 10 규칙(C1~C10) 을 검증. **C10 은 base family 별 분리** (세션 49 — C10-suffix regex `_(sway|phys|fuwa)(_[lr])?$` + halfbody 계열에 한해 C10-forbidden 하반신 접두사 4종 차단). `--family <name>` 로 override 가능.
 - `pnpm run test:golden` 의 `rig-template migrate` step — 새 major 시 마이그레이터 chain 이 clean run.
 - 저작 판단이 들어가는 값(물리 weight/delay/mobility, 메쉬 vertex, 모션 커브 타이밍, 파츠 이미지) 은 lint 대상이 아니지만, 저작 결과물 자체가 **반드시 위 lint 를 통과한 상태**로 커밋돼야 한다.
 
