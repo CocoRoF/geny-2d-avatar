@@ -122,3 +122,64 @@ maybeTest("redis integration — getJob(nonexistent) → null; close 멱등", as
     await client.quit();
   }
 });
+
+// 세션 71 — ADR 0006 §2.4 테스트 포인트 4.
+// `removeOnComplete: true` 로 completed 직후 job 이 Redis 에서 purge 되면, 동일 `jobId`
+// 재제출은 dedupe 되지 않고 새 job 으로 enqueue 되어야 한다. 세션 60/62 에서는 fake
+// driver + queue-add 레벨의 dedupe 만 검증했기 때문에 이 retention 경계는 real-Redis
+// 에서만 의미 있음. BullMQ `Job.timestamp` 는 enqueue 시각이라 두 번의 add 가 서로
+// 다른 timestamp 를 내놓으면 "같은 jobId" 의 서로 다른 실체임이 증명된다.
+maybeTest("redis integration — removeOnComplete=true 후 재제출 → 새 job (포인트 4)", async () => {
+  const { Worker } = await import("bullmq");
+  const client = await makeClient();
+  const queueName = `geny-test-${Date.now() + 4}`;
+  const driver = createBullMQDriverFromRedis(client, {
+    queueName,
+    defaultJobOptions: { removeOnComplete: true },
+  });
+
+  // Worker connection 은 Queue 와 분리 (BullMQ 권장 — blocking commands 충돌 방지).
+  const workerConn = client.duplicate();
+  const worker = new Worker(queueName, async () => ({ ok: true }), { connection: workerConn });
+  await worker.waitUntilReady();
+
+  try {
+    const id = uniqKey("ttl");
+    const data = sampleData(id);
+
+    // 1차 add + 즉시 완료 대기 (removeOnComplete=true → Redis 에서 제거).
+    const firstCompleted = new Promise<void>((resolve) => {
+      worker.once("completed", () => resolve());
+    });
+    const s1 = await driver.add({ jobId: id, data });
+    assert.equal(s1.id, id);
+    const ts1 = s1.timestamp;
+    await firstCompleted;
+
+    // purge 확인.
+    const got = await driver.getJob(id);
+    assert.equal(got, null, "completed job 은 removeOnComplete=true 로 즉시 purge 되어야 함");
+
+    // 두 enqueue timestamp 의 ms 해상도 구분을 확보.
+    await new Promise((ok) => setTimeout(ok, 5));
+
+    // 2차 add — 기존 entry 가 없으므로 새 job 이 enqueue 된다. timestamp 는 새 시각.
+    const secondCompleted = new Promise<void>((resolve) => {
+      worker.once("completed", () => resolve());
+    });
+    const s2 = await driver.add({ jobId: id, data });
+    assert.equal(s2.id, id);
+    assert.ok(
+      s2.timestamp > ts1,
+      `재제출된 job 은 새 timestamp 여야 함: ts1=${ts1} ts2=${s2.timestamp}`,
+    );
+
+    // 2차 완료 대기 — worker.close() 이 pending job 때문에 hang 하지 않도록.
+    await secondCompleted;
+  } finally {
+    await worker.close();
+    await workerConn.quit();
+    await driver.close();
+    await client.quit();
+  }
+});
