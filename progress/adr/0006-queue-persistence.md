@@ -68,9 +68,11 @@ gap 감사 결과:
 
 Runtime 단계에서 큐를 실제로 교체하기 전에 다음을 충족해야 한다:
 
-1. **Redis 배포 결정 확정** — `docs/02 §8.2` 에 Redis 가 있지만 버전/클러스터 토폴로지 미정. 관측 파이프(#3) 이후 인프라 스프린트에서 확정.
-2. **멱등성 키 end-to-end 전파** (`docs/02 §10.3`) — `idempotency_key` 가 BullMQ `job.id` 로 쓰일 수 있는지 확인 (길이/문자셋 제약). 현재 `GenerationTask.idempotency_key` 는 자유 문자열 → 해시한 뒤 BullMQ id 로 써야 할 수 있음.
-3. **관측 메트릭 확장** — BullMQ 는 자체 Prom exporter 가 있지만 우리는 `geny_ai_*` 네임스페이스 정책. 큐 깊이/실패율 메트릭을 `@geny/metrics-http` 가 노출하도록 metrics-catalog §4 추가. 알람은 이미 `docs/02 §9.3` "큐 길이 > 1k 10분 → P2".
+1. ~~**Redis 배포 결정 확정**~~ — ✅ 세션 53 [`progress/plans/bullmq-driver-prework.md §1`](../plans/bullmq-driver-prework.md) 확정: Foundation 은 인-메모리 유지, Production 은 managed Redis 7.2+ (primary + 1 replica, TLS, `noeviction`, Cluster 모드 β 이전 거부).
+2. ~~**멱등성 키 end-to-end 전파**~~ — ✅ 세션 53 [`§2`](../plans/bullmq-driver-prework.md) 확정: `idempotency_key` (`^[A-Za-z0-9._:-]{8,128}$`) 를 **원문 그대로** BullMQ `job.id` 로 패스스루. 해시/UUID 변환 거부 — traceability 유지. 5 회귀 테스트 포인트 고정.
+3. ~~**관측 메트릭 확장**~~ — ✅ 세션 50 `geny_queue_*` 4 메트릭 + Grafana Job Health 대시보드 panel 7/8/9 고정 (`infra/observability/metrics-catalog.md §2.1`). BullMQ `Queue.getJobCounts()`/`QueueEvents` 로 샘플링하는 드라이버 층 구현만 교체 세션에 남음.
+
+**→ 3 선행 조건 전부 충족.** Runtime 드라이버 교체 세션 (세션 53 plan §4 에 X~X+4 5단계로 분해) 에 즉시 착수 가능.
 
 ### D4. **Foundation 범위에서는** `JobStore` 인터페이스 확장 **금지**
 
