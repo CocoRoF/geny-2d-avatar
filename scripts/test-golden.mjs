@@ -61,6 +61,9 @@
 // 24) apps/web-editor e2e — Foundation Exit #1 에디터 스캐폴드의 무인 E2E.
 //     prepare → serve(:port) → HTTP 200×6 + loader 체인(avatar_id=avt.editor.halfbody.demo) +
 //     categorize 4 카테고리 카디널리티 어서션 + `<geny-avatar>` happy-dom ready lifecycle (세션 81).
+// 25) mock-vendor-server tests — 세션 82. nano-banana/sdxl/flux-fill HTTP 계약 재현 서버의
+//     계약 회귀 (3 엔드포인트 결정론적 image_sha256 + 401/400/404 + latency/fail 주입 + argv 파서,
+//     13 tests). 실 벤더 키 없이 HTTP 경로 end-to-end 를 두드릴 수 있도록 하는 dev/CI 도구.
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -97,6 +100,7 @@ const STEPS = [
   { name: "observability-smoke parser tests", run: runObservabilitySmokeParserTests },
   { name: "observability-snapshot-diff parser tests", run: runObservabilitySnapshotDiffTests },
   { name: "web-editor e2e", run: runWebEditorE2E },
+  { name: "mock-vendor-server tests", run: runMockVendorServerTests },
 ];
 
 const failed = [];
@@ -277,6 +281,10 @@ async function runWebPreviewE2E() {
 
 async function runWebEditorE2E() {
   await run("pnpm", ["-F", "@geny/web-editor", "test"], { cwd: repoRoot });
+}
+
+async function runMockVendorServerTests() {
+  await run("node", ["scripts/mock-vendor-server.test.mjs"], { cwd: repoRoot });
 }
 
 async function runLicenseVerifierTests() {
