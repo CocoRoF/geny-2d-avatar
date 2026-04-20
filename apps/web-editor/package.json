@@ -1,0 +1,23 @@
+{
+  "name": "@geny/web-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Geny 2D Avatar Foundation 에디터 스캐폴드 — docs/09 §4.3 의 3-column 기본 레이아웃 (TopBar / Parts 사이드바 / Preview Player / Inspector). Parts 선택 시 Inspector 에 슬롯 메타 read-only 표시. 저장/재생성/검증은 Runtime 이후.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "build:public": "node scripts/prepare.mjs",
+    "serve": "node scripts/serve.mjs",
+    "dev": "pnpm run build:public && pnpm run serve",
+    "test": "node scripts/e2e-check.mjs"
+  },
+  "dependencies": {
+    "@geny/exporter-core": "workspace:*",
+    "@geny/web-avatar": "workspace:*"
+  },
+  "devDependencies": {
+    "happy-dom": "^15.11.7"
+  }
+}

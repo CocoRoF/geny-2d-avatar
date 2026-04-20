@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Geny 2D Avatar · Foundation Editor</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --border: #d9dde3;
+        --border-soft: #eceef2;
+        --muted: #6b7280;
+        --accent: #2b4a8b;
+        --accent-soft: #eef4ff;
+        --bg-panel: #ffffff;
+        --bg-page: #f7f8fa;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --border: #2d3138;
+          --border-soft: #23262b;
+          --muted: #9aa1ad;
+          --accent: #a9c4ff;
+          --accent-soft: #1b2236;
+          --bg-panel: #16181d;
+          --bg-page: #0e1014;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg-page); }
+      body { display: grid; grid-template-rows: auto 1fr; font-size: 14px; line-height: 1.45; }
+
+      /* TopBar */
+      header.topbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-panel);
+      }
+      .topbar .brand { font-weight: 600; letter-spacing: 0.01em; }
+      .topbar .avatar-name {
+        padding: 4px 10px;
+        border: 1px solid var(--border-soft);
+        border-radius: 6px;
+        background: var(--bg-page);
+        font-variant-numeric: tabular-nums;
+      }
+      .topbar .actions { margin-left: auto; display: flex; gap: 6px; }
+      .topbar button {
+        padding: 4px 12px;
+        border: 1px solid var(--border);
+        background: var(--bg-panel);
+        border-radius: 6px;
+        font-size: 13px;
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+      .topbar button[disabled] { opacity: 0.6; }
+
+      /* 3-column layout */
+      main.editor {
+        display: grid;
+        grid-template-columns: 260px 1fr 320px;
+        min-height: 0;
+      }
+      .pane {
+        border-right: 1px solid var(--border);
+        background: var(--bg-panel);
+        overflow-y: auto;
+        min-width: 0;
+      }
+      .pane:last-child { border-right: none; border-left: 1px solid var(--border); }
+      .pane h2 {
+        margin: 0;
+        padding: 10px 14px;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border-soft);
+        position: sticky;
+        top: 0;
+        background: var(--bg-panel);
+        z-index: 1;
+      }
+
+      /* Parts sidebar */
+      .parts-group { padding: 8px 8px 14px; }
+      .parts-group .group-label {
+        padding: 4px 6px;
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .parts-list { list-style: none; margin: 0; padding: 0; }
+      .parts-list li {
+        padding: 6px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+      }
+      .parts-list li:hover { background: var(--border-soft); }
+      .parts-list li[aria-selected="true"] {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .parts-list .slot-id {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Preview Player */
+      .preview {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        background: var(--bg-page);
+      }
+      .stage {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .stage-inner {
+        width: min(480px, 100%);
+        aspect-ratio: 3 / 4;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-panel);
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 16px;
+      }
+      .preview-controls {
+        display: flex;
+        gap: 10px;
+        padding: 10px 16px;
+        border-top: 1px solid var(--border);
+        background: var(--bg-panel);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .preview-controls em { font-style: normal; }
+
+      /* Inspector */
+      .inspector-body { padding: 12px 14px; }
+      .kv {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        row-gap: 6px;
+        column-gap: 10px;
+        font-size: 13px;
+      }
+      .kv dt { color: var(--muted); }
+      .kv dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-word; }
+      .status {
+        margin: 10px 14px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 12px;
+      }
+      .status.ok { background: #e8f6ed; color: #205d38; }
+      .status.err { background: #fbe9e9; color: #7a1f1f; }
+      .empty-hint { color: var(--muted); font-size: 13px; padding: 8px 0; }
+      geny-avatar { display: none; }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="brand">Geny Editor</span>
+      <span id="avatar-name" class="avatar-name">—</span>
+      <div class="actions">
+        <button disabled title="Runtime (세션 82+)">Save</button>
+        <button disabled title="Runtime">History</button>
+        <button disabled title="Runtime">Share</button>
+        <button disabled title="Runtime">Export</button>
+      </div>
+    </header>
+
+    <main class="editor">
+      <aside class="pane" aria-label="parts sidebar">
+        <h2>Parts</h2>
+        <div id="status" class="status">로딩 중…</div>
+        <div id="parts-groups"></div>
+      </aside>
+
+      <section class="preview" aria-label="preview player">
+        <div class="stage">
+          <div class="stage-inner">
+            <div id="preview-hint">Stage 2 에선 번들 메타만 로드합니다. 실 렌더러는 Stage 3 이후 합류.</div>
+            <geny-avatar id="avatar" src="./public/sample/bundle.json"></geny-avatar>
+          </div>
+        </div>
+        <div class="preview-controls">
+          <em>Pose Picker · Angle X/Y/Z · Blink · Mouth · Vowel · Idle</em>
+          <span style="margin-left:auto">Stage 3+ 추가 예정</span>
+        </div>
+      </section>
+
+      <aside class="pane" aria-label="inspector">
+        <h2>Inspector</h2>
+        <div class="inspector-body" id="inspector">
+          <p class="empty-hint">파츠를 선택하면 slot · role · 소속 그룹이 표시됩니다.</p>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="./public/vendor/index.js"></script>
+    <script type="module">
+      const statusEl = document.querySelector("#status");
+      const groupsEl = document.querySelector("#parts-groups");
+      const inspectorEl = document.querySelector("#inspector");
+      const avatarNameEl = document.querySelector("#avatar-name");
+      const el = document.querySelector("#avatar");
+
+      // docs/09 §4.3.1 — Face / Hair / Body / Accessory. halfbody v1.2.0 의 fine-grained role
+      // (eye_iris_l, brow_l, arm_l, accessory_back…) 을 prefix 기반으로 UX 카테고리에 매핑한다.
+      // 정확 매칭이 아닌 prefix 규칙을 쓰는 이유: role 네이밍이 세밀해질수록 Map entry 가 폭발 —
+      // 세션 81 시점 27 고유 role 중 어느 하나도 빠짐없이 카테고리화 되도록 함.
+      const CATEGORY_ORDER = ["Face", "Hair", "Body", "Accessory"];
+
+      function categoryOf(role) {
+        if (
+          role.startsWith("eye_") ||
+          role.startsWith("brow_") ||
+          role.startsWith("mouth_") ||
+          role.startsWith("face_") ||
+          role === "nose" ||
+          role === "cheek_blush"
+        ) return "Face";
+        if (role.startsWith("hair_") || role === "ahoge") return "Hair";
+        if (
+          role.startsWith("arm_") ||
+          role.startsWith("cloth_") ||
+          role === "torso" ||
+          role === "neck" ||
+          role === "body"
+        ) return "Body";
+        if (role.startsWith("accessory_")) return "Accessory";
+        return "Other";
+      }
+
+      function categorize(parts) {
+        const groups = new Map();
+        for (const p of parts) {
+          const cat = categoryOf(p.role);
+          if (!groups.has(cat)) groups.set(cat, []);
+          groups.get(cat).push(p);
+        }
+        for (const list of groups.values()) {
+          list.sort((a, b) => a.slot_id.localeCompare(b.slot_id));
+        }
+        return groups;
+      }
+
+      function renderParts(groups) {
+        groupsEl.replaceChildren();
+        for (const cat of [...CATEGORY_ORDER, ...[...groups.keys()].filter((c) => !CATEGORY_ORDER.includes(c))]) {
+          const items = groups.get(cat);
+          if (!items) continue;
+          const wrap = document.createElement("div");
+          wrap.className = "parts-group";
+          const label = document.createElement("div");
+          label.className = "group-label";
+          label.textContent = `${cat} · ${items.length}`;
+          wrap.appendChild(label);
+          const ul = document.createElement("ul");
+          ul.className = "parts-list";
+          for (const p of items) {
+            const li = document.createElement("li");
+            li.dataset.slotId = p.slot_id;
+            li.dataset.role = p.role;
+            li.dataset.category = cat;
+            const role = document.createElement("span");
+            role.textContent = p.role;
+            const slot = document.createElement("span");
+            slot.className = "slot-id";
+            slot.textContent = p.slot_id;
+            li.append(role, slot);
+            li.addEventListener("click", () => selectPart(li, p, cat));
+            ul.appendChild(li);
+          }
+          wrap.appendChild(ul);
+          groupsEl.appendChild(wrap);
+        }
+      }
+
+      function selectPart(node, part, cat) {
+        document.querySelectorAll('.parts-list li[aria-selected="true"]').forEach((n) => n.setAttribute("aria-selected", "false"));
+        node.setAttribute("aria-selected", "true");
+        renderInspector(part, cat);
+      }
+
+      function renderInspector(part, cat) {
+        inspectorEl.replaceChildren();
+        const dl = document.createElement("dl");
+        dl.className = "kv";
+        for (const [k, v] of [
+          ["slot_id", part.slot_id],
+          ["role", part.role],
+          ["category", cat],
+        ]) {
+          const dt = document.createElement("dt");
+          dt.textContent = k;
+          const dd = document.createElement("dd");
+          dd.textContent = v;
+          dl.append(dt, dd);
+        }
+        inspectorEl.appendChild(dl);
+        const note = document.createElement("p");
+        note.className = "empty-hint";
+        note.textContent = "Prompt / Style Profile / Regenerate 는 세션 82+ (Runtime) 이후.";
+        inspectorEl.appendChild(note);
+      }
+
+      el.addEventListener("ready", (ev) => {
+        const { manifest, meta } = ev.detail.bundle;
+        statusEl.className = "status ok";
+        statusEl.textContent = `ready — ${manifest.template_id}@${manifest.template_version} · ${meta.parts.length} parts`;
+        avatarNameEl.textContent = manifest.avatar_id ?? manifest.template_id;
+        const groups = categorize(meta.parts);
+        renderParts(groups);
+      });
+
+      el.addEventListener("error", (ev) => {
+        statusEl.className = "status err";
+        statusEl.textContent = `error — ${ev.detail.error?.message ?? ev.detail.error}`;
+        console.error(ev.detail.error);
+      });
+    </script>
+  </body>
+</html>

@@ -18,6 +18,19 @@ importers:
         specifier: ^5
         version: 5.10.1
 
+  apps/web-editor:
+    dependencies:
+      '@geny/exporter-core':
+        specifier: workspace:*
+        version: link:../../packages/exporter-core
+      '@geny/web-avatar':
+        specifier: workspace:*
+        version: link:../../packages/web-avatar
+    devDependencies:
+      happy-dom:
+        specifier: ^15.11.7
+        version: 15.11.7
+
   apps/web-preview:
     dependencies:
       '@geny/exporter-core':

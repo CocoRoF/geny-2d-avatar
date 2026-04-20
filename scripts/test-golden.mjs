@@ -53,6 +53,14 @@
 //     `createBullMQJobStore` 팩토리 — idempotency_key → jobId 패스스루 + 특수문자/128-char
 //     boundary + state 매핑 + orchestrate 실패 payload + drain/stop 멱등 (9 tests, 세션 60).
 //     실 bullmq/ioredis 바인딩은 X+1 세션에서 결선.
+// 22) observability-smoke parser tests — Prometheus exposition 파서 + histogram `_bucket/_sum/_count`
+//     suffix 축약 + escape 된 label value 방어 (세션 78).
+// 23) observability-snapshot-diff parser tests — baseline vs current exposition 구조 drift 감지
+//     (added/removed/labelDrift) + smoke-snapshot-session-75.txt self-diff = 0 drift freeze guard
+//     (8 tests, 세션 80).
+// 24) apps/web-editor e2e — Foundation Exit #1 에디터 스캐폴드의 무인 E2E.
+//     prepare → serve(:port) → HTTP 200×6 + loader 체인(avatar_id=avt.editor.halfbody.demo) +
+//     categorize 4 카테고리 카디널리티 어서션 + `<geny-avatar>` happy-dom ready lifecycle (세션 81).
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -88,6 +96,7 @@ const STEPS = [
   { name: "job-queue-bullmq tests", run: runJobQueueBullMQTests },
   { name: "observability-smoke parser tests", run: runObservabilitySmokeParserTests },
   { name: "observability-snapshot-diff parser tests", run: runObservabilitySnapshotDiffTests },
+  { name: "web-editor e2e", run: runWebEditorE2E },
 ];
 
 const failed = [];
@@ -264,6 +273,10 @@ async function runWebAvatarBundleDiff() {
 
 async function runWebPreviewE2E() {
   await run("pnpm", ["-F", "@geny/web-preview", "test"], { cwd: repoRoot });
+}
+
+async function runWebEditorE2E() {
+  await run("pnpm", ["-F", "@geny/web-editor", "test"], { cwd: repoRoot });
 }
 
 async function runLicenseVerifierTests() {
