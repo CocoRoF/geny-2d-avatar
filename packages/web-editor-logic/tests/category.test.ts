@@ -306,3 +306,95 @@ describe("parametersForPart (세션 95)", () => {
     assert.deepEqual([...GROUPS_FOR_CATEGORY.Other], []);
   });
 });
+
+describe("parametersForPart — explicit part.parameter_ids (세션 98)", () => {
+  const PARAMS: readonly ParameterLike[] = [
+    { id: "head_angle_x", group: "face" },
+    { id: "eye_open_l", group: "eyes" },
+    { id: "eye_open_r", group: "eyes" },
+    { id: "brow_l_y", group: "brows" },
+    { id: "mouth_vowel_a", group: "mouth" },
+    { id: "hair_front_sway", group: "hair" },
+    { id: "accessory_back_sway", group: "body" },
+    { id: "overall_x", group: "overall" },
+    { id: "overall_y", group: "overall" },
+  ];
+
+  test("explicit bindings win over role/group heuristic", () => {
+    const part: PartLike = {
+      role: "eye_iris_l",
+      slot_id: "eye_iris_l",
+      parameter_ids: ["eye_open_l", "head_angle_x"],
+    };
+    const out = parametersForPart(part, PARAMS);
+    const ids = out.map((p) => p.id).sort();
+    assert.deepEqual(ids, ["eye_open_l", "head_angle_x", "overall_x", "overall_y"]);
+  });
+
+  test("explicit bindings auto-include overall (consistent with 2-stage rule)", () => {
+    const part: PartLike = {
+      role: "hair_front",
+      slot_id: "hair_front",
+      parameter_ids: ["hair_front_sway"],
+    };
+    const out = parametersForPart(part, PARAMS);
+    const overallIds = out.filter((p) => p.group === "overall").map((p) => p.id);
+    assert.deepEqual(overallIds.sort(), ["overall_x", "overall_y"]);
+    assert.ok(out.some((p) => p.id === "hair_front_sway"));
+  });
+
+  test("empty parameter_ids array → overall-only (explicit emptiness ≠ undefined fallback)", () => {
+    const part: PartLike = {
+      role: "torso",
+      slot_id: "torso",
+      parameter_ids: [],
+    };
+    const out = parametersForPart(part, PARAMS);
+    const groups = new Set(out.map((p) => p.group));
+    assert.deepEqual([...groups], ["overall"]);
+  });
+
+  test("explicit ids that miss all parameters → overall-only (no throw, author's sync responsibility)", () => {
+    const part: PartLike = {
+      role: "mystery",
+      slot_id: "mystery",
+      parameter_ids: ["nonexistent_a", "nonexistent_b"],
+    };
+    const out = parametersForPart(part, PARAMS);
+    const groups = new Set(out.map((p) => p.group));
+    assert.deepEqual([...groups], ["overall"]);
+  });
+
+  test("explicit bindings preserve param order (author intent = UI listing order)", () => {
+    const part: PartLike = {
+      role: "eye_iris_l",
+      slot_id: "eye_iris_l",
+      parameter_ids: ["mouth_vowel_a", "head_angle_x", "eye_open_l"],
+    };
+    const out = parametersForPart(part, PARAMS);
+    const nonOverall = out.filter((p) => p.group !== "overall").map((p) => p.id);
+    assert.deepEqual(nonOverall, ["head_angle_x", "mouth_vowel_a", "eye_open_l"].sort((a, b) => {
+      const idx = new Map(PARAMS.map((p, i) => [p.id, i]));
+      return (idx.get(a) ?? 0) - (idx.get(b) ?? 0);
+    }));
+  });
+
+  test("undefined parameter_ids falls back to 2-stage rule (backward compat)", () => {
+    const part: PartLike = { role: "hair_front", slot_id: "hair_front" };
+    const out = parametersForPart(part, PARAMS);
+    const ids = out.map((p) => p.id).sort();
+    assert.deepEqual(ids, ["hair_front_sway", "overall_x", "overall_y"]);
+  });
+
+  test("explicit ids that overlap overall group are not duplicated", () => {
+    const part: PartLike = {
+      role: "custom",
+      slot_id: "custom",
+      parameter_ids: ["overall_x", "eye_open_l"],
+    };
+    const out = parametersForPart(part, PARAMS);
+    const ids = out.map((p) => p.id);
+    assert.equal(new Set(ids).size, ids.length, "no duplicate ids");
+    assert.deepEqual(ids.sort(), ["eye_open_l", "overall_x", "overall_y"]);
+  });
+});

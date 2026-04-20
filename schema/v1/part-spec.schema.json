@@ -156,6 +156,12 @@
       "items": { "$ref": "common/ids.json#/$defs/slotId" },
       "description": "docs/04 §8. 상위 파츠 없이 생성 금지."
     },
+    "parameter_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "세션 98 — 이 파츠에 바인딩된 파라미터 id 의 명시 목록. 누락 시 web-editor-logic 의 role/group 휴리스틱으로 자동 추론(세션 95). 빈 배열은 overall-only 를 의미."
+    },
     "validation": {
       "type": "object",
       "additionalProperties": false,

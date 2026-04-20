@@ -5,6 +5,7 @@ export const CATEGORY_ORDER: readonly Category[] = ["Face", "Hair", "Body", "Acc
 export interface PartLike {
   readonly role: string;
   readonly slot_id: string;
+  readonly parameter_ids?: readonly string[];
 }
 
 export function categoryOf(role: string): Category {
@@ -67,9 +68,16 @@ export function parametersForPart<P extends ParameterLike>(
   parameters: readonly P[],
 ): P[] {
   if (part === null) return [...parameters];
+  const overallParams = parameters.filter((p) => p.group === OVERALL_GROUP);
+  if (part.parameter_ids !== undefined) {
+    const explicit = new Set(part.parameter_ids);
+    const matches = parameters.filter((p) => explicit.has(p.id));
+    const seen = new Set(matches.map((p) => p.id));
+    const extras = overallParams.filter((p) => !seen.has(p.id));
+    return [...matches, ...extras];
+  }
   const role = part.role;
   const substringMatches = parameters.filter((p) => p.id.includes(role));
-  const overallParams = parameters.filter((p) => p.group === OVERALL_GROUP);
   if (substringMatches.length > 0) {
     const seen = new Set(substringMatches.map((p) => p.id));
     const extras = overallParams.filter((p) => !seen.has(p.id));
