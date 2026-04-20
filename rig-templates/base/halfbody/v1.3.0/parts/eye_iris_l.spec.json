@@ -32,6 +32,7 @@
     "max_iter": 3
   },
   "dependencies": ["face_base", "eye_white_l"],
+  "parameter_ids": ["eye_ball_x", "eye_ball_y", "eye_ball_form", "eye_open_l"],
   "validation": {
     "must_cover_anchor": true,
     "min_alpha_area_frac": 0.20,

@@ -28,6 +28,7 @@
     "max_iter": 2
   },
   "dependencies": ["mouth_base"],
+  "parameter_ids": ["mouth_vowel_a", "mouth_vowel_i", "mouth_vowel_u", "mouth_vowel_e", "mouth_vowel_o"],
   "validation": {
     "must_cover_anchor": false,
     "min_alpha_area_frac": 0.10,

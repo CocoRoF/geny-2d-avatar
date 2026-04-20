@@ -32,6 +32,7 @@
     "max_iter": 3
   },
   "dependencies": ["face_base"],
+  "parameter_ids": ["eye_open_l", "eye_smile_l", "eye_form_l"],
   "validation": {
     "must_cover_anchor": true,
     "min_alpha_area_frac": 0.30,

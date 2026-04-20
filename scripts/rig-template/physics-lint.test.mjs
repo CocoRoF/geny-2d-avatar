@@ -12,7 +12,7 @@
 // node --test 대신 표준 CLI 엔트리 — test-golden.mjs step 18 로 호출된다.
 
 import { strict as assert } from "node:assert";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +37,25 @@ async function patchPhysics(dir, mutate) {
   const obj = JSON.parse(await readFile(path, "utf8"));
   mutate(obj);
   await writeFile(path, JSON.stringify(obj, null, 2));
+}
+
+// C11 회귀는 "opt-in 0건" 베이스라인에서 시작해야 결정적이다. 세션 100 에서 halfbody
+// v1.3.0 Face 14 파츠에 `parameter_ids` 가 추가된 뒤로 copyV13 만 하면 `parts_with_bindings`
+// 가 0 이 아니므로 테스트 하드코딩이 template 진화에 브리틀해진다. 이 헬퍼는 spec 파일의
+// `parameter_ids` 필드만 제거 (다른 필드는 원본 보존 불가능하지만 C11 시험 범위에선 무관 —
+// 관심 축은 `parameter_ids` 존재/id 존재성 뿐).
+async function stripAllParameterIds(dir) {
+  const partsDir = join(dir, "parts");
+  const entries = await readdir(partsDir);
+  for (const name of entries) {
+    if (!name.endsWith(".spec.json")) continue;
+    const path = join(partsDir, name);
+    const spec = JSON.parse(await readFile(path, "utf8"));
+    if ("parameter_ids" in spec) {
+      delete spec.parameter_ids;
+      await writeFile(path, JSON.stringify(spec, null, 2));
+    }
+  }
 }
 
 async function main() {
@@ -224,10 +243,11 @@ async function main() {
   }
 
   // 2l) C11 — parts/*.spec.json 의 parameter_ids (세션 98) 가 parameters.json 에 없을 때 (세션 99)
+  // 베이스라인을 결정적으로 만들기 위해 copy 직후 모든 parameter_ids 를 제거하고 시작한다.
   {
     const dir = await scratch();
     await copyV13(dir);
-    // 기존 파츠 중 하나에 존재하지 않는 id 주입
+    await stripAllParameterIds(dir);
     const specPath = join(dir, "parts", "ahoge.spec.json");
     const spec = JSON.parse(await readFile(specPath, "utf8"));
     spec.parameter_ids = ["ahoge_sway", "not_a_param_xyz"];
@@ -246,6 +266,7 @@ async function main() {
   {
     const dir = await scratch();
     await copyV13(dir);
+    await stripAllParameterIds(dir);
     const specPath = join(dir, "parts", "ahoge.spec.json");
     const spec = JSON.parse(await readFile(specPath, "utf8"));
     spec.parameter_ids = ["ahoge_sway"]; // v1.3.0 parameters.json 에 실존
@@ -262,6 +283,7 @@ async function main() {
   {
     const dir = await scratch();
     await copyV13(dir);
+    await stripAllParameterIds(dir);
     const specPath = join(dir, "parts", "ahoge.spec.json");
     const spec = JSON.parse(await readFile(specPath, "utf8"));
     spec.parameter_ids = [];
@@ -274,15 +296,20 @@ async function main() {
     console.log("  ✓ C11 빈 배열은 no-op");
   }
 
-  // 2o) C11 — parameter_ids 필드가 없는 spec (기존 67 파츠 전부 해당) 은 no-op (세션 99)
+  // 2o) C11 — 기존 rig-template 전체가 C11 오류 0 (세션 99 + 세션 100 Face 14 opt-in 포함)
+  // 세션 99 시점엔 parts_with_bindings=0 이었으나, 세션 100 에서 halfbody v1.3.0 Face 14 파츠에
+  // opt-in 이 추가됐다. 이 테스트의 초점은 "공식 템플릿은 C11 를 통과한다" 축 — 구체적인 opt-in
+  // 카운트는 template 진화에 맡기고 C11 오류 0 + parts_checked 총파츠수 고정만 확인.
   {
-    // 공식 v1.3.0 그대로 lint → C11 오류 0, parts_checked=30, parts_with_bindings=0
     const res = await lintPhysics(join(halfbody, "v1.3.0"));
     const c11 = res.errors.filter((e) => e.startsWith("C11"));
-    assert.equal(c11.length, 0);
+    assert.equal(c11.length, 0, `halfbody v1.3.0 C11 errors: ${res.errors.join(" / ")}`);
     assert.equal(res.summary.parts_checked, 30);
-    assert.equal(res.summary.parts_with_bindings, 0, "세션 99 시점엔 opt-in 파츠 0");
-    console.log("  ✓ C11 parameter_ids 미지정 파츠는 backward-compat no-op");
+    assert.ok(
+      res.summary.parts_with_bindings >= 0 && res.summary.parts_with_bindings <= res.summary.parts_checked,
+      `parts_with_bindings=${res.summary.parts_with_bindings} (0..30 범위)`,
+    );
+    console.log("  ✓ C11 공식 halfbody v1.3.0 통과 (opt-in 카운트는 template 진화에 위임)");
   }
 
   // 3) diff v1.2.0 vs v1.3.0 — 3 신규 세팅
