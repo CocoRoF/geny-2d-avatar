@@ -318,7 +318,12 @@ async function runWebAvatarRendererTests() {
   // RendererBundleMeta / RendererHost 등 duck-typed 렌더러 계약을 담고, 두 타입
   // 가드(isRendererBundleMeta / isRendererParameterChangeEventDetail) 를 제공.
   // 본 패키지는 `@geny/web-editor-renderer` 가 소비하는 첫 구현체 경계 — 인터페이스가
-  // A PixiJS / D 자체 WebGL2 / E 하이브리드 어느 경로로 확정되어도 재사용된다 (10 tests).
+  // A PixiJS / D 자체 WebGL2 / E 하이브리드 어느 경로로 확정되어도 재사용된다.
+  // 세션 115 — `createNullRenderer` + `createLoggingRenderer` (ADR 0007 Decision
+  // 불변 구현체, dev/debug + 테스트 드라이브 용, 11 tests 추가 → 21 tests).
+  // build 는 downstream `@geny/web-editor-renderer` 가 dist/*.d.ts 로 type import
+  // 하기 때문에 필수 — test 만 돌리면 dist-test/ 만 생기고 dist/ 는 stale/없음.
+  await run("pnpm", ["-F", "@geny/web-avatar-renderer", "build"], { cwd: repoRoot });
   await run("pnpm", ["-F", "@geny/web-avatar-renderer", "test"], { cwd: repoRoot });
 }
 

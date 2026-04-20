@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 115+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 116+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -99,10 +99,12 @@
   세션 112 = 후보 G (C14 parts↔deformers)        ✅ 사각형 완결, L2 포화
   세션 113 = ADR 0007 Draft (렌더러 기술)        ✅ 사용자 리뷰 대기
   세션 114 = 렌더러 인터페이스 패키지 선행 분리  ✅ @geny/web-avatar-renderer@0.1.0
+  세션 115 = Null/Logging renderer 구현체         ✅ 21 tests (계약 10 + null 6 + logging 5)
 
 [자율 모드 후속 후보 — ADR 0007 Decision 불변 영역]
-  세션 115 = (권장) null/logging renderer 구현체 — 계약 패키지 smoke test 확장
-  세션 115 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행
+  세션 116 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행
+  세션 116 = (후보) `<geny-avatar>` 커스텀 엘리먼트에 `createLoggingRenderer` 옵션 wire-through
+           → 에디터 스토리북에서 이벤트 stream 을 개발자 콘솔에 찍는 debug 스위치
 
 [사용자 의사 확정 후]
   세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
@@ -175,27 +177,24 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 115)
+## 7. 다음 즉시 행동 (세션 116)
 
-세션 114 에서 `@geny/web-avatar-renderer@0.1.0` 신규 — 5 duck-typed 인터페이스(Renderer*) + 2 타입 가드(isRendererBundleMeta / isRendererParameterChangeEventDetail) 가 계약 패키지로 승격. `@geny/web-editor-renderer` 는 첫 consumer 로 import type + re-export 재정렬 (런타임 바이트 불변). golden 30 step all pass, 세션 114 신규 10 tests 포함 누적 23 tests (web-avatar 20 + web-avatar-renderer 10 + web-editor-renderer 10).
+세션 115 에서 `@geny/web-avatar-renderer` 에 `createNullRenderer` + `createLoggingRenderer` 가 착지 — 계약 패키지가 "정의 + 구현체(테스트 더블)" 로 완결. 누적 21 tests (10 계약 + 6 null + 5 logging). golden 30 step all pass (세션 115 에서 `runWebAvatarRendererTests` 에 build 선행 추가 — downstream 이 `dist/*.d.ts` type import).
 
-**자율 모드 결정 (세션 115)**: **`createNullRenderer()` / `createLoggingRenderer()` 구현체 추가**. 계약 패키지 안에 ADR 0007 Option 독립 동작 가능한 no-op 구현 2 개를 두어, 선택된 렌더러 합류 전까지도 소비자(예: 테스트 코드 / 에디터 스토리북)가 계약을 드라이브할 수 있게 한다.
+**자율 모드 결정 (세션 116)**: 남은 self-contained 폭이 다시 좁음. ADR 0007 Option A/D/E 확정 전에는 "실 렌더러 합류" 가 닫혀있고, 계약 패키지는 포화. 후보 2 개:
 
-- **범위**: `packages/web-avatar-renderer/src/null-renderer.ts` + `logging-renderer.ts` 신규. 각각 `{ onReady?(meta), onParameterChange?(id, value), destroy() }` minimum 인터페이스. `RendererHost` 를 받아 이벤트만 subscribe/logging — DOM 생성 없음.
-- **진입 조건**: 없음 — self-contained. ADR 0007 Decision 없이도 동작.
-- **산출**: 2 파일 + 테스트 4~6 개 추가. 계약 패키지 tests 10 → 14~16. golden step 갱신 없음(기존 `web-avatar-renderer contracts tests` step 이 포함).
-- **리스크**: 저. 신규 함수만 추가 — 기존 5 인터페이스 / 2 가드는 무변경.
+- **후보 H (권장)** — `apps/web-editor` 에 `createLoggingRenderer` 스위치 wire-through. e2e 테스트에서 ready/parameterchange 이벤트 stream 이 개발자 콘솔 / 테스트 assertion 에 흐르는 것을 증거로 남김. 소비 경로 검증.
+- **후보 I (보류)** — Server Headless Renderer 별도 ADR. ADR 0007 Open Question #3 이 사용자 답변 없이 진입하면 위임이 뒤집힐 여지가 큼. **사용자 의사 선행**.
 
 **2순위 (사용자 합의 후에만)**:
 - **ADR 0007 Accept 커밋**: 사용자가 A/D/E 중 선택하면 Decision 채워서 Status Accepted 로 재커밋. `docs/13-tech-stack.md §2.2` 동시 재작성.
 - **세션 97 Runtime 착수 Spike**: ADR 확정 후. 선택된 렌더러로 halfbody v1.3.0 번들 + 회전 slider → 픽셀 렌더.
 - **v1.3.0→v1.4.0 migrator**: 리그 변경 범위 합의 후.
-- **Server Headless Renderer 별도 ADR 초안**: ADR 0007 Open Question #3 이 사용자 답변 받으면 진입.
 
-**선행 read** (세션 115 에서):
-- `packages/web-avatar-renderer/src/contracts.ts` — 인터페이스 5 + 가드 2.
-- `packages/web-editor-renderer/src/renderer.ts` — 기존 consumer 패턴(이벤트 subscribe/destroy).
+**선행 read** (세션 116 에서):
+- `packages/web-avatar-renderer/src/{null-renderer,logging-renderer}.ts` — 세션 115 구현체.
+- `apps/web-editor/scripts/e2e-check.mjs` — 기존 e2e assertion 패턴.
 
-**세션 116+ 예약 후보**:
-- Option E 하이브리드 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규).
+**세션 117+ 예약 후보**:
+- Option E 하이브리드 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규, NullRenderer 계약 그대로 승계).
 - legacy opt-in 복제(후보 C)는 BL-DEPRECATION-POLICY 외부 대기 유지.

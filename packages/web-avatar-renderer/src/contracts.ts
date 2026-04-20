@@ -99,3 +99,17 @@ export function isRendererParameterChangeEventDetail(
   const v = value as { id?: unknown; value?: unknown };
   return typeof v.id === "string" && typeof v.value === "number";
 }
+
+/**
+ * 모든 렌더러 구현체의 최소 계약 — `destroy()` 로 이벤트 리스너 해제 + 내부 상태
+ * 정리. 호출 후 재사용 불가. ADR 0007 의 어떤 경로(A PixiJS / D 자체 WebGL2 /
+ * E 하이브리드)로 확정되어도 `Renderer` 는 각 구현체의 기반 타입이 된다 —
+ * Option E 의 facade 라우터는 본 인터페이스만 알면 하위 구현체를 switch 가능.
+ *
+ * 본 인터페이스는 의도적으로 **작게** 유지 (세션 115 D1). `partCount` 나 `rotationDeg`
+ * 같은 구현체별 readout 은 각자의 확장 인터페이스(StructureRenderer / NullRenderer /
+ * LoggingRenderer 등) 에 둔다.
+ */
+export interface Renderer {
+  readonly destroy: () => void;
+}
