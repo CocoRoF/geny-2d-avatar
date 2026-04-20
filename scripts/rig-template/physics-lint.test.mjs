@@ -312,6 +312,70 @@ async function main() {
     console.log("  ✓ C11 공식 halfbody v1.3.0 통과 (opt-in 카운트는 template 진화에 위임)");
   }
 
+  // 2p) C12 — deformers.json nodes[].params_in 에 없는 id (세션 108)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const deformersPath = join(dir, "deformers.json");
+    const def = JSON.parse(await readFile(deformersPath, "utf8"));
+    const target = def.nodes.find((n) => n.id === "head_pose_rot");
+    assert.ok(target, "head_pose_rot 노드가 v1.3.0 에 있어야 함");
+    target.params_in = [...target.params_in, "not_a_param_xyz"];
+    await writeFile(deformersPath, JSON.stringify(def, null, 2));
+    const res = await lintPhysics(dir);
+    const c12 = res.errors.filter((e) => e.startsWith("C12"));
+    assert.equal(c12.length, 1, `expected 1 C12 error, got: ${res.errors.join(" / ")}`);
+    assert.ok(c12[0].includes("not_a_param_xyz"));
+    assert.ok(c12[0].includes("head_pose_rot"));
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C12 deformers.params_in 가 parameters.json 에 없을 때 차단");
+  }
+
+  // 2q) C12 — 빈 params_in (root, body_visual 등 컨테이너) 은 no-op (세션 108)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const res = await lintPhysics(dir);
+    const c12 = res.errors.filter((e) => e.startsWith("C12"));
+    assert.equal(c12.length, 0, `clean v1.3.0 deformers 에서 C12 0 이어야 함: ${res.errors.join(" / ")}`);
+    assert.ok(res.summary.deformer_nodes_checked > 0, "deformer_nodes_checked > 0");
+    assert.ok(
+      res.summary.deformer_params_in_checked > 0,
+      "deformer_params_in_checked > 0 (v1.3.0 은 빈 params_in 노드 + 비어있지 않은 노드 혼재)",
+    );
+    console.log("  ✓ C12 빈 params_in 컨테이너 노드는 no-op (clean v1.3.0)");
+  }
+
+  // 2r) C12 — deformers.json 누락 시 no-op (세션 108)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    await rm(join(dir, "deformers.json"));
+    const res = await lintPhysics(dir);
+    const c12 = res.errors.filter((e) => e.startsWith("C12"));
+    assert.equal(c12.length, 0);
+    assert.equal(res.summary.deformer_nodes_checked, 0);
+    assert.equal(res.summary.deformer_params_in_checked, 0);
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C12 deformers.json 누락 시 no-op");
+  }
+
+  // 2s) C12 — 모든 공식 템플릿이 C12 통과 + 카운트 sanity (세션 108)
+  {
+    for (const v of ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0"]) {
+      const res = await lintPhysics(join(halfbody, v));
+      const c12 = res.errors.filter((e) => e.startsWith("C12"));
+      assert.equal(c12.length, 0, `halfbody ${v} C12 errors: ${res.errors.join(" / ")}`);
+      assert.ok(res.summary.deformer_nodes_checked > 0, `${v} 노드 수 > 0`);
+      assert.ok(res.summary.deformer_params_in_checked > 0, `${v} params_in 수 > 0`);
+    }
+    const fb = await lintPhysics(join(repoRoot, "rig-templates", "base", "fullbody", "v1.0.0"));
+    const c12fb = fb.errors.filter((e) => e.startsWith("C12"));
+    assert.equal(c12fb.length, 0, `fullbody v1.0.0 C12 errors: ${fb.errors.join(" / ")}`);
+    assert.ok(fb.summary.deformer_nodes_checked > 0);
+    console.log("  ✓ C12 공식 halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 통과");
+  }
+
   // 3) diff v1.2.0 vs v1.3.0 — 3 신규 세팅
   {
     const lines = await diffPhysics(join(halfbody, "v1.2.0"), join(halfbody, "v1.3.0"));

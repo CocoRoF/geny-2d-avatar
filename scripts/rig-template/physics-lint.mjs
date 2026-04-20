@@ -28,6 +28,12 @@
 //        가 rename / 삭제됐을 때 드리프트를 CI 수준에서 조기 차단. 세션 98 의 silent-empty
 //        런타임 정책을 CI 안전망으로 보완. `parts/` 디렉토리가 없거나 `parameter_ids` 를
 //        사용하는 spec 이 0 건이면 no-op.
+//   C12. `deformers.json` 의 nodes[].params_in 에 나열된 id 가 parameters.json 의
+//        parameters[].id 에 존재하는지 교차 검증 (세션 108). deformer 트리는 parts 와 별도
+//        축이지만 같은 parameters.json 을 source of truth 로 공유한다. parameters 의 minor
+//        bump 로 id 가 rename / 삭제됐을 때 deformer 트리도 함께 끊어지므로 C11 의 자매
+//        체크. `deformers.json` 이 없거나 nodes 가 0 건이면 no-op. 빈 params_in (예:
+//        root, body_visual) 은 정상 — 컨테이너 노드는 자식만 묶고 params_in 을 안 가짐.
 //
 // --baseline 옵션:
 //   주어지면 타겟과 baseline physics.json 사이의 structural diff 리포트 (stdout 에 human-readable).
@@ -264,6 +270,27 @@ export async function lintPhysics(templateDir, options = {}) {
     }
   }
 
+  // C12 — deformers.json nodes[].params_in 교차 검증 (세션 108). deformer 트리는 parts 와
+  // 별도 축이지만 같은 parameters.json 을 공유. C11 의 자매 체크.
+  let deformerNodesChecked = 0;
+  let deformerParamsInChecked = 0;
+  const deformersPath = join(templateDir, "deformers.json");
+  if (existsSync(deformersPath)) {
+    const deformers = JSON.parse(await readFile(deformersPath, "utf8"));
+    for (const node of deformers.nodes ?? []) {
+      deformerNodesChecked += 1;
+      if (!Array.isArray(node.params_in)) continue;
+      for (const [i, id] of node.params_in.entries()) {
+        deformerParamsInChecked += 1;
+        if (!paramById.has(id)) {
+          errors.push(
+            `C12 deformers.nodes[${node.id ?? "?"}].params_in[${i}]=${id} 이 parameters.json 에 없음 (type=${node.type ?? "?"})`,
+          );
+        }
+      }
+    }
+  }
+
   return {
     errors,
     summary: {
@@ -275,6 +302,8 @@ export async function lintPhysics(templateDir, options = {}) {
       ids: settingIds,
       parts_checked: partsChecked,
       parts_with_bindings: partsWithBindings,
+      deformer_nodes_checked: deformerNodesChecked,
+      deformer_params_in_checked: deformerParamsInChecked,
     },
   };
 }
@@ -362,7 +391,7 @@ async function main(argv) {
   const { errors, summary } = res;
 
   process.stdout.write(
-    `physics-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind\n`,
+    `physics-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind deformers=${summary.deformer_nodes_checked}/${summary.deformer_params_in_checked}params\n`,
   );
   for (const e of errors) process.stderr.write(`  ✗ ${e}\n`);
   if (errors.length === 0) process.stdout.write("  ✓ all checks pass\n");
