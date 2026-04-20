@@ -3,7 +3,7 @@
  * web-editor prepare 스크립트.
  *
  * 1) @geny/web-avatar 빌드 → public/vendor/ 복사 (Custom Element JS).
- * 2) halfbody v1.2.0 + fullbody v1.0.0 템플릿 로드 → assembleWebAvatarBundle() →
+ * 2) halfbody v1.3.0 + fullbody v1.0.0 템플릿 로드 → assembleWebAvatarBundle() →
  *    public/sample/halfbody/, public/sample/fullbody/ 각각 분리 저장.
  * 3) public/INDEX.json 에 templates 배열 기록 (id/label/bundle/avatarId) — 에디터 UI
  *    의 <select> 가 이 manifest 를 fetch 해 스위처를 채운다.
@@ -82,8 +82,8 @@ const { loadTemplate } = await import(
 const TEMPLATES = [
   {
     id: "halfbody",
-    label: "Halfbody v1.2.0",
-    templateDir: resolve(repoRoot, "rig-templates/base/halfbody/v1.2.0"),
+    label: "Halfbody v1.3.0",
+    templateDir: resolve(repoRoot, "rig-templates/base/halfbody/v1.3.0"),
     avatarId: "avt.editor.halfbody.demo",
   },
   {

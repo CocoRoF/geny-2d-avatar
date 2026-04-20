@@ -27,14 +27,14 @@ const appRoot = resolve(here, "..");
 const repoRoot = resolve(appRoot, "..", "..");
 
 // 세션 87 — 템플릿별 스냅샷 기대값. rig-templates/base/*/v*/parts/*.spec.json 를 편집할 때
-// 여기 숫자가 먼저 깨지도록 고정. halfbody=29 parts, fullbody=38 parts.
+// 여기 숫자가 먼저 깨지도록 고정. halfbody=30 parts (세션 104: v1.2.0→v1.3.0 ahoge 추가), fullbody=38 parts.
 const TEMPLATE_EXPECTATIONS = {
   halfbody: {
     templateId: "tpl.base.v1.halfbody",
-    templateVersion: "1.2.0",
+    templateVersion: "1.3.0",
     avatarId: "avt.editor.halfbody.demo",
-    partsTotal: 29,
-    categories: { Face: 16, Hair: 4, Body: 7, Accessory: 2 },
+    partsTotal: 30,
+    categories: { Face: 16, Hair: 5, Body: 7, Accessory: 2 },
   },
   fullbody: {
     templateId: "tpl.base.v1.fullbody",
