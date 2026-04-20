@@ -308,6 +308,170 @@ test("<geny-avatar>: setParameter throws on unknown id / non-finite value (세�
   }
 });
 
+test("<geny-avatar>: playMotion dispatches motionstart with motion meta + updates currentMotion (세션 94)", async () => {
+  const dir = materializeGoldenBundle();
+  try {
+    const doc = g.document as unknown as Document;
+    const el = doc.createElement("geny-avatar") as HTMLElement;
+    doc.body.appendChild(el);
+    const readyP = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dir, "bundle.json")).toString());
+    const readyEvt = await readyP;
+    const bundle = (readyEvt.detail as { bundle: WebAvatarBundle }).bundle;
+    const first = bundle.meta.motions[0]!;
+
+    const elApi = el as unknown as {
+      playMotion(id: string): void;
+      currentMotion: string | null;
+    };
+    assert.equal(elApi.currentMotion, null, "currentMotion starts null");
+
+    const motionP = new Promise<CustomEvent>((resolvePromise) => {
+      el.addEventListener("motionstart", (e) => resolvePromise(e as CustomEvent), { once: true });
+    });
+    elApi.playMotion(first.pack_id);
+    const evt = await motionP;
+    const detail = evt.detail as { pack_id: string; motion: { pack_id: string; duration_sec: number; loop: boolean } };
+    assert.equal(detail.pack_id, first.pack_id);
+    assert.equal(detail.motion.pack_id, first.pack_id);
+    assert.equal(detail.motion.duration_sec, first.duration_sec);
+    assert.equal(detail.motion.loop, first.loop);
+    assert.equal(elApi.currentMotion, first.pack_id, "currentMotion reflects last play");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("<geny-avatar>: playMotion throws INVALID_SCHEMA on unknown pack_id (세션 94)", async () => {
+  const dir = materializeGoldenBundle();
+  try {
+    const doc = g.document as unknown as Document;
+    const el = doc.createElement("geny-avatar") as HTMLElement;
+    doc.body.appendChild(el);
+    const readyP = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dir, "bundle.json")).toString());
+    await readyP;
+
+    const elApi = el as unknown as {
+      playMotion(id: string): void;
+      currentMotion: string | null;
+    };
+    assert.throws(
+      () => elApi.playMotion("motion.does.not.exist"),
+      (err: Error & { code?: string }) => err.code === "INVALID_SCHEMA",
+      "unknown pack_id must throw INVALID_SCHEMA",
+    );
+    assert.equal(elApi.currentMotion, null, "failed call does not mutate currentMotion");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("<geny-avatar>: setExpression dispatches expressionchange + null clears (세션 94)", async () => {
+  const dir = materializeGoldenBundle();
+  try {
+    const doc = g.document as unknown as Document;
+    const el = doc.createElement("geny-avatar") as HTMLElement;
+    doc.body.appendChild(el);
+    const readyP = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dir, "bundle.json")).toString());
+    const readyEvt = await readyP;
+    const bundle = (readyEvt.detail as { bundle: WebAvatarBundle }).bundle;
+    const first = bundle.meta.expressions[0]!;
+
+    const elApi = el as unknown as {
+      setExpression(id: string | null): void;
+      currentExpression: string | null;
+    };
+    assert.equal(elApi.currentExpression, null);
+
+    const setP = new Promise<CustomEvent>((resolvePromise) => {
+      el.addEventListener("expressionchange", (e) => resolvePromise(e as CustomEvent), { once: true });
+    });
+    elApi.setExpression(first.expression_id);
+    const setEvt = await setP;
+    const setDetail = setEvt.detail as { expression_id: string | null; expression: { expression_id: string; name_en: string } | null };
+    assert.equal(setDetail.expression_id, first.expression_id);
+    assert.equal(setDetail.expression?.expression_id, first.expression_id);
+    assert.equal(setDetail.expression?.name_en, first.name_en);
+    assert.equal(elApi.currentExpression, first.expression_id);
+
+    // null → clear.
+    const clearP = new Promise<CustomEvent>((resolvePromise) => {
+      el.addEventListener("expressionchange", (e) => resolvePromise(e as CustomEvent), { once: true });
+    });
+    elApi.setExpression(null);
+    const clearEvt = await clearP;
+    const clearDetail = clearEvt.detail as { expression_id: string | null; expression: unknown };
+    assert.equal(clearDetail.expression_id, null);
+    assert.equal(clearDetail.expression, null);
+    assert.equal(elApi.currentExpression, null, "null clears currentExpression");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("<geny-avatar>: setExpression throws INVALID_SCHEMA on unknown id (세션 94)", async () => {
+  const dir = materializeGoldenBundle();
+  try {
+    const doc = g.document as unknown as Document;
+    const el = doc.createElement("geny-avatar") as HTMLElement;
+    doc.body.appendChild(el);
+    const readyP = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dir, "bundle.json")).toString());
+    await readyP;
+
+    const elApi = el as unknown as {
+      setExpression(id: string | null): void;
+      currentExpression: string | null;
+    };
+    assert.throws(
+      () => elApi.setExpression("expression.does.not.exist"),
+      (err: Error & { code?: string }) => err.code === "INVALID_SCHEMA",
+    );
+    assert.equal(elApi.currentExpression, null, "failed call does not mutate currentExpression");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("<geny-avatar>: re-ready resets motion + expression state (세션 94)", async () => {
+  const dirA = materializeGoldenBundle();
+  const dirB = materializeGoldenBundle();
+  try {
+    const doc = g.document as unknown as Document;
+    const el = doc.createElement("geny-avatar") as HTMLElement;
+    doc.body.appendChild(el);
+    const readyP = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dirA, "bundle.json")).toString());
+    const readyEvt = await readyP;
+    const bundle = (readyEvt.detail as { bundle: WebAvatarBundle }).bundle;
+    const firstMotion = bundle.meta.motions[0]!;
+    const firstExp = bundle.meta.expressions[0]!;
+
+    const elApi = el as unknown as {
+      playMotion(id: string): void;
+      setExpression(id: string | null): void;
+      currentMotion: string | null;
+      currentExpression: string | null;
+    };
+    elApi.playMotion(firstMotion.pack_id);
+    elApi.setExpression(firstExp.expression_id);
+    assert.equal(elApi.currentMotion, firstMotion.pack_id);
+    assert.equal(elApi.currentExpression, firstExp.expression_id);
+
+    // 새 번들 로드 → ready 시 current* 초기화.
+    const ready2P = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dirB, "bundle.json")).toString());
+    await ready2P;
+    assert.equal(elApi.currentMotion, null, "re-ready clears currentMotion");
+    assert.equal(elApi.currentExpression, null, "re-ready clears currentExpression");
+  } finally {
+    rmSync(dirA, { recursive: true, force: true });
+    rmSync(dirB, { recursive: true, force: true });
+  }
+});
+
 test("<geny-avatar>: superseding src cancels stale load (no ready from first src)", async () => {
   const dirGood = materializeGoldenBundle();
   const dirBad = mkdtempSync(join(tmpdir(), "geny-web-avatar-dom-super-"));

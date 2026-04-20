@@ -279,6 +279,36 @@ async function runDomLifecycle(bundleUrl, expect) {
     const overReturned = el.setParameter(firstParam.id, hi + 999);
     assert.equal(overReturned, hi, "out-of-range clamped to hi");
 
+    // 세션 94 — playMotion / setExpression 계약 검증. 유효 id → 이벤트 + currentMotion/Expression
+    // 갱신, 미등록 id → INVALID_SCHEMA throw, setExpression(null) → 해제.
+    assert.equal(el.currentMotion, null, "currentMotion starts null");
+    assert.equal(el.currentExpression, null, "currentExpression starts null");
+    const firstMotion = meta.motions[0];
+    const motionPromise = waitForEvent(el, "motionstart", 2000);
+    el.playMotion(firstMotion.pack_id);
+    const motionEvt = await motionPromise;
+    assert.equal(motionEvt.detail.pack_id, firstMotion.pack_id, "motionstart pack_id");
+    assert.equal(motionEvt.detail.motion.duration_sec, firstMotion.duration_sec);
+    assert.equal(el.currentMotion, firstMotion.pack_id);
+    assert.throws(() => el.playMotion("motion.nonexistent"), (err) => err.code === "INVALID_SCHEMA");
+    assert.equal(el.currentMotion, firstMotion.pack_id, "failed play does not mutate currentMotion");
+
+    const firstExp = meta.expressions[0];
+    const expPromise = waitForEvent(el, "expressionchange", 2000);
+    el.setExpression(firstExp.expression_id);
+    const expEvt = await expPromise;
+    assert.equal(expEvt.detail.expression_id, firstExp.expression_id);
+    assert.equal(expEvt.detail.expression?.name_en, firstExp.name_en);
+    assert.equal(el.currentExpression, firstExp.expression_id);
+
+    const clearPromise = waitForEvent(el, "expressionchange", 2000);
+    el.setExpression(null);
+    const clearEvt = await clearPromise;
+    assert.equal(clearEvt.detail.expression_id, null);
+    assert.equal(clearEvt.detail.expression, null);
+    assert.equal(el.currentExpression, null, "setExpression(null) clears state");
+    assert.throws(() => el.setExpression("expression.nonexistent"), (err) => err.code === "INVALID_SCHEMA");
+
     log(
       `  ✓ ready payload: ${manifest.avatar_id} @ ${manifest.template_id}@${manifest.template_version}, ` +
         `parts=${meta.parts.length}, motions=${meta.motions.length}, parameters=${meta.parameters.length}`,
@@ -286,6 +316,10 @@ async function runDomLifecycle(bundleUrl, expect) {
     log(
       `  ✓ parameter write-through: ${firstParam.id} ` +
         `default=${firstParam.default} → mid=${mid} → clamped=${hi}`,
+    );
+    log(
+      `  ✓ motion/expression round-trip: ${firstMotion.pack_id} → (unknown throws), ` +
+        `${firstExp.expression_id} → null`,
     );
   } finally {
     await window.happyDOM.close().catch(() => undefined);

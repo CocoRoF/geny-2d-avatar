@@ -226,6 +226,39 @@
         text-align: right;
         color: var(--accent);
       }
+
+      /* 세션 94 — Motions / Expressions 컨트롤 */
+      .playback-section { margin-top: 16px; }
+      .playback-section > .section-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .playback-row { display: flex; flex-wrap: wrap; gap: 6px; }
+      .playback-row button {
+        padding: 4px 10px;
+        border: 1px solid var(--border);
+        background: var(--bg-panel);
+        border-radius: 6px;
+        font-size: 12px;
+        color: inherit;
+        cursor: pointer;
+      }
+      .playback-row button:hover { background: var(--accent-soft); }
+      .playback-row button[aria-pressed="true"] {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .playback-readout {
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .playback-readout span { color: var(--accent); }
       geny-avatar { display: none; }
     </style>
   </head>
@@ -257,7 +290,7 @@
         </div>
         <div class="preview-controls">
           <em>Structure preview · rotation = head_angle_x</em>
-          <span style="margin-left:auto">세션 91 — Stage 3 kick-off</span>
+          <span style="margin-left:auto">Stage 3 — motion/expression state only (render = Runtime)</span>
         </div>
       </section>
 
@@ -372,6 +405,9 @@
         inspectorEl.appendChild(note);
         // 세션 90 — Parameters 슬라이더 재주입 (inspector replaceChildren 이후).
         if (paramSectionEl) inspectorEl.appendChild(paramSectionEl);
+        // 세션 94 — Motion / Expression 컨트롤 재주입.
+        if (motionSectionEl) inspectorEl.appendChild(motionSectionEl);
+        if (expressionSectionEl) inspectorEl.appendChild(expressionSectionEl);
       }
 
       // 세션 90 — `<geny-avatar>` setParameter/parameterchange 계약을 바인딩.
@@ -441,6 +477,106 @@
         if (readout) readout.textContent = ev.detail.value.toFixed(2);
       });
 
+      // 세션 94 — Motion / Expression 컨트롤. 번들 meta 의 motions / expressions 를
+      // 버튼 목록으로 노출. 클릭 → `el.playMotion` / `el.setExpression` → 엘리먼트가
+      // motionstart / expressionchange 이벤트로 상태를 브로드캐스트 → readout 동기.
+      // 실 애니메이션 재생은 Runtime 렌더러(Cubism/WebGL) 합류 후.
+      let motionSectionEl = null;
+      let expressionSectionEl = null;
+      const motionButtonByPackId = new Map();
+      const expressionButtonByExpId = new Map();
+      let motionReadoutEl = null;
+      let expressionReadoutEl = null;
+
+      function renderMotions(motions) {
+        motionButtonByPackId.clear();
+        const section = document.createElement("div");
+        section.className = "playback-section";
+        section.dataset.testid = "motions";
+        const label = document.createElement("div");
+        label.className = "section-label";
+        label.textContent = `Motions · ${motions.length}`;
+        section.appendChild(label);
+        const row = document.createElement("div");
+        row.className = "playback-row";
+        for (const m of motions) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.dataset.packId = m.pack_id;
+          btn.textContent = m.pack_id;
+          btn.setAttribute("aria-pressed", "false");
+          btn.addEventListener("click", () => el.playMotion(m.pack_id));
+          row.appendChild(btn);
+          motionButtonByPackId.set(m.pack_id, btn);
+        }
+        section.appendChild(row);
+        const readout = document.createElement("div");
+        readout.className = "playback-readout";
+        readout.dataset.testid = "motion-readout";
+        readout.innerHTML = 'current: <span data-current="motion">—</span>';
+        section.appendChild(readout);
+        motionReadoutEl = readout.querySelector('[data-current="motion"]');
+        motionSectionEl = section;
+        inspectorEl.appendChild(section);
+      }
+
+      function renderExpressions(expressions) {
+        expressionButtonByExpId.clear();
+        const section = document.createElement("div");
+        section.className = "playback-section";
+        section.dataset.testid = "expressions";
+        const label = document.createElement("div");
+        label.className = "section-label";
+        label.textContent = `Expressions · ${expressions.length}`;
+        section.appendChild(label);
+        const row = document.createElement("div");
+        row.className = "playback-row";
+        for (const e of expressions) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.dataset.expressionId = e.expression_id;
+          btn.textContent = e.name_en;
+          btn.setAttribute("aria-pressed", "false");
+          btn.addEventListener("click", () => el.setExpression(e.expression_id));
+          row.appendChild(btn);
+          expressionButtonByExpId.set(e.expression_id, btn);
+        }
+        // "None" 버튼 — 표정 해제.
+        const none = document.createElement("button");
+        none.type = "button";
+        none.dataset.expressionId = "";
+        none.textContent = "None";
+        none.setAttribute("aria-pressed", "true");
+        none.addEventListener("click", () => el.setExpression(null));
+        row.appendChild(none);
+        expressionButtonByExpId.set(null, none);
+        section.appendChild(row);
+        const readout = document.createElement("div");
+        readout.className = "playback-readout";
+        readout.dataset.testid = "expression-readout";
+        readout.innerHTML = 'current: <span data-current="expression">none</span>';
+        section.appendChild(readout);
+        expressionReadoutEl = readout.querySelector('[data-current="expression"]');
+        expressionSectionEl = section;
+        inspectorEl.appendChild(section);
+      }
+
+      el.addEventListener("motionstart", (ev) => {
+        const packId = ev.detail.pack_id;
+        for (const btn of motionButtonByPackId.values()) btn.setAttribute("aria-pressed", "false");
+        const btn = motionButtonByPackId.get(packId);
+        if (btn) btn.setAttribute("aria-pressed", "true");
+        if (motionReadoutEl) motionReadoutEl.textContent = packId;
+      });
+
+      el.addEventListener("expressionchange", (ev) => {
+        const id = ev.detail.expression_id;
+        for (const btn of expressionButtonByExpId.values()) btn.setAttribute("aria-pressed", "false");
+        const btn = expressionButtonByExpId.get(id);
+        if (btn) btn.setAttribute("aria-pressed", "true");
+        if (expressionReadoutEl) expressionReadoutEl.textContent = id ?? "none";
+      });
+
       el.addEventListener("ready", (ev) => {
         const { manifest, meta } = ev.detail.bundle;
         statusEl.className = "status ok";
@@ -449,6 +585,8 @@
         const groups = categorize(meta.parts);
         renderParts(groups);
         renderParameters(meta.parameters, meta.parameter_groups);
+        renderMotions(meta.motions);
+        renderExpressions(meta.expressions);
       });
 
       el.addEventListener("error", (ev) => {
@@ -465,6 +603,12 @@
         paramSectionEl = null;
         readoutByIdRef.clear();
         partNodeBySlot.clear();
+        motionSectionEl = null;
+        expressionSectionEl = null;
+        motionButtonByPackId.clear();
+        expressionButtonByExpId.clear();
+        motionReadoutEl = null;
+        expressionReadoutEl = null;
         const hint = document.createElement("p");
         hint.className = "empty-hint";
         hint.textContent = "파츠를 선택하면 slot · role · 소속 그룹이 표시됩니다.";

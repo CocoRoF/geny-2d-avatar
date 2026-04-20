@@ -7,6 +7,11 @@
  * 이벤트로 에디터 ↔ 엘리먼트 write-through 상태 계약을 개방했다. 렌더러는 이 상태를
  * 구독해 후속 세션에서 합류 (Cubism/WebGL draw 는 별도 `@geny/web-editor-renderer`).
  *
+ * 세션 94 — `playMotion`/`setExpression` 스텁 해소. id 유효성 검증 + state tracking
+ * (`currentMotion`/`currentExpression`) + `motionstart`/`expressionchange` 이벤트
+ * 디스패치. 실 motion3 curve interpolation / expression parameter blending 은 Runtime
+ * phase 의 Cubism/WebGL 렌더러 소관 — Foundation 에선 id 계약과 이벤트 플러밍만 닫는다.
+ *
  * 사용 예:
  * ```html
  * <geny-avatar src="/avatars/avt.demo/bundle.json"></geny-avatar>
@@ -15,13 +20,17 @@
  *   const el = document.querySelector("geny-avatar");
  *   el.addEventListener("ready", (e) => console.log(e.detail.bundle));
  *   el.addEventListener("parameterchange", (e) => console.log(e.detail));
+ *   el.addEventListener("motionstart", (e) => console.log(e.detail));
+ *   el.addEventListener("expressionchange", (e) => console.log(e.detail));
  * </script>
  * ```
  *
- * 제어 API: `setParameter` (세션 90) 구현. `playMotion/setExpression` 은 여전히 스텁.
+ * 제어 API: `setParameter` (세션 90) · `playMotion`/`setExpression` (세션 94) 구현.
+ * 실 애니메이션 재생 루프는 Runtime phase 에서 이 상태 + 이벤트 위에 올린다.
  */
 
 import { loadWebAvatarBundle, WebAvatarBundleError, type WebAvatarBundle } from "./loader.js";
+import type { WebAvatarExpression, WebAvatarMotion } from "./types.js";
 
 export type GenyAvatarReadyEvent = CustomEvent<{ bundle: WebAvatarBundle }>;
 export type GenyAvatarErrorEvent = CustomEvent<{ error: unknown }>;
@@ -29,6 +38,14 @@ export type GenyAvatarParameterChangeEvent = CustomEvent<{
   id: string;
   value: number;
   values: Readonly<Record<string, number>>;
+}>;
+export type GenyAvatarMotionStartEvent = CustomEvent<{
+  pack_id: string;
+  motion: WebAvatarMotion;
+}>;
+export type GenyAvatarExpressionChangeEvent = CustomEvent<{
+  expression_id: string | null;
+  expression: WebAvatarExpression | null;
 }>;
 
 /**
@@ -43,6 +60,12 @@ export function createGenyAvatarElementClass(): typeof HTMLElement {
     // setParameter 호출 시 range 로 클램프해서 갱신. getParameters 는 프리즈된 스냅샷.
     #parameters: Map<string, number> = new Map();
     #parameterRanges: Map<string, readonly [number, number]> = new Map();
+    // 세션 94 — motion/expression 스텁 해소. 번들 meta 로 허용된 id 집합을 시드하고
+    // 현재 상태(선택 id)를 tracking. 실 재생은 Runtime 렌더러가 이 state+event 위에 올림.
+    #motions: Map<string, WebAvatarMotion> = new Map();
+    #expressions: Map<string, WebAvatarExpression> = new Map();
+    #currentMotion: string | null = null;
+    #currentExpression: string | null = null;
 
     static get observedAttributes(): string[] {
       return ["src"];
@@ -90,6 +113,14 @@ export function createGenyAvatarElementClass(): typeof HTMLElement {
         this.#parameters.set(p.id, p.default);
         this.#parameterRanges.set(p.id, p.range);
       }
+      // 세션 94 — motion/expression 레지스트리 + 상태 리셋. 템플릿 스왑 시 이전 번들의
+      // pack_id 가 새 번들에 없을 수 있어 current* 를 null 로 되돌리는 것이 안전.
+      this.#motions = new Map();
+      for (const m of bundle.meta.motions) this.#motions.set(m.pack_id, m);
+      this.#expressions = new Map();
+      for (const e of bundle.meta.expressions) this.#expressions.set(e.expression_id, e);
+      this.#currentMotion = null;
+      this.#currentExpression = null;
     }
 
     getParameters(): Readonly<Record<string, number>> {
@@ -120,17 +151,56 @@ export function createGenyAvatarElementClass(): typeof HTMLElement {
       return clamped;
     }
 
-    playMotion(_packId: string): void {
-      throw new WebAvatarBundleError(
-        "playMotion is not implemented in stage 2",
-        "INVALID_SCHEMA",
+    get currentMotion(): string | null {
+      return this.#currentMotion;
+    }
+
+    get currentExpression(): string | null {
+      return this.#currentExpression;
+    }
+
+    playMotion(packId: string): void {
+      const motion = this.#motions.get(packId);
+      if (!motion) {
+        throw new WebAvatarBundleError(
+          `unknown motion pack_id: ${packId}`,
+          "INVALID_SCHEMA",
+        );
+      }
+      this.#currentMotion = packId;
+      this.dispatchEvent(
+        new CustomEvent("motionstart", {
+          detail: { pack_id: packId, motion },
+        }) satisfies GenyAvatarMotionStartEvent,
       );
     }
 
-    setExpression(_expressionId: string): void {
-      throw new WebAvatarBundleError(
-        "setExpression is not implemented in stage 2",
-        "INVALID_SCHEMA",
+    /**
+     * 표정을 전환. `null` 을 전달하면 현재 표정 해제 (neutral resting state).
+     * 알 수 없는 id 는 INVALID_SCHEMA throw — 번들에 없는 표정은 의미가 없으므로 입구 차단.
+     */
+    setExpression(expressionId: string | null): void {
+      if (expressionId === null) {
+        this.#currentExpression = null;
+        this.dispatchEvent(
+          new CustomEvent("expressionchange", {
+            detail: { expression_id: null, expression: null },
+          }) satisfies GenyAvatarExpressionChangeEvent,
+        );
+        return;
+      }
+      const expression = this.#expressions.get(expressionId);
+      if (!expression) {
+        throw new WebAvatarBundleError(
+          `unknown expression_id: ${expressionId}`,
+          "INVALID_SCHEMA",
+        );
+      }
+      this.#currentExpression = expressionId;
+      this.dispatchEvent(
+        new CustomEvent("expressionchange", {
+          detail: { expression_id: expressionId, expression },
+        }) satisfies GenyAvatarExpressionChangeEvent,
       );
     }
   }
