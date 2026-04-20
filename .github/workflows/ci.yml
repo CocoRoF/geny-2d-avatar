@@ -108,11 +108,17 @@ jobs:
 
       - name: Build worker-generate chain
         # 세션 78 — observability-e2e 는 apps/worker-generate/dist/main.js 를 spawn.
-        # 의존 체인: ai-adapter-core (이미 빌드됨) → orchestrator-service → job-queue-bullmq
-        # → worker-generate. orchestrator-service 와 job-queue-bullmq 를 빌드한 뒤 worker-generate
-        # main build 까지 이어서 실행한다.
+        # orchestrator-service 는 ai-adapter-nano-banana / ai-adapters-fallback / metrics-http /
+        # exporter-core / exporter-pipeline 의 dist/*.d.ts 를 tsc 시 요구 — 세션 74 golden lane
+        # 순서를 이 lane 에도 복제해야 함 (독립 job, dist 캐시 공유 없음).
         run: |
           set -euo pipefail
+          pnpm -F @geny/ai-adapter-nano-banana build
+          pnpm -F @geny/ai-adapters-fallback build
+          pnpm -F @geny/metrics-http build
+          pnpm -F @geny/post-processing build
+          pnpm -F @geny/exporter-core build
+          pnpm -F @geny/exporter-pipeline build
           pnpm -F @geny/orchestrator-service build
           pnpm -F @geny/job-queue-bullmq build
           pnpm -F @geny/worker-generate build
