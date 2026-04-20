@@ -632,6 +632,9 @@
       "slot_id": "accessory_front"
     },
     {
+      "parameter_ids": [
+        "ahoge_sway"
+      ],
       "role": "hair_front",
       "slot_id": "ahoge"
     },

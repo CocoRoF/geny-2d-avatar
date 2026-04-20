@@ -9,7 +9,7 @@
     {
       "bytes": 630,
       "path": "bundle.json",
-      "sha256": "0fd1dac388ce676fefe8981cebeb3935602bf9e6c9598df30acdd7c429ba9bf7"
+      "sha256": "b6375750bdfc5429766643af51a34a64aae16e609fa50de2c8cbf947249a43c1"
     },
     {
       "bytes": 69,
@@ -17,10 +17,10 @@
       "sha256": "f164334dc3985e3b8d95b71e59462c9c4f6d80c7ede23238c8759d9c4495a6db"
     },
     {
-      "bytes": 15028,
+      "bytes": 15083,
       "path": "web-avatar.json",
-      "sha256": "8ac1cf7c4ece9b327074da23214f20ebfd7a43851da19062ae07aa68506d8c9b"
+      "sha256": "2f634c5d592b9f6fb9aeb025cfd3ee7b0f2554793b085181bb7c61f033b92365"
     }
   ],
-  "total_bytes": 15949
+  "total_bytes": 16004
 }
