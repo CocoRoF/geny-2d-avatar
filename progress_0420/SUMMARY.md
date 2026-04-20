@@ -1,6 +1,6 @@
-# SUMMARY — 세션 1~108 누적 결과 심층 정리
+# SUMMARY — 세션 1~111 누적 결과 심층 정리
 
-본 문서는 4 일간(2026-04-17~04-20) 108 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`.
+본 문서는 4 일간(2026-04-17~04-20) 111 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`.
 
 ---
 
@@ -66,6 +66,7 @@
 9. **세션 108** — rig-template-lint(당시 physics-lint) C12 추가 (`deformers.json.nodes[].params_in[]` ↔ `parameters.json` cross-file 무결성). C11+C12 자매 쌍.
 10. **세션 109** — rig-template-lint(당시 physics-lint) C13 추가 (deformer 트리 무결성: duplicate / root-missing / root-parent / parent-missing / non-root-null-parent / cycle / orphan 7 sub-rule).
 11. **세션 110** — `physics-lint` → `rig-template-lint` 리브랜딩. C11~C13 누적으로 physics 색채 옅음 임계 도달. 파일 rename + golden step name 교체 + 외부 live 참조 치환. 세션 로그 / ADR 0005 원문 보존(역사 식별자).
+12. **세션 111** — `@geny/migrator@0.1.0` 신규 패키지 (Pipeline/Data 워크스트림). 세션 27/37 에 누적되던 `scripts/rig-template/migrate.mjs` 530 줄 로직을 TS 패키지 3 migrator + 3 데이터 블록 + io 헬퍼로 분해. CLI shim 은 53 줄 dynamic-import 로 축소. BL-MIGRATOR 해소 → 후보 C(legacy opt-in) 의 (b) 블로커 자체 풀림.
 
 **최종 상태**: halfbody 19/30 + fullbody 27/38 파츠 opt-in. Face 슬라이더 narrow 30→4~10 / 60→6~10. critical UX 버그 0.
 
@@ -256,8 +257,8 @@ Stage 6 (pivot) 미착수.
 
 - `pnpm run test:golden` 29 step:
   - validate-schemas (checked=244)
-  - exporter-core 102 + exporter-pipeline 10 + ai-adapter-core 68 + ai-adapter-nano-banana 23 + ai-adapters-fallback 53 + post-processing 111 + metrics-http 12 + orchestrator-service 12 + web-avatar 20 + web-editor-logic 57 + job-queue-bullmq 25 + worker-generate 21
-  - rig-template migrate + rig-template-lint 30 (세션 110 이전 physics-lint)
+  - exporter-core 102 + exporter-pipeline 10 + ai-adapter-core 68 + ai-adapter-nano-banana 23 + ai-adapters-fallback 53 + post-processing 111 + metrics-http 12 + orchestrator-service 12 + web-avatar 20 + web-editor-logic 57 + job-queue-bullmq 25 + worker-generate 21 + **migrator 8 (세션 111)**
+  - rig-template migrate CLI 3 + rig-template-lint 30 (세션 110 이전 physics-lint)
   - web-preview e2e + web-editor e2e + observability e2e (Mock↔HTTP / 1-hop fallback / 2-hop fallback / terminal failure / unsafe content)
   - perf-harness smoke (Foundation Mock SLO)
 - `bullmq-integration` lane: redis:7.2-alpine service container + 4 redis-integration test + observability-e2e 2 step (`--vendor-mock` Mock↔HTTP + fallback).
@@ -372,7 +373,8 @@ DB/S3 미착수 (Runtime).
 | BullMQ `attempts>1` 베이스라인 재캡처 | ⚪ 미착수 | 세션 86 D6 — Runtime 합류 시 |
 | Stage 6 (pivot) post-processing | ⚪ 미착수 | 우선순위 낮음 |
 | DB (Postgres) + S3 | ⚪ 미착수 | Runtime — Foundation 범위 밖 |
-| legacy v1.0.0~v1.2.0 `parameter_ids` 복제 | 🟡 보류 | 세션 105 D1 3 블로커 (docs/03 §7.3 / migrator 부재 / 소비자 없음) |
-| `packages/migrator/` skeleton | ⚪ 후보 | 위 블로커 (b) 해소 경로 |
-| C13 deformer 트리 무결성 (orphan/cycle/parent) | ⚪ 후보 | 세션 108 후속 — self-contained, 우선순위 자유 |
+| legacy v1.0.0~v1.2.0 `parameter_ids` 복제 | 🟡 (a)(c) 보류 | 세션 111 에서 (b) 블로커 해소. 나머지는 외부 정책 + Runtime 소비자 |
+| `packages/migrator/` skeleton | ✅ 완료 (세션 111) | `@geny/migrator@0.1.0` — 3 migrator 이식, CLI shim 53 줄 |
+| C13 deformer 트리 무결성 (orphan/cycle/parent) | ✅ 완료 (세션 109) | — |
 | `physics-lint` → `rig-template-lint` 리브랜딩 | ✅ 완료 (세션 110) | — |
+| C14 parts↔deformers 사각형 | ⚪ 후보 | 세션 112 진입 예정 — self-contained |

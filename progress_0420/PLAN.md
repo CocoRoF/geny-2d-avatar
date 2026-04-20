@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-20 기준, 세션 109+)
+# PLAN — 앞으로의 작업 (2026-04-20 기준, 세션 112+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -28,10 +28,10 @@
 
 | 블로커 | 해소 경로 | 선행 조건 |
 |---|---|---|
-| **BL-MIGRATOR** — `packages/migrator/` skeleton 부재 | 신규 세션(세션 109 후보 B) | 없음 — 즉시 착수 가능 |
+| ~~**BL-MIGRATOR**~~ — ✅ 해소 (세션 111, `@geny/migrator@0.1.0`) | — | — |
 | **BL-LEGACY-CONSUMER** — legacy opt-in 복제를 먹을 소비자 없음 | Runtime 소비자 합류 시 | 세션 97 Runtime 착수(세션 105 D1 블로커 c) |
 
-> 세션 105 D1 의 3 블로커(docs/03 §7.3 / migrator 부재 / 소비자 없음) 중 (b) migrator 는 **내부 해소 가능**, (a)(c) 는 외부 의존. (b) 를 먼저 푸는 게 병목을 가장 크게 줄인다.
+> 세션 105 D1 의 3 블로커(docs/03 §7.3 / migrator 부재 / 소비자 없음) 중 (b) migrator 는 세션 111 에서 `@geny/migrator` 로 해소. (a)(c) 는 외부 의존 — 후보 C 착수는 둘 다 풀릴 때까지 대기.
 
 ---
 
@@ -43,25 +43,22 @@
 - **산출**: physics-lint rule 12→**13**, 테스트 21→**30** (9 신규 케이스 2t~2ab). CLI header 에 `tree=<ok|skip>` 추가. 공식 5 템플릿 전부 tree=ok.
 - **후속**: `rig-template-lint` 리브랜딩 임계 도달 — 후보 D 승격. **C14 후보** 신설 (parts↔deformers 사각형 완성).
 
-### 후보 B — `packages/migrator/` skeleton + `v1.2.0→v1.3.0.mjs`
+### 후보 B — `packages/migrator/` skeleton + `v1.2.0→v1.3.0` ✅ **완료 (세션 111)**
 
-- **범위**:
-  - 새 패키지 `@geny/migrator` (TS ESM, Node 22.11+). `package.json` + `tsconfig.json` + `src/index.ts` + `src/migrations/` 디렉터리.
-  - 공개 API 제안: `migrate(templateDir, targetVersion, options)` → `{ patched: string[], errors: string[] }`. Migration 파일 포맷은 `src/migrations/<from>-to-<to>.mjs` 에 `{ from, to, apply(template) }` 기본 시그니처.
-  - 첫 migration: `v1.2.0-to-v1.3.0.mjs` — 세션 27/37 migrator 로직을 이 패키지 안으로 이동(golden 불변 유지).
-  - CLI shim `scripts/rig-template/migrate.mjs` 에 `@geny/migrator` import 추가(기존 ad-hoc 로직 제거).
-- **진입 조건**: 없음 — self-contained. 단, golden 이 현 migrate shim 에 의존하므로 **출력 bit-by-bit 동일** 이어야 함.
-- **산출**: 1 신규 패키지 + 1 신규 테스트(migrate round-trip v1.0.0→v1.3.0 sha256 동일). golden 29 step 통과 재확인.
-- **소요**: 1~2 세션. migrator 로직 이동 + 테스트 작성 + (선택) `v1.3.0→v1.4.0` 템플릿 자리.
-- **리스크**: 기존 migrate shim 의 부수 효과(예: parts/ahoge.spec.json 생성 순서)가 패키지 이동 시 drift 가능 — sha256 골든이 자동 회귀로 막는다.
-- **후속**: BL-MIGRATOR 해소 → 후보 C(legacy opt-in 복제) 의 (b) 블로커 제거.
+- **실제 범위**:
+  - `@geny/migrator@0.1.0` (TS ESM) 신규 — `src/{index,migrate,io,types}.ts` + `src/migrations/{index,v1-0-0-to-v1-1-0,v1-1-0-to-v1-2-0,v1-2-0-to-v1-3-0}.ts` + `src/migrations/data/{v1-1-0,v1-2-0,v1-3-0}.ts`.
+  - 공개 API: `migrate(srcDir, outDir, options?)` / `planMigrations(from)` / `MIGRATORS`.
+  - 3 migrator **전부 이식** (PLAN 원안은 v1.2.0→v1.3.0 만이었으나 세션 111 D1 에서 원자적 이식으로 상향).
+  - CLI shim `scripts/rig-template/migrate.mjs` 530 줄 → 53 줄. dynamic import 로 `dist/index.js` 참조 (bare specifier / workspace 의존 추가 없음).
+- **산출**: 1 신규 패키지 + 8 단위 테스트 + 골든 step 14 3-단 (build → test → CLI 회귀). 누적 패키지 13 → 14. 기존 CLI 테스트는 완전 pass — 출력 bit-by-bit 동일 확인.
+- **후속**: BL-MIGRATOR 해소 → 후보 C(legacy opt-in 복제) 의 (b) 블로커 제거. v1.3.0→v1.4.0 은 본 skeleton 의 첫 external 확장 자리.
 
 ### 후보 C — legacy v1.0.0~v1.2.0 `parameter_ids` opt-in 복제
 
 - **범위**: halfbody v1.0.0 / v1.1.0 / v1.2.0 의 공식 파츠 19 개에 `parameter_ids` 필드 추가(세션 107 halfbody v1.3.0 선언 내용 이식). 빈 배열 `[]` 은 "overall-only 명시"(세션 95 D2 / 98 D2 시맨틱).
-- **진입 조건**: **두 축 동시 충족** 필요
+- **진입 조건**: **두 축 동시 충족** 필요 (세션 111 에서 (b) 해소)
   - (a) docs/03 §7.3 legacy 수정 허용 결정 — **BL-DEPRECATION-POLICY** 해소 필요(외부).
-  - (b) migrator 가 legacy 를 patch 할 수 있어야 함 — **후보 B** 선행 권장.
+  - ~~(b) migrator 가 legacy 를 patch 할 수 있어야 함~~ ✅ 세션 111 `@geny/migrator@0.1.0`.
   - (c) 소비자(Runtime)가 legacy opt-in 을 먹을 경로 존재 — **세션 97** 이후.
 - **산출**: 19 파츠 × 3 버전 opt-in + golden sha256 3 개 추가 + 테스트.
 - **소요**: 1 세션(patch 만) 혹은 2 세션(migrator 확장 포함).
@@ -98,14 +95,15 @@
 [완료]
   세션 109 = 후보 A (C13 deformer 트리 무결성) ✅
   세션 110 = 후보 D (rig-template-lint 리브랜딩) ✅
+  세션 111 = 후보 B (migrator skeleton)  ✅ BL-MIGRATOR 해소
 
 [즉시 착수 가능]
-  세션 111 = 후보 B (migrator skeleton)  ← BL-MIGRATOR 해소
-  세션 ?   = 후보 G (C14 parts↔deformers 사각형 완성)  ← self-contained, 신규
+  세션 112 = 후보 G (C14 parts↔deformers 사각형 완성)  ← self-contained
+  세션 ?   = v1.3.0→v1.4.0 migrator 자리 (리그 변경 합의 후)
 
 [외부 블록 해소 후]
   세션 ? = 후보 E (staging)      ← BL-STAGING 해소 시
-  세션 ? = 후보 C (legacy opt-in) ← BL-DEPRECATION-POLICY + 후보 B 완료
+  세션 ? = 후보 C (legacy opt-in) ← BL-DEPRECATION-POLICY 해소 시 (b 는 세션 111 에서 자체 풀림)
   세션 ? = 후보 F (Runtime)      ← Foundation 종료 선언 + ADR 0007
 ```
 
@@ -122,9 +120,9 @@
 
 1. ~~**후보 A**~~ — 세션 109 완료 ✅.
 2. ~~**후보 D**~~ — 세션 110 완료 ✅.
-3. **후보 B 가 그 다음** (세션 111) — 내부 블로커(BL-MIGRATOR) 해소만으로 legacy opt-in + 향후 v1.4.0 바이브 아웃 두 경로가 동시에 열린다. 외부 블록에 선행 투자.
-4. **후보 G (C14)** 는 독립 — 언제든 끼워넣기 가능. self-contained.
-5. **후보 C 는 (a)(b) 둘 다 풀릴 때까지 대기** — (b) 는 후보 B 로 자체 해소되지만 (a) 가 외부라서 무기한.
+3. ~~**후보 B**~~ — 세션 111 완료 ✅. BL-MIGRATOR 해소.
+4. **후보 G (C14) 가 그 다음** (세션 112) — self-contained, 1 세션 규모. C11~C13 사각형 완결.
+5. **후보 C 는 (a) 외부 정책 해소 대기** — (b) 는 세션 111 에서 자체 풀림. (a)(c) 가 동시에 열릴 때 착수.
 6. **후보 E / F 는 외부 의존** — 들어올 때 연속 묶음으로 소화.
 
 ### 3.2 비추 (하지 말 것)
@@ -172,18 +170,21 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 111)
+## 7. 다음 즉시 행동 (세션 112)
 
-**결정**: 후보 B — `packages/migrator/` skeleton + `v1.2.0→v1.3.0.mjs`.
+**결정**: 후보 G — C14 `parts.deformation_parent` ↔ `deformers.nodes[].id` 교차 검증.
 
 **이유**:
-- 내부 블로커 BL-MIGRATOR 해소 — legacy opt-in (후보 C) 의 3 블로커 중 (b) 가 자체 풀림 → (a) 외부 정책만 해소되면 바로 착수 가능 상태 진입.
-- v1.3.0 → v1.4.0 같은 미래 bump 의 migration 이 `scripts/rig-template/migrate.mjs` ad-hoc 스크립트 대신 패키지로 모이는 첫 진입점.
-- self-contained, 외부 의존 0.
-- 소요 1~2 세션 (패키지 skeleton + 기존 migrate 로직 이동 + sha256 golden 불변 검증).
+- self-contained, 외부 의존 0. rig-template-lint 확장만.
+- C11(parts↔parameters) + C12(deformers↔parameters) + C13(deformers 내부) + C14(parts↔deformers) = **사각형 완결**. L2 저자 범위 포화.
+- 5 공식 템플릿 실측: halfbody 19 + fullbody 27 파츠의 `deformation_parent` 는 전부 deformers 존재 id. 변조 negative case 3~4 개만 추가하면 rule 규모 14 → 14+3~4 테스트.
+- 소요 1 세션.
 
 **선행 read**:
-- `scripts/rig-template/migrate.mjs` — 기존 v1.0.0→v1.3.0 migration 로직 위치 (세션 27/37).
-- `scripts/rig-template/migrate.test.mjs` — 기존 round-trip 테스트.
-- `packages/` 의 다른 패키지 구조 (예: `@geny/license-verifier`) 를 skeleton 참고.
-- `scripts/test-golden.mjs` step `rig-template migrate tests` — migrate step 호출 위치.
+- `scripts/rig-template/rig-template-lint.mjs` — C12 블록 (deformers↔parameters) 을 참고해 parent id resolve 패턴 재사용.
+- `scripts/rig-template/rig-template-lint.test.mjs` — 2t~2ab (C13 케이스 9 개) 패턴 미러.
+- `rig-templates/base/halfbody/v1.3.0/parts/ahoge.spec.json` 와 `.../deformers.json` — deformation_parent 참조 샘플.
+
+**세션 113 예약 후보**:
+- v1.3.0→v1.4.0 migrator skeleton 의 첫 external 확장 (리그 변경 범위 사전 합의 후).
+- rig-template-lint 를 `scripts/rig-template/` 에서 `packages/rig-template-lint/` 로 promote 할지 판단 (세션 108 D1 유사 임계 재평가).

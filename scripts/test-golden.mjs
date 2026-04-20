@@ -407,6 +407,10 @@ async function runPostProcessingTests() {
 
 async function runRigMigrateTests() {
   // halfbody v1.0.0→v1.3.0 migrator 체인 회귀 (세션 27).
+  // 세션 111 — migrator 로직은 `@geny/migrator` 패키지로 이동. CLI shim 이 dist/ 로
+  // dynamic import 하므로 빌드 선행. 패키지 내부 단위 테스트도 같이 돌린다.
+  await run("pnpm", ["-F", "@geny/migrator", "build"], { cwd: repoRoot });
+  await run("pnpm", ["-F", "@geny/migrator", "test"], { cwd: repoRoot });
   await run("node", ["scripts/rig-template/migrate.test.mjs"], { cwd: repoRoot });
 }
 
