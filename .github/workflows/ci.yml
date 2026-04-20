@@ -169,12 +169,34 @@ jobs:
             --log-dir artifacts/observability-e2e-fallback
           node scripts/observability-fallback-validate.mjs --file "$SNAP" --verbose
 
+      - name: Observability e2e (--vendor-mock 2-hop fallback)
+        id: observability-e2e-2hop
+        # 세션 85 — nano=1.0 / sdxl=1.0 / flux=0 per-endpoint fail-rate + `--harness-capability-required ""`
+        # (capability=[]) + `--harness-with-mask` 조합으로 20 잡 전부 nano-banana→sdxl→flux-fill 2-hop
+        # 폴백 후 성공 강제. route-with-fallback 은 routing_weight desc 정렬로 [nano(100), sdxl(80),
+        # flux-fill(70)] 을 후보 리스트로 만들고, flux-fill 은 capability=[mask] 라 task 에 mask_sha256/
+        # reference_image_sha256 이 있어야 eligible + generate() 검증 통과. 두 조건이 결합해야 2-hop
+        # 체인이 deterministic 하게 flux-fill 에서 성공 종료된다. 커밋된 베이스라인
+        # `smoke-snapshot-fallback-session-85-2hop.txt` 는 골든 step 27 이 file-level 로 검증하고,
+        # 본 lane 은 fresh 캡처 → `--expect-hops 2` 로 7 축(1-hop 5 축 + hop2 fallback_total +
+        # sdxl 5xx call_total) 회귀. Foundation "2-hop 체인도 관측 계약에 나타난다" 불변식 CI 고정.
+        run: |
+          set -euo pipefail
+          SNAP=/tmp/obs-2hop-fresh.txt
+          node scripts/observability-e2e.mjs --reuse-redis --redis-url "$REDIS_URL" \
+            --vendor-mock --mock-fail-rate-generate 1 --mock-fail-rate-edit 1 --mock-fail-rate-fill 0 \
+            --harness-capability-required "" --harness-with-mask \
+            --snapshot "$SNAP" \
+            --queue-name geny-obs-85 --producer-port 9097 --consumer-port 9098 \
+            --log-dir artifacts/observability-e2e-2hop
+          node scripts/observability-fallback-validate.mjs --file "$SNAP" --expect-hops 2 --verbose
+
       - name: Upload observability-e2e artifacts on failure
         # 세션 79 — e2e 실패 시 producer/consumer/perf-harness/observability-smoke 로그를 artifact
         # 로 보존. 이전에는 stderr tail 800자만 노출돼 CI log 만으론 원인 분석이 불충분했다.
         # 성공 시엔 artifact 를 만들지 않음 (노이즈 방지) — 업스트림에서 snapshot 수집이 필요하면
         # 별도 `--snapshot` 플래그 경로로 분리.
-        if: failure() && (steps.observability-e2e.conclusion == 'failure' || steps.observability-e2e-vendor-mock.conclusion == 'failure' || steps.observability-e2e-fallback.conclusion == 'failure')
+        if: failure() && (steps.observability-e2e.conclusion == 'failure' || steps.observability-e2e-vendor-mock.conclusion == 'failure' || steps.observability-e2e-fallback.conclusion == 'failure' || steps.observability-e2e-2hop.conclusion == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: observability-e2e-logs
@@ -182,6 +204,7 @@ jobs:
             artifacts/observability-e2e/
             artifacts/observability-e2e-vendor-mock/
             artifacts/observability-e2e-fallback/
+            artifacts/observability-e2e-2hop/
           if-no-files-found: warn
           retention-days: 7
 

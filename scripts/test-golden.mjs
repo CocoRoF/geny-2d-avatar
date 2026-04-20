@@ -69,13 +69,14 @@
 //     HTTP 어댑터 경로) 두 커밋된 스냅샷을 `observability-snapshot-diff.mjs` 로 structural drift=0
 //     어서션. Mock → HTTP 전환이 관측 계약(metric 이름 + label 키 집합)을 보존한다는 Foundation
 //     불변식 CI 고정. Redis/Docker 불필요 — 두 파일을 fs 로 읽어 비교만 하므로 수 ms.
-// 27) observability-fallback-validate + fallback 스냅샷 검증 — 세션 84. (a) 파서 회귀 9 tests
-//     (readSample label exact-match, hasAnySample TYPE-only 구분, 5 violation 경로) (b) 커밋된
-//     `smoke-snapshot-fallback-session-84.txt` 에 대해 실 validator 실행 → `geny_ai_fallback_total
-//     {from_vendor=nano-banana,to_vendor=sdxl,reason=5xx} >= 20` + `geny_ai_call_total{status=5xx,
-//     vendor=nano-banana} >= 20` + `geny_ai_call_total{status=success,vendor=sdxl} >= 20` +
-//     `geny_queue_duration_seconds_count{outcome=succeeded} >= 20` + `geny_queue_failed_total`
-//     TYPE-only 5 축 어서션. Foundation "fallback 경로가 관측 상 없었던 일이 되지 않는다" 불변식 고정.
+// 27) observability-fallback-validate + fallback 스냅샷 검증 — 세션 84/85. (a) 파서 회귀 14
+//     tests (1-hop 9 + 2-hop 5 — readSample label exact-match, hasAnySample TYPE-only 구분,
+//     violation 경로) (b) 커밋된 `smoke-snapshot-fallback-session-84.txt` (1-hop, nano→sdxl)
+//     + `smoke-snapshot-fallback-session-85-2hop.txt` (2-hop, nano→sdxl→flux-fill) 에 대해
+//     각각 validator 실행. 1-hop 은 fallback_total{nano→sdxl,5xx}/call_total{5xx,nano}/
+//     call_total{success,sdxl}/queue_duration_count{succeeded}/queue_failed TYPE-only 5 축;
+//     2-hop 은 추가로 fallback_total{sdxl→flux-fill,5xx}/call_total{5xx,sdxl}/dest=flux-fill
+//     success 총 7 축. Foundation "fallback 경로가 관측 상 없었던 일이 되지 않는다" 불변식 고정.
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -312,13 +313,18 @@ async function runObservabilityMockHttpDriftCheck() {
 }
 
 async function runObservabilityFallbackValidator() {
-  // 세션 84 — fallback 경로가 관측 상 "없었던 일이 되지 않음". 파서 회귀 + 커밋된 fallback
-  // 스냅샷(session-84) 에 대한 5 축 validator 실행 (fallback_total sample 존재, nano-banana 5xx,
-  // sdxl success, queue_duration succeeded, queue_failed TYPE-only).
+  // 세션 84 — fallback 1-hop (nano→sdxl). 세션 85 — fallback 2-hop (nano→sdxl→flux-fill).
+  // 두 베이스라인 모두 커밋돼 있고, 같은 validator 가 `--expect-hops` 로 분기. 파서 회귀
+  // 14 tests 도 본 step 에서 실행 (1-hop 9 + 2-hop 5).
   await run("node", ["scripts/observability-fallback-validate.test.mjs"], { cwd: repoRoot });
   await run("node", [
     "scripts/observability-fallback-validate.mjs",
     "--file", "infra/observability/smoke-snapshot-fallback-session-84.txt",
+  ], { cwd: repoRoot });
+  await run("node", [
+    "scripts/observability-fallback-validate.mjs",
+    "--file", "infra/observability/smoke-snapshot-fallback-session-85-2hop.txt",
+    "--expect-hops", "2",
   ], { cwd: repoRoot });
 }
 

@@ -11,7 +11,7 @@
 
 import assert from "node:assert/strict";
 
-import { runHarness, parseMetrics, parseTargetUrl } from "./perf-harness.mjs";
+import { runHarness, parseMetrics, parseTargetUrl, buildTask } from "./perf-harness.mjs";
 
 async function main() {
   // 1) smoke 실행 — Foundation Mock 파이프라인은 CI 머신에서도 이 정도면 통과해야 함.
@@ -145,6 +145,29 @@ async function main() {
     assert.throws(() => parseTargetUrl("ftp://nope"), /--target-url 은 http/);
     assert.throws(() => parseTargetUrl("not a url"), /--target-url 파싱 실패/);
     console.log("  ✓ parseTargetUrl — http(s) + port 디폴트 + 오입력 throw (세션 73)");
+  }
+
+  // 8) 세션 85 — buildTask: capability_required override + with-mask shape.
+  {
+    const t = buildTask(0, { capabilityRequired: "edit" });
+    assert.deepEqual(t.capability_required, ["edit"]);
+    assert.equal(t.reference_image_sha256, undefined);
+    assert.equal(t.mask_sha256, undefined);
+
+    const empty = buildTask(0, { capabilityRequired: "" });
+    assert.deepEqual(empty.capability_required, [], "빈 문자열 → 빈 배열 (all 3 adapters eligible)");
+
+    const multi = buildTask(1, { capabilityRequired: "edit, style_ref" });
+    assert.deepEqual(multi.capability_required, ["edit", "style_ref"], "공백 trim + 콤마 분리");
+
+    const withMask = buildTask(2, { capabilityRequired: "", withMask: true });
+    assert.match(withMask.reference_image_sha256, /^[0-9a-f]{64}$/);
+    assert.match(withMask.mask_sha256, /^[0-9a-f]{64}$/);
+    // 결정론 — 같은 i 는 같은 idempotency_key 경유로 같은 값
+    const withMaskAgain = buildTask(2, { capabilityRequired: "", withMask: true });
+    assert.equal(withMask.reference_image_sha256, withMaskAgain.reference_image_sha256);
+    assert.equal(withMask.mask_sha256, withMaskAgain.mask_sha256);
+    console.log("  ✓ buildTask — capabilityRequired + withMask override (세션 85)");
   }
 
   console.log("[perf-harness] ✅ all checks pass");

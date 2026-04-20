@@ -70,6 +70,15 @@ const CONFIG = {
   driver: DRIVER,
   queueName: ARGV["queue-name"] ?? "geny-perf",
   targetUrl: typeof ARGV["target-url"] === "string" ? ARGV["target-url"] : null,
+  // 세션 85 — 2-hop fallback e2e 용 task shape override.
+  //  `capability_required` 를 빈 리스트로 내려보내면 registry.route 가 3 후보 모두 채택
+  //  (routing_weight: nano=100 > sdxl=80 > flux-fill=70). `--with-mask` 는 flux-fill 이
+  //  generate 단계에서 요구하는 reference_image_sha256/mask_sha256 검증을 통과시킨다.
+  capabilityRequired:
+    typeof ARGV["capability-required"] === "string"
+      ? ARGV["capability-required"]
+      : "edit",
+  withMask: ARGV["with-mask"] === true,
 };
 
 const SLO = SMOKE
@@ -139,7 +148,7 @@ export async function runHarness(overrides = {}) {
       while (true) {
         const i = issued++;
         if (i >= cfg.jobs) return;
-        const task = buildTask(i);
+        const task = buildTask(i, cfg);
         const postStart = process.hrtime.bigint();
         let jobId;
         try {
@@ -288,9 +297,13 @@ async function buildWorker(cfg) {
   return { worker, cleanup };
 }
 
-function buildTask(i) {
+export function buildTask(i, cfg = CONFIG) {
   const idem = `perf-${i}-${createHash("sha256").update(String(i)).digest("hex").slice(0, 10)}`;
-  return {
+  const capabilityRequired = String(cfg.capabilityRequired ?? "edit")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const task = {
     schema_version: "v1",
     task_id: `perf-t-${i}`,
     slot_id: "hair_front",
@@ -300,8 +313,19 @@ function buildTask(i) {
     deadline_ms: 5000,
     budget_usd: 0.1,
     idempotency_key: idem,
-    capability_required: ["edit"],
+    capability_required: capabilityRequired,
   };
+  if (cfg.withMask) {
+    // 세션 85 — flux-fill `generate()` 가 요구하는 reference_image_sha256 + mask_sha256 을
+    // task_id 로부터 deterministic 하게 만든다. mock-vendor-server 는 값 자체를 검증하지
+    // 않으므로 "유효한 64-hex" 면 충분. 2-hop fallback 경로에서 flux-fill 도착 시 CAPABILITY_MISMATCH
+    // 로 조기 종료되지 않게 하는 것이 목적.
+    task.reference_image_sha256 = createHash("sha256")
+      .update(`ref|${idem}`)
+      .digest("hex");
+    task.mask_sha256 = createHash("sha256").update(`mask|${idem}`).digest("hex");
+  }
+  return task;
 }
 
 function postJob(host, port, body) {

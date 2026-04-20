@@ -21,6 +21,7 @@ Icon?
 .vscode/
 !.vscode/settings.example.json
 .idea/
+.claude/
 *.swp
 *.swo
 *~

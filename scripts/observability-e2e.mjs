@@ -36,7 +36,10 @@ function parseArgv(argv) {
     if (!a.startsWith("--")) continue;
     const key = a.slice(2);
     const next = argv[i + 1];
-    if (!next || next.startsWith("--")) {
+    // 세션 85 — 빈 문자열 value 보존: `--harness-capability-required ""` 로 "capability=[]"
+    // 를 지정하는 2-hop fallback e2e 경로가 있음. 이전 `!next` 는 empty string 을 falsy 로
+    // 간주해 boolean true 로 설정했고, 빈 리스트 override 가 무음으로 기본값("edit")으로 복구됐다.
+    if (next === undefined || next.startsWith("--")) {
       out[key] = true;
     } else {
       out[key] = next;
@@ -76,6 +79,12 @@ const MOCK_FAIL_RATE_EDIT = ARGS["mock-fail-rate-edit"] !== undefined
   ? Number(ARGS["mock-fail-rate-edit"]) : undefined;
 const MOCK_FAIL_RATE_FILL = ARGS["mock-fail-rate-fill"] !== undefined
   ? Number(ARGS["mock-fail-rate-fill"]) : undefined;
+// 세션 85 — perf-harness buildTask 의 task shape 을 CLI 로 투명하게 덮는다. 2-hop fallback
+// e2e 는 `--harness-capability-required=""` (빈 리스트) + `--harness-with-mask` 로 3 어댑터
+// 전부 eligible + flux-fill 의 reference_image/mask 검증 통과 조건을 만든다.
+const HARNESS_CAPABILITY_REQUIRED = ARGS["harness-capability-required"] !== undefined
+  ? String(ARGS["harness-capability-required"]) : undefined;
+const HARNESS_WITH_MASK = ARGS["harness-with-mask"] === true;
 
 mkdirSync(LOG_DIR, { recursive: true });
 
@@ -338,7 +347,7 @@ async function main() {
 
   // 스모크 부하
   console.log("[e2e] ── perf-harness smoke ──");
-  await runSubprocess("node", [
+  const harnessArgs = [
     "scripts/perf-harness.mjs",
     "--jobs",
     String(JOBS),
@@ -350,7 +359,13 @@ async function main() {
     `http://127.0.0.1:${PRODUCER_PORT}`,
     "--report",
     path.join(LOG_DIR, "perf-harness-report.json"),
-  ], { logName: "perf-harness" });
+  ];
+  // 세션 85 — 2-hop fallback 용 task shape override (빈 문자열도 그대로 전달 = capability=[])
+  if (HARNESS_CAPABILITY_REQUIRED !== undefined) {
+    harnessArgs.push("--capability-required", HARNESS_CAPABILITY_REQUIRED);
+  }
+  if (HARNESS_WITH_MASK) harnessArgs.push("--with-mask");
+  await runSubprocess("node", harnessArgs, { logName: "perf-harness" });
 
   // 메트릭 검증
   console.log("[e2e] ── observability-smoke ──");
