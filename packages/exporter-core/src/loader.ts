@@ -7,6 +7,7 @@ export interface PartSpec {
   slot_id: string;
   role: string;
   cubism_part_id: string;
+  parameter_ids?: readonly string[];
   [key: string]: unknown;
 }
 

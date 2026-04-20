@@ -22,6 +22,7 @@ export interface WebAvatarParameter {
 export interface WebAvatarPart {
   slot_id: string;
   role: string;
+  parameter_ids?: readonly string[];
 }
 
 export interface WebAvatarMotion {

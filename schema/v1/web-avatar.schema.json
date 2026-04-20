@@ -87,14 +87,20 @@
     },
     "parts": {
       "type": "array",
-      "description": "슬롯 목록. slot_id 알파벳 정렬. 본 스테이지에서는 role 만 노출 (mesh/그래픽 메타는 차후 stage 에서).",
+      "description": "슬롯 목록. slot_id 알파벳 정렬. role 과 (선택적으로) 에디터 UI 가 파츠 선택 시 노출할 파라미터 id 화이트리스트(세션 103, web-editor-logic parametersForPart Rule 0) 를 노출.",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["slot_id", "role"],
         "properties": {
           "slot_id": { "$ref": "common/ids.json#/$defs/slotId" },
-          "role": { "type": "string", "minLength": 1, "maxLength": 64 }
+          "role": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "parameter_ids": {
+            "type": "array",
+            "description": "rig 저자가 해당 파츠 편집 시 노출할 파라미터 id 를 명시(세션 98 part-spec 의 parameter_ids 를 번들로 전파). 생략 시 에디터는 substring/category-group fallback(세션 95).",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
         }
       }
     },

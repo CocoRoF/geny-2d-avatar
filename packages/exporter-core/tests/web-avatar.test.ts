@@ -122,3 +122,23 @@ test("convertWebAvatar: parameters keep physics_output ids (runtime may inspect)
     assert.ok(typeof p.group === "string");
   }
 });
+
+test("convertWebAvatar: part.parameter_ids 가 spec 에 있으면 번들로 전파 (세션 103)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/fullbody/v1.0.0"));
+  const wa = convertWebAvatar(tpl);
+  const legL = wa.parts.find((p) => p.slot_id === "leg_l");
+  assert.ok(legL, "fullbody should expose leg_l");
+  assert.deepEqual(legL!.parameter_ids, ["leg_l_angle", "leg_sway_l"]);
+  const footL = wa.parts.find((p) => p.slot_id === "foot_l");
+  assert.deepEqual(footL!.parameter_ids, ["foot_l_angle"]);
+  const withIds = wa.parts.filter((p) => Array.isArray(p.parameter_ids));
+  assert.equal(withIds.length, 25, "fullbody v1.0.0 has 25 parts with parameter_ids post-세션102");
+});
+
+test("convertWebAvatar: spec 에 parameter_ids 없으면 번들에서 생략 (세션 103)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const wa = convertWebAvatar(tpl);
+  for (const p of wa.parts) {
+    assert.equal(p.parameter_ids, undefined, `${p.slot_id} should not carry parameter_ids`);
+  }
+});

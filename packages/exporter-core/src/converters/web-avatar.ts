@@ -24,6 +24,7 @@ export interface WebAvatarParameter {
 export interface WebAvatarPart {
   slot_id: string;
   role: string;
+  parameter_ids?: readonly string[];
 }
 
 export interface WebAvatarMotion {
@@ -131,10 +132,13 @@ export function convertWebAvatar(
     : [];
 
   const parts: WebAvatarPart[] = Object.values(tpl.partsById)
-    .map<WebAvatarPart>((p) => ({
-      slot_id: p.slot_id,
-      role: p.role,
-    }))
+    .map<WebAvatarPart>((p) => {
+      const part: WebAvatarPart = { slot_id: p.slot_id, role: p.role };
+      if (Array.isArray(p.parameter_ids)) {
+        part.parameter_ids = [...p.parameter_ids];
+      }
+      return part;
+    })
     .sort(byKey<WebAvatarPart>("slot_id"));
 
   const motions: WebAvatarMotion[] = Object.values(tpl.motions)
