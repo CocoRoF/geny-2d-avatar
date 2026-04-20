@@ -116,6 +116,7 @@ const STEPS = [
   { name: "job-queue-bullmq tests", run: runJobQueueBullMQTests },
   { name: "observability-smoke parser tests", run: runObservabilitySmokeParserTests },
   { name: "observability-snapshot-diff parser tests", run: runObservabilitySnapshotDiffTests },
+  { name: "web-editor-logic tests", run: runWebEditorLogicTests },
   { name: "web-editor e2e", run: runWebEditorE2E },
   { name: "mock-vendor-server tests", run: runMockVendorServerTests },
   { name: "observability Mock↔HTTP snapshot drift", run: runObservabilityMockHttpDriftCheck },
@@ -296,6 +297,12 @@ async function runWebAvatarBundleDiff() {
 
 async function runWebPreviewE2E() {
   await run("pnpm", ["-F", "@geny/web-preview", "test"], { cwd: repoRoot });
+}
+
+async function runWebEditorLogicTests() {
+  // 세션 89 — categoryOf/categorize 단일 소스. index.html + e2e-check.mjs + (향후 editor-renderer)
+  // 가 모두 이 dist 를 공유 → 규칙 drift 를 구조적으로 차단.
+  await run("pnpm", ["-F", "@geny/web-editor-logic", "test"], { cwd: repoRoot });
 }
 
 async function runWebEditorE2E() {

@@ -1,0 +1,36 @@
+{
+  "name": "@geny/web-editor-logic",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Geny 2D Avatar web-editor 공용 로직 — categoryOf prefix 규칙 + categorize group builder. docs/09 §4.3 Face/Hair/Body/Accessory UX 카테고리 단일 진실 공급원. index.html 인라인 스크립트 + e2e-check.mjs + 향후 editor-renderer 가 동일 dist 를 공유한다.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./category": {
+      "types": "./dist/category.d.ts",
+      "import": "./dist/category.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}

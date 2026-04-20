@@ -25,7 +25,6 @@ import assert from "node:assert/strict";
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, "..");
 const repoRoot = resolve(appRoot, "..", "..");
-const CATEGORY_ORDER = ["Face", "Hair", "Body", "Accessory"];
 
 // 세션 87 — 템플릿별 스냅샷 기대값. rig-templates/base/*/v*/parts/*.spec.json 를 편집할 때
 // 여기 숫자가 먼저 깨지도록 고정. halfbody=29 parts, fullbody=38 parts.
@@ -79,7 +78,7 @@ try {
     await checkHttp(`${base}/public/sample/${t.id}/atlas.json`, "application/json");
     await checkHttp(`${base}/public/sample/${t.id}/textures/base.png`, "image/png");
     const bundle = await runLoaderChain(bundleUrl, expect);
-    runCategorize(bundle.meta.parts, t.id, expect);
+    await runCategorize(bundle.meta.parts, t.id, expect);
     await runDomLifecycle(bundleUrl, expect);
   }
 
@@ -183,33 +182,14 @@ async function runLoaderChain(bundleUrl, expect) {
 }
 
 /**
- * index.html 인라인 스크립트의 categoryOf 규칙을 동형 재현. halfbody/fullbody 양쪽의
- * 스냅샷 카디널리티를 정확히 맞춰야 한다 — Other=0 불변식 + 카테고리별 카운트 고정.
+ * 세션 89 — `@geny/web-editor-logic` 단일 소스에서 categoryOf 를 import.
+ * index.html 과 e2e-check.mjs 가 같은 dist 를 쓰므로 drift 구조적으로 제거됨.
+ * 스냅샷 카디널리티는 그대로 — Other=0 불변식 + 카테고리별 카운트 고정.
  */
-function runCategorize(parts, templateId, expect) {
-  log(`categorize ${templateId} parts (mirrors index.html categoryOf)`);
-  const categoryOf = (role) => {
-    if (
-      role.startsWith("eye_") ||
-      role.startsWith("brow_") ||
-      role.startsWith("mouth_") ||
-      role.startsWith("face_") ||
-      role === "nose" ||
-      role === "cheek_blush"
-    ) return "Face";
-    if (role.startsWith("hair_") || role === "ahoge") return "Hair";
-    if (
-      role.startsWith("arm_") ||
-      role.startsWith("cloth_") ||
-      role === "torso" ||
-      role === "neck" ||
-      role === "body" ||
-      role === "limb" ||
-      role === "clothing"
-    ) return "Body";
-    if (role.startsWith("accessory_") || role === "accessory") return "Accessory";
-    return "Other";
-  };
+async function runCategorize(parts, templateId, expect) {
+  log(`categorize ${templateId} parts (@geny/web-editor-logic)`);
+  const logicDist = resolve(repoRoot, "packages/web-editor-logic/dist/index.js");
+  const { categoryOf, CATEGORY_ORDER } = await import(pathToFileURL(logicDist).toString());
 
   const counts = new Map();
   for (const p of parts) {

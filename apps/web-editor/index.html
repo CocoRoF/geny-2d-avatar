@@ -232,54 +232,14 @@
 
     <script type="module" src="./public/vendor/index.js"></script>
     <script type="module">
+      import { CATEGORY_ORDER, categorize } from "./public/vendor/web-editor-logic/index.js";
+
       const statusEl = document.querySelector("#status");
       const groupsEl = document.querySelector("#parts-groups");
       const inspectorEl = document.querySelector("#inspector");
       const avatarNameEl = document.querySelector("#avatar-name");
       const pickerEl = document.querySelector("#template-picker");
       const el = document.querySelector("#avatar");
-
-      // docs/09 §4.3.1 — Face / Hair / Body / Accessory. halfbody v1.2.0 의 fine-grained role
-      // (eye_iris_l, brow_l, arm_l, accessory_back…) 을 prefix 기반으로 UX 카테고리에 매핑한다.
-      // 세션 87 — fullbody v1.0.0 는 hip/leg/foot/cloth_skirt/acc_belt 등 generic role 을
-      // 쓰므로 (limb, clothing, accessory, torso) 정확 매칭 3 줄을 추가한다. Other=0 불변식 유지.
-      const CATEGORY_ORDER = ["Face", "Hair", "Body", "Accessory"];
-
-      function categoryOf(role) {
-        if (
-          role.startsWith("eye_") ||
-          role.startsWith("brow_") ||
-          role.startsWith("mouth_") ||
-          role.startsWith("face_") ||
-          role === "nose" ||
-          role === "cheek_blush"
-        ) return "Face";
-        if (role.startsWith("hair_") || role === "ahoge") return "Hair";
-        if (
-          role.startsWith("arm_") ||
-          role.startsWith("cloth_") ||
-          role === "torso" ||
-          role === "neck" ||
-          role === "body" ||
-          role === "limb" ||
-          role === "clothing"
-        ) return "Body";
-        if (role.startsWith("accessory_") || role === "accessory") return "Accessory";
-        return "Other";
-      }
-
-      function categorize(parts) {
-        const groups = new Map();
-        for (const p of parts) {
-          const cat = categoryOf(p.role);
-          if (!groups.has(cat)) groups.set(cat, []);
-          groups.get(cat).push(p);
-        }
-        for (const list of groups.values()) {
-          list.sort((a, b) => a.slot_id.localeCompare(b.slot_id));
-        }
-        return groups;
-      }
 
       function renderParts(groups) {
         groupsEl.replaceChildren();

@@ -1,0 +1,175 @@
+import { strict as assert } from "node:assert";
+import { describe, test } from "node:test";
+
+import {
+  CATEGORY_ORDER,
+  categorize,
+  categoryOf,
+  type Category,
+  type PartLike,
+} from "../src/index.js";
+
+const HALFBODY_ROLES: readonly string[] = [
+  "eye_iris_l", "eye_iris_r", "eye_highlight_l", "eye_highlight_r",
+  "eye_white_l", "eye_white_r", "eye_eyelid_l", "eye_eyelid_r",
+  "brow_l", "brow_r",
+  "mouth_upper", "mouth_lower",
+  "face_shape", "face_shadow",
+  "nose", "cheek_blush",
+  "hair_front", "hair_back", "hair_side_l", "hair_side_r",
+  "arm_l", "arm_r", "cloth_upper", "torso", "neck", "body", "cloth_inner",
+  "accessory_back", "accessory_front",
+];
+
+const FULLBODY_ROLES: readonly string[] = [
+  ...HALFBODY_ROLES,
+  "ahoge",
+  "limb", "limb",
+  "clothing", "clothing",
+  "accessory",
+];
+
+describe("categoryOf — halfbody v1.2.0/v1.3.0 roles", () => {
+  const expected: Record<string, Category> = {
+    eye_iris_l: "Face",
+    eye_highlight_r: "Face",
+    brow_l: "Face",
+    mouth_upper: "Face",
+    face_shadow: "Face",
+    nose: "Face",
+    cheek_blush: "Face",
+
+    hair_front: "Hair",
+    hair_back: "Hair",
+    ahoge: "Hair",
+
+    arm_l: "Body",
+    arm_r: "Body",
+    cloth_upper: "Body",
+    cloth_inner: "Body",
+    torso: "Body",
+    neck: "Body",
+    body: "Body",
+
+    accessory_back: "Accessory",
+    accessory_front: "Accessory",
+  };
+
+  for (const [role, want] of Object.entries(expected)) {
+    test(`${role} → ${want}`, () => {
+      assert.equal(categoryOf(role), want);
+    });
+  }
+});
+
+describe("categoryOf — fullbody generic roles (세션 87)", () => {
+  test("limb → Body", () => assert.equal(categoryOf("limb"), "Body"));
+  test("clothing → Body", () => assert.equal(categoryOf("clothing"), "Body"));
+  test("accessory → Accessory", () => assert.equal(categoryOf("accessory"), "Accessory"));
+});
+
+describe("categoryOf — Other fallback", () => {
+  test("unknown role falls through to Other", () => {
+    assert.equal(categoryOf("mystery_part"), "Other");
+  });
+  test("empty string → Other", () => {
+    assert.equal(categoryOf(""), "Other");
+  });
+});
+
+describe("categoryOf — prefix boundaries", () => {
+  test("eye (no underscore) → Other (prefix requires _)", () => {
+    assert.equal(categoryOf("eye"), "Other");
+  });
+  test("hair (no underscore) → Other", () => {
+    assert.equal(categoryOf("hair"), "Other");
+  });
+  test("mouth (no underscore) → Other", () => {
+    assert.equal(categoryOf("mouth"), "Other");
+  });
+  test("cloth (no underscore) → Other", () => {
+    assert.equal(categoryOf("cloth"), "Other");
+  });
+  test("arm (no underscore) → Other", () => {
+    assert.equal(categoryOf("arm"), "Other");
+  });
+  test("accessory exact → Accessory (not prefix)", () => {
+    assert.equal(categoryOf("accessory"), "Accessory");
+  });
+});
+
+describe("categorize — group + sort", () => {
+  const parts: readonly PartLike[] = [
+    { role: "eye_iris_l", slot_id: "eye_iris_l" },
+    { role: "hair_front", slot_id: "hair_front" },
+    { role: "hair_back", slot_id: "hair_back" },
+    { role: "arm_r", slot_id: "arm_r" },
+    { role: "arm_l", slot_id: "arm_l" },
+    { role: "accessory_back", slot_id: "accessory_back" },
+  ];
+
+  test("entries are grouped by category", () => {
+    const groups = categorize(parts);
+    assert.equal(groups.get("Face")?.length, 1);
+    assert.equal(groups.get("Hair")?.length, 2);
+    assert.equal(groups.get("Body")?.length, 2);
+    assert.equal(groups.get("Accessory")?.length, 1);
+    assert.equal(groups.has("Other"), false);
+  });
+
+  test("within a category parts are sorted by slot_id", () => {
+    const groups = categorize(parts);
+    assert.deepEqual(
+      groups.get("Hair")?.map((p) => p.slot_id),
+      ["hair_back", "hair_front"],
+    );
+    assert.deepEqual(
+      groups.get("Body")?.map((p) => p.slot_id),
+      ["arm_l", "arm_r"],
+    );
+  });
+
+  test("empty input → empty map", () => {
+    const groups = categorize([]);
+    assert.equal(groups.size, 0);
+  });
+
+  test("Other category is retained when role falls through", () => {
+    const groups = categorize([{ role: "stranger", slot_id: "stranger" }]);
+    assert.equal(groups.get("Other")?.length, 1);
+  });
+});
+
+describe("CATEGORY_ORDER — UX 안정성", () => {
+  test("카테고리 순서는 Face→Hair→Body→Accessory 고정", () => {
+    assert.deepEqual([...CATEGORY_ORDER], ["Face", "Hair", "Body", "Accessory"]);
+  });
+  test("Other 는 UX 순서에 포함되지 않음 (불변식)", () => {
+    assert.ok(!(CATEGORY_ORDER as readonly string[]).includes("Other"));
+  });
+});
+
+describe("세션 87 — 실 rig-templates 샘플 총 카디널리티 회귀", () => {
+  test("halfbody 29 parts → Face=16/Hair=4/Body=7/Accessory=2", () => {
+    const roles = [
+      "eye_iris_l", "eye_iris_r",
+      "eye_highlight_l", "eye_highlight_r",
+      "eye_white_l", "eye_white_r",
+      "eye_eyelid_l", "eye_eyelid_r",
+      "brow_l", "brow_r",
+      "mouth_upper", "mouth_lower",
+      "face_shape", "face_shadow",
+      "nose", "cheek_blush",
+      "hair_front", "hair_back", "hair_side_l", "hair_side_r",
+      "arm_l", "arm_r", "cloth_upper", "cloth_inner", "torso", "neck", "body",
+      "accessory_back", "accessory_front",
+    ];
+    const parts: PartLike[] = roles.map((r, i) => ({ role: r, slot_id: `s_${i}` }));
+    const g = categorize(parts);
+    assert.equal(g.get("Face")?.length, 16);
+    assert.equal(g.get("Hair")?.length, 4);
+    assert.equal(g.get("Body")?.length, 7);
+    assert.equal(g.get("Accessory")?.length, 2);
+    assert.equal(g.has("Other"), false);
+  });
+});

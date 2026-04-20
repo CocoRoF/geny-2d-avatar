@@ -44,9 +44,19 @@ step("build @geny/web-avatar", () => {
   runPnpm(["--filter", "@geny/web-avatar", "run", "build"]);
 });
 
+step("build @geny/web-editor-logic", () => {
+  runPnpm(["--filter", "@geny/web-editor-logic", "run", "build"]);
+});
+
 step("copy @geny/web-avatar dist → public/vendor", () => {
   const src = resolve(repoRoot, "packages/web-avatar/dist");
   cpSync(src, vendorDir, { recursive: true });
+});
+
+step("copy @geny/web-editor-logic dist → public/vendor/web-editor-logic", () => {
+  const src = resolve(repoRoot, "packages/web-editor-logic/dist");
+  const dst = join(vendorDir, "web-editor-logic");
+  cpSync(src, dst, { recursive: true });
 });
 
 const exporterDist = resolve(repoRoot, "packages/exporter-core/dist");
