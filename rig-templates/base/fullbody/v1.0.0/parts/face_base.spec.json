@@ -28,6 +28,7 @@
     "max_iter": 3
   },
   "dependencies": [],
+  "parameter_ids": ["head_angle_x", "head_angle_y", "head_angle_z"],
   "validation": {
     "must_cover_anchor": true,
     "min_alpha_area_frac": 0.22,

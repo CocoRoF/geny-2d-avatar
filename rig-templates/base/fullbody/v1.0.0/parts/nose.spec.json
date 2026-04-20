@@ -28,6 +28,7 @@
     "max_iter": 2
   },
   "dependencies": ["face_base"],
+  "parameter_ids": ["head_angle_x", "head_angle_y", "head_angle_z"],
   "validation": {
     "must_cover_anchor": true,
     "min_alpha_area_frac": 0.05,
