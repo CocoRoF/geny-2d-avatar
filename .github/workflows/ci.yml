@@ -191,12 +191,38 @@ jobs:
             --log-dir artifacts/observability-e2e-2hop
           node scripts/observability-fallback-validate.mjs --file "$SNAP" --expect-hops 2 --verbose
 
+      - name: Observability e2e (--vendor-mock terminal failure)
+        id: observability-e2e-terminal
+        # 세션 86 — nano=sdxl=flux=1.0 per-endpoint fail-rate + `--harness-capability-required ""`
+        # + `--harness-with-mask` 조합으로 20 잡 전부 nano-banana → sdxl → flux-fill 3-hop 끝에서
+        # 실패 강제. route-with-fallback 은 3 후보 전부 5xx 로 소진 후 마지막 AdapterError
+        # (VENDOR_ERROR_5XX) 를 rethrow → consumer `processWithMetrics` 가 `queue_failed_total
+        # {reason=ai_5xx}` + `queue_duration_seconds{outcome=failed}` emit. `--harness-ignore-errors`
+        # 는 perf-harness 의 error_rate SLO 를 무력화(잡 전부 실패해도 exit 0), `--expect-terminal-
+        # failure` 는 observability-smoke 의 succeeded 축 어서션을 failed 로 스위치. 본 step 은
+        # fresh 캡처 → `observability-fallback-validate --expect-terminal-failure` 로 9 축 회귀
+        # (fallback 2 hop + 5xx 3 벤더 + queue_failed{ai_5xx} + duration{failed} + success 부재).
+        # Foundation "fallback 소진 후에도 관측 계약 정확" 불변식 CI 고정. golden step 27 은 커밋된
+        # baseline 3개 (1-hop/2-hop/terminal) 를 파일-레벨로 검증하고, 본 lane 은 orchestration
+        # 변조 탐지 담당.
+        run: |
+          set -euo pipefail
+          SNAP=/tmp/obs-terminal-fresh.txt
+          node scripts/observability-e2e.mjs --reuse-redis --redis-url "$REDIS_URL" \
+            --vendor-mock --mock-fail-rate-generate 1 --mock-fail-rate-edit 1 --mock-fail-rate-fill 1 \
+            --harness-capability-required "" --harness-with-mask \
+            --harness-ignore-errors --expect-terminal-failure \
+            --snapshot "$SNAP" \
+            --queue-name geny-obs-86 --producer-port 9099 --consumer-port 9100 \
+            --log-dir artifacts/observability-e2e-terminal
+          node scripts/observability-fallback-validate.mjs --file "$SNAP" --expect-terminal-failure --verbose
+
       - name: Upload observability-e2e artifacts on failure
         # 세션 79 — e2e 실패 시 producer/consumer/perf-harness/observability-smoke 로그를 artifact
         # 로 보존. 이전에는 stderr tail 800자만 노출돼 CI log 만으론 원인 분석이 불충분했다.
         # 성공 시엔 artifact 를 만들지 않음 (노이즈 방지) — 업스트림에서 snapshot 수집이 필요하면
         # 별도 `--snapshot` 플래그 경로로 분리.
-        if: failure() && (steps.observability-e2e.conclusion == 'failure' || steps.observability-e2e-vendor-mock.conclusion == 'failure' || steps.observability-e2e-fallback.conclusion == 'failure' || steps.observability-e2e-2hop.conclusion == 'failure')
+        if: failure() && (steps.observability-e2e.conclusion == 'failure' || steps.observability-e2e-vendor-mock.conclusion == 'failure' || steps.observability-e2e-fallback.conclusion == 'failure' || steps.observability-e2e-2hop.conclusion == 'failure' || steps.observability-e2e-terminal.conclusion == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: observability-e2e-logs
@@ -205,6 +231,7 @@ jobs:
             artifacts/observability-e2e-vendor-mock/
             artifacts/observability-e2e-fallback/
             artifacts/observability-e2e-2hop/
+            artifacts/observability-e2e-terminal/
           if-no-files-found: warn
           retention-days: 7
 

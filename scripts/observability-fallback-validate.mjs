@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 /**
- * Observability fallback snapshot validator — 세션 84/85.
+ * Observability fallback snapshot validator — 세션 84/85/86.
  *
  * `observability-snapshot-diff.mjs` 가 metric 이름 + label 키 집합의 **구조적** drift 를 보는 반면,
  * 이 스크립트는 **fallback 경로가 실제로 발동됐는지** 를 label 값 + sample 값 레벨로 어서션한다.
  *
- * 두 가지 모드:
+ * 세 가지 모드:
  *
  *  - `--expect-hops 1` (기본, 세션 84): nano=1.0 / sdxl=0 / flux-fill=0 결정론 조합에서
  *    전부 nano-banana → sdxl 한 번 폴백 후 성공. 검증 5 축 (아래 1~5).
  *  - `--expect-hops 2` (세션 85): nano=1.0 / sdxl=1.0 / flux-fill=0 + capability=[] + with-mask
  *    조합에서 전부 nano-banana → sdxl → flux-fill 두 번 폴백 후 성공. 검증 7 축
  *    (1-hop 5 축에 hop2 fallback_total + sdxl 5xx call_total 추가).
+ *  - `--expect-terminal-failure` (세션 86): nano=1.0 / sdxl=1.0 / flux-fill=1.0 + capability=[]
+ *    + with-mask 조합에서 전부 3-hop 체인 끝에서 실패 → `routeWithFallback` 이 마지막 에러
+ *    (VENDOR_ERROR_5XX) 를 throw 하고 consumer `processWithMetrics` 가 `queue_failed_total{
+ *    reason=ai_5xx}` + `queue_duration_seconds{outcome=failed}` 를 emit. 검증 9 축 (아래 1~9).
+ *    hops 와 직교하는 독립 모드: 성공/실패 계약이 대칭 반전되므로 assertion shape 완전 교체.
  *
  * 공통 검증 축 (1-hop 기준):
  *  1) `geny_ai_fallback_total{from_vendor="nano-banana", to_vendor="sdxl", reason="5xx"} >= N`
@@ -31,7 +36,19 @@
  *  7) `geny_ai_call_total{status="5xx", vendor="sdxl"} >= N`
  *     — sdxl 단의 5xx 도 독립 샘플. 2-hop 에서만 등장.
  *
- * 한 줄로 말하면: **fallback 경로(1-hop 또는 2-hop)가 관측 상 "없었던 일" 이 되지 않았음** 을
+ * 터미널 실패 검증 축 (terminal 모드, 2-hop 과 독립):
+ *  T1) `geny_ai_fallback_total{nano-banana→sdxl, 5xx} >= N` (공통 hop1)
+ *  T2) `geny_ai_fallback_total{sdxl→flux-fill, 5xx} >= N` (공통 hop2 — 3개 후보 전부 시도)
+ *  T3) `geny_ai_call_total{5xx, nano-banana} >= N`
+ *  T4) `geny_ai_call_total{5xx, sdxl} >= N`
+ *  T5) `geny_ai_call_total{5xx, flux-fill} >= N` (세션 86 추가 — flux-fill 도 실패)
+ *  T6) `geny_ai_call_total{status="success", vendor=*}` 전부 부재 — 어떤 벤더도 성공 X
+ *  T7) `geny_queue_duration_seconds_count{outcome="failed"} >= N` — terminal 실패 카운트
+ *  T8) `geny_queue_duration_seconds_count{outcome="succeeded"}` 부재 (TYPE-only) — 성공 0
+ *  T9) `geny_queue_failed_total{reason="ai_5xx"} >= N` — `defaultClassifyQueueError` 가
+ *      `VENDOR_ERROR_5XX` → `ai_5xx` 정규화 (processor-metrics.ts §defaultClassifyQueueError).
+ *
+ * 한 줄로 말하면: **fallback 경로(1-hop / 2-hop / terminal)가 관측 상 "없었던 일" 이 되지 않았음** 을
  * CI 에서 고정.
  *
  * CLI:
@@ -39,6 +56,8 @@
  *     --file infra/observability/smoke-snapshot-fallback-session-84.txt [--expect-jobs 20]
  *   node scripts/observability-fallback-validate.mjs \
  *     --file infra/observability/smoke-snapshot-fallback-session-85-2hop.txt --expect-hops 2
+ *   node scripts/observability-fallback-validate.mjs \
+ *     --file infra/observability/smoke-snapshot-terminal-session-86.txt --expect-terminal-failure
  */
 
 import { readFileSync } from "node:fs";
@@ -52,6 +71,7 @@ function parseArgs(argv) {
     if (a === "--file") { out.file = next; i += 1; }
     else if (a === "--expect-jobs") { out.expectJobs = Number(next); i += 1; }
     else if (a === "--expect-hops") { out.expectHops = Number(next); i += 1; }
+    else if (a === "--expect-terminal-failure") { out.expectTerminalFailure = true; }
     else if (a === "--verbose") { out.verbose = true; }
     else throw new Error(`unknown arg: ${a}`);
   }
@@ -104,13 +124,39 @@ export function hasAnySample(text, metric) {
 }
 
 /**
+ * metric + partial label filter 에 매치하는 **모든** 샘플의 label 맵 배열.
+ * 터미널 실패 모드에서 `call_total{status="success", vendor=*}` 부재 검증에 사용 —
+ * 어떤 vendor 도 status=success 레이블로 샘플이 없어야 한다.
+ */
+export function listSamples(text, metric, wantLabels = {}) {
+  const out = [];
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    if (!line || line.startsWith("#")) continue;
+    const m = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{([^}]*)\})?\s+(\S+)/);
+    if (!m) continue;
+    const [, name, , labelStr, value] = m;
+    if (name !== metric) continue;
+    if (!matchesLabels(labelStr, wantLabels)) continue;
+    const labels = {};
+    if (labelStr) {
+      for (const pair of labelStr.matchAll(/([a-zA-Z_][a-zA-Z0-9_]*)="([^"\\]*)"/g)) {
+        labels[pair[1]] = pair[2];
+      }
+    }
+    out.push({ labels, value: Number(value) });
+  }
+  return out;
+}
+
+/**
  * @param {string} text - Prometheus exposition 전문
  * @param {number} expectJobs - 각 counter 최소값 (N 잡 전부 해당 경로 경유 기대)
  * @param {1|2} hops - fallback hop 수 (1 = 세션 84, 2 = 세션 85)
  */
 export function validateFallbackSnapshot(text, expectJobs, hops = 1) {
   const violations = [];
-  const report = { hops };
+  const report = { mode: `hops-${hops}`, hops };
   const destVendor = hops === 2 ? "flux-fill" : "sdxl";
 
   // 1) hop1: nano → sdxl
@@ -188,16 +234,112 @@ export function validateFallbackSnapshot(text, expectJobs, hops = 1) {
   return { report, violations };
 }
 
+/**
+ * 터미널 실패 모드 검증 — 세션 86. nano=sdxl=flux-fill=1.0 per-endpoint fail-rate +
+ * capability=[] + with-mask 조합에서 3 후보 전부 실패 → `routeWithFallback` 이 마지막 에러를
+ * rethrow → consumer `processWithMetrics` 가 `queue_failed_total{reason=ai_5xx}` emit.
+ *
+ * assertion 계약이 hops 모드와 대칭 반전 (success → failure / absent → present) 이므로
+ * `validateFallbackSnapshot` 분기 대신 독립 함수로 분리.
+ *
+ * @param {string} text
+ * @param {number} expectJobs
+ */
+export function validateTerminalFailureSnapshot(text, expectJobs) {
+  const violations = [];
+  const report = { mode: "terminal-failure" };
+
+  // T1, T2) hop1 + hop2 fallback 전부 발동
+  const fallback1 = readSample(text, "geny_ai_fallback_total", {
+    from_vendor: "nano-banana", to_vendor: "sdxl", reason: "5xx",
+  });
+  report.fallback_nano_to_sdxl_5xx = fallback1;
+  if (fallback1 === null) {
+    violations.push("geny_ai_fallback_total{nano→sdxl,5xx} sample missing");
+  } else if (fallback1 < expectJobs) {
+    violations.push(`geny_ai_fallback_total{nano→sdxl}=${fallback1} < expected ${expectJobs}`);
+  }
+
+  const fallback2 = readSample(text, "geny_ai_fallback_total", {
+    from_vendor: "sdxl", to_vendor: "flux-fill", reason: "5xx",
+  });
+  report.fallback_sdxl_to_flux_5xx = fallback2;
+  if (fallback2 === null) {
+    violations.push("geny_ai_fallback_total{sdxl→flux-fill,5xx} sample missing");
+  } else if (fallback2 < expectJobs) {
+    violations.push(`geny_ai_fallback_total{sdxl→flux-fill}=${fallback2} < expected ${expectJobs}`);
+  }
+
+  // T3, T4, T5) 3 벤더 전부 5xx call_total
+  for (const vendor of ["nano-banana", "sdxl", "flux-fill"]) {
+    const v = readSample(text, "geny_ai_call_total", { status: "5xx", vendor });
+    report[`call_total_${vendor.replace("-", "_")}_5xx`] = v;
+    if (v === null) {
+      violations.push(`geny_ai_call_total{status=5xx,vendor=${vendor}} sample missing`);
+    } else if (v < expectJobs) {
+      violations.push(`geny_ai_call_total{status=5xx,vendor=${vendor}}=${v} < expected ${expectJobs}`);
+    }
+  }
+
+  // T6) 어떤 벤더도 status=success 샘플이 있으면 안 됨
+  const successSamples = listSamples(text, "geny_ai_call_total", { status: "success" });
+  report.call_total_success_sample_count = successSamples.length;
+  if (successSamples.length > 0) {
+    const vendors = successSamples.map((s) => s.labels.vendor ?? "?").join(",");
+    violations.push(
+      `geny_ai_call_total{status=success} has samples for vendor(s)=${vendors} — expected none (terminal failure)`,
+    );
+  }
+
+  // T7) terminal 실패 카운트
+  const queueFailed = readSample(text, "geny_queue_duration_seconds_count", { outcome: "failed" });
+  report.queue_duration_failed_count = queueFailed;
+  if (queueFailed === null || queueFailed < expectJobs) {
+    violations.push(
+      `geny_queue_duration_seconds_count{outcome=failed}=${queueFailed} < expected ${expectJobs}`,
+    );
+  }
+
+  // T8) succeeded 카운트 부재 (TYPE-only 또는 0 허용 — 샘플이 있어도 값이 0 이면 통과)
+  const queueSucceeded = readSample(text, "geny_queue_duration_seconds_count", { outcome: "succeeded" });
+  report.queue_duration_succeeded_count = queueSucceeded;
+  if (queueSucceeded !== null && queueSucceeded > 0) {
+    violations.push(
+      `geny_queue_duration_seconds_count{outcome=succeeded}=${queueSucceeded} > 0 — expected TYPE-only or 0`,
+    );
+  }
+
+  // T9) queue_failed_total{reason=ai_5xx}
+  // `defaultClassifyQueueError` 가 `VENDOR_ERROR_5XX` → "ai_5xx" 로 정규화 (packages/job-queue-bullmq/
+  //  src/processor-metrics.ts §defaultClassifyQueueError).
+  const queueFailedReason = readSample(text, "geny_queue_failed_total", { reason: "ai_5xx" });
+  report.queue_failed_total_ai_5xx = queueFailedReason;
+  if (queueFailedReason === null) {
+    violations.push("geny_queue_failed_total{reason=ai_5xx} sample missing");
+  } else if (queueFailedReason < expectJobs) {
+    violations.push(
+      `geny_queue_failed_total{reason=ai_5xx}=${queueFailedReason} < expected ${expectJobs}`,
+    );
+  }
+
+  return { report, violations };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.file) {
     process.stderr.write("--file <snapshot.txt> required\n");
     process.exit(2);
   }
+  if (args.expectTerminalFailure && args.expectHops !== undefined) {
+    process.stderr.write("--expect-terminal-failure 와 --expect-hops 는 동시에 사용 불가\n");
+    process.exit(2);
+  }
   const expectJobs = Number.isFinite(args.expectJobs) ? args.expectJobs : 20;
-  const hops = args.expectHops === 2 ? 2 : 1;
   const text = readFileSync(args.file, "utf8");
-  const { report, violations } = validateFallbackSnapshot(text, expectJobs, hops);
+  const { report, violations } = args.expectTerminalFailure
+    ? validateTerminalFailureSnapshot(text, expectJobs)
+    : validateFallbackSnapshot(text, expectJobs, args.expectHops === 2 ? 2 : 1);
   if (args.verbose) {
     process.stdout.write(`[fallback-validate] report=${JSON.stringify(report)}\n`);
   }
@@ -206,7 +348,9 @@ async function main() {
     for (const v of violations) process.stderr.write(`  - ${v}\n`);
     process.exit(1);
   }
-  process.stdout.write(`[fallback-validate] ✅ fallback path observable (hops=${hops}) — ${JSON.stringify(report)}\n`);
+  process.stdout.write(
+    `[fallback-validate] ✅ fallback path observable (${report.mode}) — ${JSON.stringify(report)}\n`,
+  );
 }
 
 if (fileURLToPath(import.meta.url) === process.argv[1]) {

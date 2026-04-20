@@ -45,6 +45,10 @@ const CONSUMER_URL = String(ARGS["consumer-url"] ?? "http://127.0.0.1:9092");
 const EXPECT_ENQUEUED = Number(ARGS["expect-enqueued"] ?? 0);
 const EXPECT_AI_CALLS = Number(ARGS["expect-ai-calls"] ?? 0);
 const SNAPSHOT_PATH = ARGS["snapshot"] ? String(ARGS["snapshot"]) : null;
+// 세션 86 — 터미널 실패 모드. enqueue 는 여전히 N 건 들어가지만 성공 샘플(success call_total +
+// duration_count{succeeded}) 이 없는 게 정상이므로 해당 축 어서션만 off. fallback-validate 가
+// 터미널 실패 축을 전담한다.
+const EXPECT_TERMINAL_FAILURE = ARGS["expect-terminal-failure"] === true;
 
 // 카탈로그 §2.1 + §3 필수 메트릭 이름. 합집합(producer+consumer) 에 전부 있어야 한다.
 const REQUIRED_METRICS_21 = [
@@ -189,13 +193,14 @@ async function main() {
     );
   }
 
+  const queueDurationOutcome = EXPECT_TERMINAL_FAILURE ? "failed" : "succeeded";
   const queueDurationCount = readSampleValue(consumerExp, "geny_queue_duration_seconds_count", {
-    outcome: "succeeded",
+    outcome: queueDurationOutcome,
   });
   report.samples.consumer_queue_duration_count = queueDurationCount;
   if (EXPECT_ENQUEUED > 0 && (queueDurationCount === null || queueDurationCount < EXPECT_ENQUEUED)) {
     violations.push(
-      `geny_queue_duration_seconds_count{outcome=succeeded}=${queueDurationCount} < expected ${EXPECT_ENQUEUED}`,
+      `geny_queue_duration_seconds_count{outcome=${queueDurationOutcome}}=${queueDurationCount} < expected ${EXPECT_ENQUEUED}`,
     );
   }
 

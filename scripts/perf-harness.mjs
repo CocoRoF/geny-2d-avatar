@@ -23,6 +23,9 @@
 //   --jobs N           총 잡 수 (기본 50)
 //   --concurrency C    동시 in-flight POST 수 (기본 8)
 //   --smoke            SLO 임계 완화 (CI 빠른 회귀 용 — p95 ≤ 2s, err ≤ 5%)
+//   --ignore-errors    error_rate SLO 를 1.0 으로 완전 무력화 (세션 86 터미널 실패 e2e).
+//                      관측 경로(`observability-fallback-validate --expect-terminal-failure`)
+//                      이 실패 분포 검증을 담당하므로 잡 전부 실패해도 하네스는 exit 0 로 종료.
 //   --report PATH      JSON 보고서 저장. 생략 시 stdout 만.
 //   --driver KIND      in-memory | bullmq (기본 in-memory). in-process 경로.
 //                      bullmq 는 REDIS_URL 환경변수와 미리 기동된 Redis 7+ 필요.
@@ -96,6 +99,13 @@ const SLO = SMOKE
       error_rate_ratio_max: 0.01,
       throughput_jobs_per_s_min: 10,
     };
+
+// 세션 86 — 터미널 실패 e2e 에서 `--ignore-errors` 로 error_rate SLO 를 무력화.
+// 관측 경로(`observability-fallback-validate --expect-terminal-failure`) 가 실패 분포를
+// 검증하므로 SLO 은 관심 밖 — 잡 전부 실패해도 하네스는 정상 종료(exit 0) 해야 관측 단계 도달.
+if (ARGV["ignore-errors"] === true) {
+  SLO.error_rate_ratio_max = 1.0;
+}
 
 export async function runHarness(overrides = {}) {
   const cfg = { ...CONFIG, ...overrides };

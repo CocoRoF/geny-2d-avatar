@@ -85,6 +85,11 @@ const MOCK_FAIL_RATE_FILL = ARGS["mock-fail-rate-fill"] !== undefined
 const HARNESS_CAPABILITY_REQUIRED = ARGS["harness-capability-required"] !== undefined
   ? String(ARGS["harness-capability-required"]) : undefined;
 const HARNESS_WITH_MASK = ARGS["harness-with-mask"] === true;
+// 세션 86 — 터미널 실패 e2e. `--harness-ignore-errors` 는 perf-harness 의 error_rate SLO 를
+// 무력화 (잡 전부 실패해도 exit 0). `--expect-terminal-failure` 는 observability-smoke 도
+// success 계약 대신 failure 계약으로 체크 (jobs enqueued 는 여전히 N, 다만 성공 어서션은 skip).
+const HARNESS_IGNORE_ERRORS = ARGS["harness-ignore-errors"] === true;
+const EXPECT_TERMINAL_FAILURE = ARGS["expect-terminal-failure"] === true;
 
 mkdirSync(LOG_DIR, { recursive: true });
 
@@ -365,6 +370,7 @@ async function main() {
     harnessArgs.push("--capability-required", HARNESS_CAPABILITY_REQUIRED);
   }
   if (HARNESS_WITH_MASK) harnessArgs.push("--with-mask");
+  if (HARNESS_IGNORE_ERRORS) harnessArgs.push("--ignore-errors");
   await runSubprocess("node", harnessArgs, { logName: "perf-harness" });
 
   // 메트릭 검증
@@ -377,9 +383,15 @@ async function main() {
     `http://127.0.0.1:${CONSUMER_PORT}`,
     "--expect-enqueued",
     String(JOBS),
-    "--expect-ai-calls",
-    String(JOBS),
   ];
+  // 터미널 실패 모드에서는 success call_total 어서션은 validator 담당, smoke 는
+  // enqueue + duration{outcome=failed} 만 확인 (observability-smoke 의 EXPECT_TERMINAL_FAILURE
+  // 분기가 outcome 라벨을 succeeded → failed 로 스위치).
+  if (EXPECT_TERMINAL_FAILURE) {
+    smokeArgs.push("--expect-terminal-failure");
+  } else {
+    smokeArgs.push("--expect-ai-calls", String(JOBS));
+  }
   if (SNAPSHOT_PATH) smokeArgs.push("--snapshot", SNAPSHOT_PATH);
   await runSubprocess("node", smokeArgs, { logName: "observability-smoke" });
 
