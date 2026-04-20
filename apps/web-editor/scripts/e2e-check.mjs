@@ -341,8 +341,12 @@ async function runRendererMount(bundleUrl, expect) {
   const rendererUrl = pathToFileURL(
     resolve(repoRoot, "packages/web-editor-renderer/dist/index.js"),
   ).toString();
+  const logicUrl = pathToFileURL(
+    resolve(repoRoot, "packages/web-editor-logic/dist/index.js"),
+  ).toString();
   const { registerGenyAvatar } = await import(elementUrl);
   const { createStructureRenderer } = await import(rendererUrl);
+  const { parametersForPart } = await import(logicUrl);
 
   const window = new Window({ url: `${new URL(bundleUrl).origin}/` });
   const g = globalThis;
@@ -405,6 +409,22 @@ async function runRendererMount(bundleUrl, expect) {
     assert.equal(renderer.selectedSlotId, null, "re-click clears selection");
     assert.equal(selectCalls.length, 2);
     assert.equal(selectCalls[1], null, "onSelectPart receives null on deselect");
+
+    // 세션 95 — parametersForPart 필터가 실제 번들 meta 에서 파츠-바인딩 서브셋을 좁히는지 검증.
+    // null → 전체 / 특정 part → 전체보다 작음 + 전체의 서브셋이어야 함.
+    const fullSet = parametersForPart(null, meta.parameters);
+    assert.equal(fullSet.length, meta.parameters.length, "parametersForPart(null) returns full set");
+    const probePart = meta.parts.find((p) => p.role.startsWith("hair_") || p.role.startsWith("eye_") || p.role.startsWith("accessory_"))
+      ?? meta.parts[0];
+    const subset = parametersForPart(probePart, meta.parameters);
+    assert.ok(subset.length > 0, `parametersForPart(${probePart.role}) non-empty`);
+    assert.ok(
+      subset.length < meta.parameters.length,
+      `parametersForPart(${probePart.role}) = ${subset.length} must be < total ${meta.parameters.length}`,
+    );
+    const allIds = new Set(meta.parameters.map((p) => p.id));
+    for (const p of subset) assert.ok(allIds.has(p.id), `subset id ${p.id} exists in full params`);
+    log(`  ✓ parametersForPart(${probePart.role}) narrowed ${meta.parameters.length} → ${subset.length}`);
 
     // head_angle_x 로 rotation 이 작동해야 함.
     const angleParam = (await (async () => {

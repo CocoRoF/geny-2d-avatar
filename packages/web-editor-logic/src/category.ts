@@ -46,3 +46,38 @@ export function categorize<P extends PartLike>(parts: readonly P[]): Map<Categor
   }
   return groups;
 }
+
+export interface ParameterLike {
+  readonly id: string;
+  readonly group: string;
+}
+
+export const GROUPS_FOR_CATEGORY: Readonly<Record<Category, readonly string[]>> = {
+  Face: ["face", "eyes", "brows", "mouth"],
+  Hair: ["hair"],
+  Body: ["body"],
+  Accessory: ["body"],
+  Other: [],
+} as const;
+
+export const OVERALL_GROUP = "overall";
+
+export function parametersForPart<P extends ParameterLike>(
+  part: PartLike | null,
+  parameters: readonly P[],
+): P[] {
+  if (part === null) return [...parameters];
+  const role = part.role;
+  const substringMatches = parameters.filter((p) => p.id.includes(role));
+  const overallParams = parameters.filter((p) => p.group === OVERALL_GROUP);
+  if (substringMatches.length > 0) {
+    const seen = new Set(substringMatches.map((p) => p.id));
+    const extras = overallParams.filter((p) => !seen.has(p.id));
+    return [...substringMatches, ...extras];
+  }
+  const whitelist = new Set<string>([
+    ...GROUPS_FOR_CATEGORY[categoryOf(role)],
+    OVERALL_GROUP,
+  ]);
+  return parameters.filter((p) => whitelist.has(p.group));
+}
