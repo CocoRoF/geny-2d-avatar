@@ -209,6 +209,15 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  packages/web-avatar-renderer:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.30
+        version: 20.19.39
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   packages/web-editor-logic:
     devDependencies:
       '@types/node':
@@ -219,6 +228,10 @@ importers:
         version: 5.9.3
 
   packages/web-editor-renderer:
+    dependencies:
+      '@geny/web-avatar-renderer':
+        specifier: workspace:*
+        version: link:../web-avatar-renderer
     devDependencies:
       '@types/node':
         specifier: ^20.11.30

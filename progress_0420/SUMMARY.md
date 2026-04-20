@@ -1,6 +1,6 @@
-# SUMMARY — 세션 1~113 누적 결과 심층 정리
+# SUMMARY — 세션 1~114 누적 결과 심층 정리
 
-본 문서는 5 일간(2026-04-17~04-21) 113 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`.
+본 문서는 5 일간(2026-04-17~04-21) 114 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`.
 
 ---
 
@@ -69,6 +69,7 @@
 12. **세션 111** — `@geny/migrator@0.1.0` 신규 패키지 (Pipeline/Data 워크스트림). 세션 27/37 에 누적되던 `scripts/rig-template/migrate.mjs` 530 줄 로직을 TS 패키지 3 migrator + 3 데이터 블록 + io 헬퍼로 분해. CLI shim 은 53 줄 dynamic-import 로 축소. BL-MIGRATOR 해소 → 후보 C(legacy opt-in) 의 (b) 블로커 자체 풀림.
 13. **세션 112** — C14 `parts↔deformers` 사각형 완결 (Platform 워크스트림). `rig-template-lint` 에 rule 14 추가 — `parts/*.spec.json.deformation_parent` ↔ `deformers.nodes[].id` 교차 검증. C11(parts↔parameters) + C12(deformers↔parameters) + C13(deformers 내부) 에 C14(parts↔deformers) 가 합쳐져 리그 저작 게이트 L2 포화. 테스트 30 → 34, 공식 5 템플릿 clean + `parts_checked == parts_deformation_parents_checked` 불변식 확정. self-contained lint 확장 여지 소진 — 다음 라운드는 Runtime(후보 F) 또는 외부 의존 해소.
 14. **세션 113** — ADR 0007 **Draft** (Platform/Frontend 워크스트림). `progress/adr/0007-renderer-technology.md` 신규 — 브라우저 런타임 렌더러 기술 선택. 옵션 A PixiJS v8 (MIT, fit🟢 중상) / B Three.js r160+ (MIT, 2D 에 과잉, fit🟡) / C Cubism Web SDK (상용, fit🔴, 부분 채택 가능) / D 자체 WebGL2 (MIT-free, β 납기 리스크) / E 하이브리드 A→D (`docs/13 §2.2` 잠정안 공식화). **Decision 공란 유지** — 자율 모드가 프로덕트 결정을 침범하지 않도록 4 가지 확정 경로를 나열해 사용자 prompt 한 줄로 pick 가능. 번호 0007 로 통일 (`docs/13` pending 0013 이름 대체, follow-up 기록). 문서만 변경 — 코드/테스트 무영향. 세션 114 자율 모드 후보: "렌더러 인터페이스 패키지 선행 분리" Spike (Option A/D/E 공통 전제).
+15. **세션 114** — `@geny/web-avatar-renderer@0.1.0` 신규 (Frontend/Platform 워크스트림). ADR 0007 Decision 이 아직 공란이어도 Option A/D/E 어디로 가도 버려지지 않는 공통 계약을 패키지화. 세션 91 에서 `packages/web-editor-renderer/src/renderer.ts:15-54` 에 인라인 정의됐던 5 duck-typed 인터페이스(`RendererPart` / `RendererBundleMeta` / `RendererReadyEventDetail` / `RendererParameterChangeEventDetail` / `RendererHost`) 를 상위로 승격 + 2 타입 가드(`isRendererBundleMeta` / `isRendererParameterChangeEventDetail`) 신규 — shape-only 검사, semantic 은 JSON Schema 에 위임(ADR 0002). `@geny/web-editor-renderer` 는 첫 consumer 로 `import type` + `export type` 재정렬 — 런타임 dist 바이트 불변(grep 검증). 누적 패키지 14 → **15**, golden step 29 → **30** (`web-avatar-renderer contracts tests` 신설, 10 tests). `readonly` 전파 강화: `RendererBundleMeta.parameters[].{id,default}` 도 readonly 로 승격 — consumer 쪽엔 구조적 하위호환. 기존 22 tests(web-avatar 20 + web-editor-renderer 2) 무변경 green. 세션 115 자율 모드 후보: `createNullRenderer` / `createLoggingRenderer` 추가.
 
 **최종 상태**: halfbody 19/30 + fullbody 27/38 파츠 opt-in. Face 슬라이더 narrow 30→4~10 / 60→6~10. critical UX 버그 0.
 
@@ -255,11 +256,11 @@ Stage 6 (pivot) 미착수.
 
 ## 7. Platform / Infra (CI · 관측 · 보안 · 성능)
 
-### 7.1 CI (29 step golden + bullmq-integration lane)
+### 7.1 CI (30 step golden + bullmq-integration lane)
 
-- `pnpm run test:golden` 29 step:
+- `pnpm run test:golden` 30 step:
   - validate-schemas (checked=244)
-  - exporter-core 102 + exporter-pipeline 10 + ai-adapter-core 68 + ai-adapter-nano-banana 23 + ai-adapters-fallback 53 + post-processing 111 + metrics-http 12 + orchestrator-service 12 + web-avatar 20 + web-editor-logic 57 + job-queue-bullmq 25 + worker-generate 21 + **migrator 8 (세션 111)**
+  - exporter-core 102 + exporter-pipeline 10 + ai-adapter-core 68 + ai-adapter-nano-banana 23 + ai-adapters-fallback 53 + post-processing 111 + metrics-http 12 + orchestrator-service 12 + web-avatar 20 + web-editor-logic 57 + job-queue-bullmq 25 + worker-generate 21 + **migrator 8 (세션 111)** + **web-avatar-renderer 10 (세션 114)**
   - rig-template migrate CLI 3 + rig-template-lint 34 (세션 112 C14 확장)
   - web-preview e2e + web-editor e2e + observability e2e (Mock↔HTTP / 1-hop fallback / 2-hop fallback / terminal failure / unsafe content)
   - perf-harness smoke (Foundation Mock SLO)
@@ -344,7 +345,7 @@ DB/S3 미착수 (Runtime).
 
 ## 11. 릴리스 게이트 3/3 ✅ (`docs/14 §10`)
 
-- ✅ 골든셋 회귀 통과 — `pnpm run test:golden` 29 step CI
+- ✅ 골든셋 회귀 통과 — `pnpm run test:golden` 30 step CI
 - ✅ 성능 SLO 초과 없음 — perf-harness Foundation Mock SLO + perf-sweep-concurrency 스윕
 - ✅ 보안 스캔 P0/P1 0건 — Gitleaks CI
 - ✅ 문서 업데이트 — 세션별로 관리
@@ -381,4 +382,4 @@ DB/S3 미착수 (Runtime).
 | `physics-lint` → `rig-template-lint` 리브랜딩 | ✅ 완료 (세션 110) | — |
 | C14 parts↔deformers 사각형 | ✅ 완료 (세션 112) | C11~C14 사각형 완결 + 테스트 34 + 공식 5 템플릿 clean |
 | ADR 0007 (렌더러 기술) Draft | 🟡 Draft (세션 113) | 5 options 비교 + Decision 공란. 사용자 리뷰 대기 — Accept 시 docs/13 §2.2 rewrite follow-up |
-| 렌더러 인터페이스 패키지 선행 분리 | ⚪ 후보 | 세션 114 자율 모드 진입 예정 — Option A/D/E 공통 전제 (Decision 미확정에도 진행 가능) |
+| 렌더러 인터페이스 패키지 선행 분리 | ✅ 완료 (세션 114) | `@geny/web-avatar-renderer@0.1.0` + 10 tests + golden step 30. Option A/D/E 공통 계약 확보 |

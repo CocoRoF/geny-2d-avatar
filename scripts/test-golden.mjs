@@ -123,6 +123,7 @@ const STEPS = [
   { name: "observability-smoke parser tests", run: runObservabilitySmokeParserTests },
   { name: "observability-snapshot-diff parser tests", run: runObservabilitySnapshotDiffTests },
   { name: "web-editor-logic tests", run: runWebEditorLogicTests },
+  { name: "web-avatar-renderer contracts tests", run: runWebAvatarRendererTests },
   { name: "web-editor-renderer tests", run: runWebEditorRendererTests },
   { name: "web-editor e2e", run: runWebEditorE2E },
   { name: "mock-vendor-server tests", run: runMockVendorServerTests },
@@ -312,10 +313,20 @@ async function runWebEditorLogicTests() {
   await run("pnpm", ["-F", "@geny/web-editor-logic", "test"], { cwd: repoRoot });
 }
 
+async function runWebAvatarRendererTests() {
+  // 세션 114 — ADR 0007 선행. `@geny/web-avatar-renderer` 가 RendererPart /
+  // RendererBundleMeta / RendererHost 등 duck-typed 렌더러 계약을 담고, 두 타입
+  // 가드(isRendererBundleMeta / isRendererParameterChangeEventDetail) 를 제공.
+  // 본 패키지는 `@geny/web-editor-renderer` 가 소비하는 첫 구현체 경계 — 인터페이스가
+  // A PixiJS / D 자체 WebGL2 / E 하이브리드 어느 경로로 확정되어도 재사용된다 (10 tests).
+  await run("pnpm", ["-F", "@geny/web-avatar-renderer", "test"], { cwd: repoRoot });
+}
+
 async function runWebEditorRendererTests() {
   // 세션 91 — `<geny-avatar>` ready + parameterchange 를 구독해 SVG 구조 프리뷰를
   // 생성하는 `createStructureRenderer` 회귀. duck-typed EventTarget 으로 실 element
-  // 없이 구동 (happy-dom Window + CustomEvent dispatch, 6 tests).
+  // 없이 구동 (happy-dom Window + CustomEvent dispatch, 10 tests).
+  // 세션 114 — 계약 타입은 `@geny/web-avatar-renderer` 에서 import + 재수출로 전환.
   await run("pnpm", ["-F", "@geny/web-editor-renderer", "test"], { cwd: repoRoot });
 }
 

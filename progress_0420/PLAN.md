@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 114+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 115+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -98,9 +98,11 @@
   세션 111 = 후보 B (migrator skeleton)         ✅ BL-MIGRATOR 해소
   세션 112 = 후보 G (C14 parts↔deformers)        ✅ 사각형 완결, L2 포화
   세션 113 = ADR 0007 Draft (렌더러 기술)        ✅ 사용자 리뷰 대기
+  세션 114 = 렌더러 인터페이스 패키지 선행 분리  ✅ @geny/web-avatar-renderer@0.1.0
 
-[자율 모드 즉시 착수 — self-contained + ADR 0007 불변 작업]
-  세션 114 = 렌더러 인터페이스 패키지 선행 분리 (Option A/D/E 공통)
+[자율 모드 후속 후보 — ADR 0007 Decision 불변 영역]
+  세션 115 = (권장) null/logging renderer 구현체 — 계약 패키지 smoke test 확장
+  세션 115 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행
 
 [사용자 의사 확정 후]
   세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
@@ -173,27 +175,27 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 114)
+## 7. 다음 즉시 행동 (세션 115)
 
-세션 113 에서 ADR 0007 Draft 완료 — 사용자 / PM 리뷰 대기 상태로 커밋됨. Decision 공란. 자율 모드에서 닫을 수 없는 4 Open Question 포함 (Cubism Import 제품 요구 / iOS Safari / Server Headless 와의 공유 / 성능 목표).
+세션 114 에서 `@geny/web-avatar-renderer@0.1.0` 신규 — 5 duck-typed 인터페이스(Renderer*) + 2 타입 가드(isRendererBundleMeta / isRendererParameterChangeEventDetail) 가 계약 패키지로 승격. `@geny/web-editor-renderer` 는 첫 consumer 로 import type + re-export 재정렬 (런타임 바이트 불변). golden 30 step all pass, 세션 114 신규 10 tests 포함 누적 23 tests (web-avatar 20 + web-avatar-renderer 10 + web-editor-renderer 10).
 
-**자율 모드 결정 (세션 114)**: **"렌더러 인터페이스 패키지 선행 분리" Spike**. Option E 의 실현 조건이자 A/D/E 어디로 확정되어도 버려지지 않는 작업.
+**자율 모드 결정 (세션 115)**: **`createNullRenderer()` / `createLoggingRenderer()` 구현체 추가**. 계약 패키지 안에 ADR 0007 Option 독립 동작 가능한 no-op 구현 2 개를 두어, 선택된 렌더러 합류 전까지도 소비자(예: 테스트 코드 / 에디터 스토리북)가 계약을 드라이브할 수 있게 한다.
 
-- **범위**: `packages/web-avatar-renderer/` (또는 `packages/web-avatar-contracts/`) 신규 — duck-typed 인터페이스 패키지. 현재 `packages/web-editor-renderer/src/renderer.ts:15-54` 에 이미 잘 정의된 `RendererPart` / `RendererBundleMeta` / `RendererReadyEventDetail` / `RendererParameterChangeEventDetail` / `RendererHost` / `StructureRendererOptions` / `StructureRenderer` 타입을 상위로 승격. `@geny/web-editor-renderer` 는 이 인터페이스 패키지에 의존하는 첫 구현체로 남는다.
-- **진입 조건**: 없음 — self-contained. ADR 0007 Decision 없이도 인터페이스 추출은 경로 A/D/E 모두에게 공통 요건.
-- **산출**: 1 신규 패키지 + `@geny/web-editor-renderer` 의존성 추가 + 골든 step 에서 기존 22 테스트(web-avatar 20 + web-editor-renderer 2) green 유지.
-- **리스크**: 저. 인터페이스만 재배치이므로 바이트 단위 출력 불변.
+- **범위**: `packages/web-avatar-renderer/src/null-renderer.ts` + `logging-renderer.ts` 신규. 각각 `{ onReady?(meta), onParameterChange?(id, value), destroy() }` minimum 인터페이스. `RendererHost` 를 받아 이벤트만 subscribe/logging — DOM 생성 없음.
+- **진입 조건**: 없음 — self-contained. ADR 0007 Decision 없이도 동작.
+- **산출**: 2 파일 + 테스트 4~6 개 추가. 계약 패키지 tests 10 → 14~16. golden step 갱신 없음(기존 `web-avatar-renderer contracts tests` step 이 포함).
+- **리스크**: 저. 신규 함수만 추가 — 기존 5 인터페이스 / 2 가드는 무변경.
 
 **2순위 (사용자 합의 후에만)**:
 - **ADR 0007 Accept 커밋**: 사용자가 A/D/E 중 선택하면 Decision 채워서 Status Accepted 로 재커밋. `docs/13-tech-stack.md §2.2` 동시 재작성.
 - **세션 97 Runtime 착수 Spike**: ADR 확정 후. 선택된 렌더러로 halfbody v1.3.0 번들 + 회전 slider → 픽셀 렌더.
 - **v1.3.0→v1.4.0 migrator**: 리그 변경 범위 합의 후.
+- **Server Headless Renderer 별도 ADR 초안**: ADR 0007 Open Question #3 이 사용자 답변 받으면 진입.
 
-**선행 read** (세션 114 에서):
-- `packages/web-editor-renderer/src/renderer.ts:15-80` — 승격 대상 인터페이스 8 개.
-- `packages/web-avatar/src/types.ts` — 번들 소비자 타입과의 관계 재정렬.
-- ADR 0002 (schema-first) — 인터페이스가 스키마와 이중화되지 않도록 가드.
+**선행 read** (세션 115 에서):
+- `packages/web-avatar-renderer/src/contracts.ts` — 인터페이스 5 + 가드 2.
+- `packages/web-editor-renderer/src/renderer.ts` — 기존 consumer 패턴(이벤트 subscribe/destroy).
 
-**세션 115+ 예약 후보**:
+**세션 116+ 예약 후보**:
 - Option E 하이브리드 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규).
 - legacy opt-in 복제(후보 C)는 BL-DEPRECATION-POLICY 외부 대기 유지.

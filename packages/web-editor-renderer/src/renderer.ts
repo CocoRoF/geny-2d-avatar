@@ -10,30 +10,27 @@
  * 위해 `@geny/web-avatar` 에 의존하지 않고 duck-typed 인터페이스로 엘리먼트를
  * 받는다 — 테스트에서 실 `<geny-avatar>` 없이도 `EventTarget` 계열이면 드라이
  * 가능.
+ *
+ * 세션 114 — duck-typed 인터페이스(Renderer*) 는 `@geny/web-avatar-renderer` 로
+ * 승격 분리. 본 파일은 첫 구현체로 그 계약을 소비한다. ADR 0007 의 어느 렌더러
+ * 경로(PixiJS / 자체 WebGL2 / 하이브리드) 로 확정되어도 인터페이스는 불변.
  */
 
-export interface RendererPart {
-  readonly role: string;
-  readonly slot_id: string;
-}
+import type {
+  RendererBundleMeta,
+  RendererHost,
+  RendererParameterChangeEventDetail,
+  RendererPart,
+  RendererReadyEventDetail,
+} from "@geny/web-avatar-renderer";
 
-export interface RendererBundleMeta {
-  readonly parts: readonly RendererPart[];
-  readonly parameters: readonly { id: string; range: readonly [number, number]; default: number }[];
-}
-
-export interface RendererReadyEventDetail {
-  readonly bundle: { readonly meta: RendererBundleMeta };
-}
-
-export interface RendererParameterChangeEventDetail {
-  readonly id: string;
-  readonly value: number;
-}
-
-export interface RendererHost extends EventTarget {
-  readonly bundle?: { readonly meta: RendererBundleMeta } | null;
-}
+export type {
+  RendererBundleMeta,
+  RendererHost,
+  RendererParameterChangeEventDetail,
+  RendererPart,
+  RendererReadyEventDetail,
+};
 
 export interface StructureRendererOptions {
   /** `<geny-avatar>` 또는 duck-typed EventTarget — `ready` + `parameterchange` 구독원. */
