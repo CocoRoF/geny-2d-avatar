@@ -23,6 +23,9 @@
  * 장애 주입:
  *  - `--fail-rate 0.1` — 각 요청의 10% 가 `500 vendor_error` 반환. 어댑터의 `VENDOR_ERROR_5XX`
  *    → 라우터 폴백 경로를 E2E 로 검증할 때 사용.
+ *  - `--fail-rate-generate 1.0 --fail-rate-edit 0 --fail-rate-fill 0` — 엔드포인트별 override.
+ *    세션 84 `routeWithFallback` 결정론적 폴백 e2e 용 (nano-banana 100% 실패 → sdxl 100% 성공
+ *    → 결과는 항상 sdxl 경유 20 successful + 20 fallback events). 미지정 시 `--fail-rate` 상속.
  *  - 결정론적 failure 순서 (`--seed N` 로 RNG 고정) — CI 회귀를 플레이키하게 만들지 않도록.
  *
  * 인증:
@@ -72,6 +75,14 @@ export function createMockVendorServer(opts = {}) {
   const latencyMean = Math.max(0, Number.isFinite(opts.latencyMeanMs) ? opts.latencyMeanMs : 0);
   const latencyJitter = Math.max(0, Number.isFinite(opts.latencyJitterMs) ? opts.latencyJitterMs : 0);
   const failRate = Math.min(1, Math.max(0, Number.isFinite(opts.failRate) ? opts.failRate : 0));
+  // 세션 84 — 엔드포인트별 fail rate override. 미지정 시 전역 `failRate` 상속. nano-banana 만
+  // 1.0 으로 고정하면 매 호출 폴백 트리거, sdxl 0 으로 고정하면 폴백 도착지 항상 성공.
+  const pickRate = (v) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : failRate);
+  const kindFailRate = {
+    "nano-banana": pickRate(opts.failRateGenerate),
+    "sdxl": pickRate(opts.failRateEdit),
+    "flux-fill": pickRate(opts.failRateFill),
+  };
   const rng = mulberry32(Number.isFinite(opts.seed) ? opts.seed : 42);
 
   const server = createServer(async (req, res) => {
@@ -108,7 +119,9 @@ export function createMockVendorServer(opts = {}) {
       if (clamped > 0) await sleep(clamped);
 
       // 결정론적 실패 주입 — sleep 이후에 roll 하여 클라이언트의 timeout abort 와 섞이지 않게.
-      if (failRate > 0 && rng() < failRate) {
+      // 세션 84 — kind 별 fail rate 적용 (미override 시 전역 failRate 와 동일).
+      const kindRate = kindFailRate[kind];
+      if (kindRate > 0 && rng() < kindRate) {
         return json(res, 500, {
           error: "simulated vendor error",
           task_id: body.task_id,
@@ -180,6 +193,9 @@ export function parseArgv(argv) {
     else if (a === "--latency-mean-ms") { opts.latencyMeanMs = Number(next); i += 1; }
     else if (a === "--latency-jitter-ms") { opts.latencyJitterMs = Number(next); i += 1; }
     else if (a === "--fail-rate") { opts.failRate = Number(next); i += 1; }
+    else if (a === "--fail-rate-generate") { opts.failRateGenerate = Number(next); i += 1; }
+    else if (a === "--fail-rate-edit") { opts.failRateEdit = Number(next); i += 1; }
+    else if (a === "--fail-rate-fill") { opts.failRateFill = Number(next); i += 1; }
     else if (a === "--seed") { opts.seed = Number(next); i += 1; }
     else if (a === "--help" || a === "-h") { opts.help = true; }
     else throw new Error(`unknown arg: ${a}`);

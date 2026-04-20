@@ -68,6 +68,14 @@ const MOCK_SEED = Number(ARGS["mock-seed"] ?? 42);
 const MOCK_LATENCY_MEAN_MS = Number(ARGS["mock-latency-mean-ms"] ?? 0);
 const MOCK_LATENCY_JITTER_MS = Number(ARGS["mock-latency-jitter-ms"] ?? 0);
 const MOCK_FAIL_RATE = Number(ARGS["mock-fail-rate"] ?? 0);
+// 세션 84 — 엔드포인트별 fail rate override. undefined 는 `--mock-fail-rate` 상속 (세션 83 호환).
+// nano-banana=1.0 / sdxl=0 / flux-fill=0 이면 매 호출 nano-banana 실패 → sdxl 폴백 성공, 결정론적.
+const MOCK_FAIL_RATE_GENERATE = ARGS["mock-fail-rate-generate"] !== undefined
+  ? Number(ARGS["mock-fail-rate-generate"]) : undefined;
+const MOCK_FAIL_RATE_EDIT = ARGS["mock-fail-rate-edit"] !== undefined
+  ? Number(ARGS["mock-fail-rate-edit"]) : undefined;
+const MOCK_FAIL_RATE_FILL = ARGS["mock-fail-rate-fill"] !== undefined
+  ? Number(ARGS["mock-fail-rate-fill"]) : undefined;
 
 mkdirSync(LOG_DIR, { recursive: true });
 
@@ -222,6 +230,9 @@ async function startMockVendor() {
     "--latency-jitter-ms", String(MOCK_LATENCY_JITTER_MS),
     "--fail-rate", String(MOCK_FAIL_RATE),
   ];
+  if (MOCK_FAIL_RATE_GENERATE !== undefined) mockArgs.push("--fail-rate-generate", String(MOCK_FAIL_RATE_GENERATE));
+  if (MOCK_FAIL_RATE_EDIT !== undefined) mockArgs.push("--fail-rate-edit", String(MOCK_FAIL_RATE_EDIT));
+  if (MOCK_FAIL_RATE_FILL !== undefined) mockArgs.push("--fail-rate-fill", String(MOCK_FAIL_RATE_FILL));
   const proc = spawn("node", mockArgs, { cwd: repoRoot, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
   const logFile = createWriteStream(path.join(LOG_DIR, "mock-vendor.log"), { flags: "w" });
   let buf = "";

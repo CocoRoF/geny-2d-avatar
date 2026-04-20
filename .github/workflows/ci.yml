@@ -150,18 +150,38 @@ jobs:
             --baseline infra/observability/smoke-snapshot-session-75.txt \
             --current "$SNAP"
 
+      - name: Observability e2e (--vendor-mock fallback 경로)
+        id: observability-e2e-fallback
+        # 세션 84 — nano-banana=1.0 / sdxl=0 / flux=0 per-endpoint fail-rate 로 mock-vendor 를
+        # 기동해 라우터가 20 잡 전부 nano-banana 에서 실패→sdxl 폴백→성공하도록 강제. fresh
+        # exposition 을 캡처 → `observability-fallback-validate.mjs` 가 커밋된 fallback
+        # 베이스라인(`smoke-snapshot-fallback-session-84.txt`) 과 동일한 5 축을 만족하는지 검사.
+        # Foundation "fallback 경로가 관측 상 없었던 일이 되지 않는다" 불변식을 실시간 캡처에서도
+        # CI 회귀로 고정 — golden step 27 은 커밋된 파일만 검증하므로 orchestration 변조 탐지는
+        # 본 lane 담당.
+        run: |
+          set -euo pipefail
+          SNAP=/tmp/obs-fallback-fresh.txt
+          node scripts/observability-e2e.mjs --reuse-redis --redis-url "$REDIS_URL" \
+            --vendor-mock --mock-fail-rate-generate 1 --mock-fail-rate-edit 0 --mock-fail-rate-fill 0 \
+            --snapshot "$SNAP" \
+            --queue-name geny-obs-84 --producer-port 9095 --consumer-port 9096 \
+            --log-dir artifacts/observability-e2e-fallback
+          node scripts/observability-fallback-validate.mjs --file "$SNAP" --verbose
+
       - name: Upload observability-e2e artifacts on failure
         # 세션 79 — e2e 실패 시 producer/consumer/perf-harness/observability-smoke 로그를 artifact
         # 로 보존. 이전에는 stderr tail 800자만 노출돼 CI log 만으론 원인 분석이 불충분했다.
         # 성공 시엔 artifact 를 만들지 않음 (노이즈 방지) — 업스트림에서 snapshot 수집이 필요하면
         # 별도 `--snapshot` 플래그 경로로 분리.
-        if: failure() && (steps.observability-e2e.conclusion == 'failure' || steps.observability-e2e-vendor-mock.conclusion == 'failure')
+        if: failure() && (steps.observability-e2e.conclusion == 'failure' || steps.observability-e2e-vendor-mock.conclusion == 'failure' || steps.observability-e2e-fallback.conclusion == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: observability-e2e-logs
           path: |
             artifacts/observability-e2e/
             artifacts/observability-e2e-vendor-mock/
+            artifacts/observability-e2e-fallback/
           if-no-files-found: warn
           retention-days: 7
 

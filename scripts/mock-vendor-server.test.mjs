@@ -208,13 +208,54 @@ async function run() {
     });
   });
 
+  await check("per-endpoint fail-rate: generate=1.0 → 500, edit=0 → 200 (세션 84)", async () => {
+    await withServer({ failRateGenerate: 1.0, failRateEdit: 0, failRateFill: 0 }, async (base) => {
+      const body = { task_id: "t", seed: 1, size: { width: 1, height: 1 } };
+      const headers = { "content-type": "application/json", "authorization": "Bearer x" };
+      for (let i = 0; i < 3; i += 1) {
+        const rGen = await fetch(`${base}/v1/generate`, {
+          method: "POST", headers, body: JSON.stringify(body),
+        });
+        assert.equal(rGen.status, 500);
+        const rEdit = await fetch(`${base}/v1/edit`, {
+          method: "POST", headers, body: JSON.stringify(body),
+        });
+        assert.equal(rEdit.status, 200);
+      }
+    });
+  });
+
+  await check("per-endpoint fail-rate: undefined → inherits global fail-rate", async () => {
+    // failRate=1 전역 + failRateEdit=0 override → generate/fill=500, edit=200
+    await withServer({ failRate: 1, failRateEdit: 0 }, async (base) => {
+      const body = { task_id: "t", seed: 1, size: { width: 1, height: 1 } };
+      const headers = { "content-type": "application/json", "authorization": "Bearer x" };
+      const rGen = await fetch(`${base}/v1/generate`, {
+        method: "POST", headers, body: JSON.stringify(body),
+      });
+      assert.equal(rGen.status, 500);
+      const rEdit = await fetch(`${base}/v1/edit`, {
+        method: "POST", headers, body: JSON.stringify(body),
+      });
+      assert.equal(rEdit.status, 200);
+      const rFill = await fetch(`${base}/v1/fill`, {
+        method: "POST", headers, body: JSON.stringify(body),
+      });
+      assert.equal(rFill.status, 500);
+    });
+  });
+
   await check("parseArgv accepts all flags + rejects unknown", async () => {
     const ok = parseArgv(["--port", "0", "--latency-mean-ms", "10", "--latency-jitter-ms", "2",
-      "--fail-rate", "0.1", "--seed", "99"]);
+      "--fail-rate", "0.1", "--fail-rate-generate", "1", "--fail-rate-edit", "0.2",
+      "--fail-rate-fill", "0.3", "--seed", "99"]);
     assert.equal(ok.port, 0);
     assert.equal(ok.latencyMeanMs, 10);
     assert.equal(ok.latencyJitterMs, 2);
     assert.equal(ok.failRate, 0.1);
+    assert.equal(ok.failRateGenerate, 1);
+    assert.equal(ok.failRateEdit, 0.2);
+    assert.equal(ok.failRateFill, 0.3);
     assert.equal(ok.seed, 99);
     assert.throws(() => parseArgv(["--bogus", "1"]), /unknown arg: --bogus/);
     return Promise.resolve();
