@@ -1,6 +1,6 @@
 # progress_0420 — 진척 정리 (2026-04-20 스냅샷)
 
-이 폴더는 세션 1~112 누적 결과를 **읽을 수 있는 크기로** 재정리한 스냅샷이다. 기존 `progress/` 는 한 줄당 수천 토큰까지 부풀어 작업 진입에 부담이 됐다 — 본 폴더는 정밀도를 유지하면서 항해 가능성을 회복한다.
+이 폴더는 세션 1~113 누적 결과를 **읽을 수 있는 크기로** 재정리한 스냅샷이다. 기존 `progress/` 는 한 줄당 수천 토큰까지 부풀어 작업 진입에 부담이 됐다 — 본 폴더는 정밀도를 유지하면서 항해 가능성을 회복한다.
 
 ---
 
@@ -23,14 +23,14 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-20, 세션 112 직후)
+## 1. 현재 상태 (2026-04-21, 세션 113 직후)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | Foundation (2026 Q2 초) | docs/14 §3 |
+| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 로 Runtime 전환 선행 작업 착수 |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 112 (2026-04-17~04-20, 4일) | 자율 모드 |
+| **누적 세션** | 113 (2026-04-17~04-21, 5일) | 자율 모드 |
 | **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 111 `@geny/migrator` 신규 |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 29 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 29 step (validate-schemas checked=244 + 10 패키지 테스트 + 5 e2e) | Foundation lane + bullmq-integration lane |
@@ -66,6 +66,7 @@
 | [0004](../progress/adr/0004-avatar-as-data.md) | 참조형 아바타 (메타 + PartInstance) | Accepted |
 | [0005](../progress/adr/0005-rig-authoring-gate.md) | 리그 저작 게이트 L1~L4 | Accepted |
 | [0006](../progress/adr/0006-queue-persistence.md) | Runtime 큐 = Redis + BullMQ | Accepted |
+| [0007](../progress/adr/0007-renderer-technology.md) | 브라우저 런타임 렌더러 기술 선택 (PixiJS / Three / Cubism / 자체 / 하이브리드) | **Draft** — 사용자 리뷰 대기 (세션 113) |
 
 ---
 

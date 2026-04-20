@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-20 기준, 세션 113+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 114+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -97,15 +97,19 @@
   세션 110 = 후보 D (rig-template-lint 리브랜딩) ✅
   세션 111 = 후보 B (migrator skeleton)         ✅ BL-MIGRATOR 해소
   세션 112 = 후보 G (C14 parts↔deformers)        ✅ 사각형 완결, L2 포화
+  세션 113 = ADR 0007 Draft (렌더러 기술)        ✅ 사용자 리뷰 대기
 
-[즉시 착수 가능 — self-contained 여지 거의 소진]
-  세션 ? = v1.3.0→v1.4.0 migrator 자리 (리그 변경 합의 후)
-  세션 ? = ADR 0007 초안 (렌더러 기술 선택) — Runtime 진입 선행
+[자율 모드 즉시 착수 — self-contained + ADR 0007 불변 작업]
+  세션 114 = 렌더러 인터페이스 패키지 선행 분리 (Option A/D/E 공통)
+
+[사용자 의사 확정 후]
+  세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
+  세션 ? = 후보 F (Runtime) Spike — 선택된 렌더러로 첫 픽셀
+  세션 ? = v1.3.0→v1.4.0 migrator (리그 변경 범위 합의 후)
 
 [외부 블록 해소 후]
   세션 ? = 후보 E (staging)      ← BL-STAGING 해소 시
-  세션 ? = 후보 C (legacy opt-in) ← BL-DEPRECATION-POLICY 해소 시 (b 는 세션 111 에서 자체 풀림)
-  세션 ? = 후보 F (Runtime)      ← Foundation 종료 선언 + ADR 0007
+  세션 ? = 후보 C (legacy opt-in) ← BL-DEPRECATION-POLICY 해소 시
 ```
 
 ### 후보 G — C14 `parts ↔ deformers` 사각형 완성 ✅ **완료 (세션 112)**
@@ -169,28 +173,27 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 113)
+## 7. 다음 즉시 행동 (세션 114)
 
-세션 112 C14 완결로 self-contained lint 여지는 소진. 자율 모드에서 다음 단계는 **(α) 외부 판단이 적고 (β) 사용자 합의 전에도 유용한** 후보를 찾아야 한다.
+세션 113 에서 ADR 0007 Draft 완료 — 사용자 / PM 리뷰 대기 상태로 커밋됨. Decision 공란. 자율 모드에서 닫을 수 없는 4 Open Question 포함 (Cubism Import 제품 요구 / iOS Safari / Server Headless 와의 공유 / 성능 목표).
 
-**1순위 후보 (자율 모드 권장)**: **ADR 0007 (렌더러 기술 선택) 초안 작성** — 후보 F (Runtime 전환) 의 선행 조건이자 self-contained.
-- **범위**: `progress/adr/0007-renderer-technology.md` 신규. Cubism SDK / PixiJS / Three.js / 자체 WebGL2 네 방향을 **context / options / trade-offs / consequences** 4 축으로 비교. **decision 은 비워두고 사용자 의사 대기** — ADR 은 결론 없이도 "선행 조사" 로 가치 있음 (ADR 0003/0004 의 초안 단계 참조).
-- **진입 조건**: 없음 — self-contained 조사 + 문서. 후보 F 진입 전에 읽혀야 하는 사전 연구.
-- **산출**: ADR 1 개 + INDEX.md ADR 테이블 업데이트. 사용자 리뷰 시 decision 채움.
-- **리스크**: decision 미완으로 끝내는 ADR 은 `Draft` 상태. 그러나 후보 F 진입 전 필수 자료이므로 가치 존재.
+**자율 모드 결정 (세션 114)**: **"렌더러 인터페이스 패키지 선행 분리" Spike**. Option E 의 실현 조건이자 A/D/E 어디로 확정되어도 버려지지 않는 작업.
 
-**2순위 — 사용자 판단 필요 후보**:
-- **v1.3.0→v1.4.0 migrator 자리**: 세션 111 skeleton 의 첫 external 확장. 리그 변경 범위 결정(=어떤 파츠 / 파라미터 / deformer 가 바뀌는가) 이 사용자 입력 선행 필요 — 자율 모드에서 열 수 없음.
-- **후보 C (legacy opt-in 복제)**: BL-DEPRECATION-POLICY 외부 + 소비자(세션 97) 대기 — 두 축 모두 풀리기 전 착수 금지.
-- **후보 E (staging 배포)**: BL-STAGING 외부 클러스터 대기.
+- **범위**: `packages/web-avatar-renderer/` (또는 `packages/web-avatar-contracts/`) 신규 — duck-typed 인터페이스 패키지. 현재 `packages/web-editor-renderer/src/renderer.ts:15-54` 에 이미 잘 정의된 `RendererPart` / `RendererBundleMeta` / `RendererReadyEventDetail` / `RendererParameterChangeEventDetail` / `RendererHost` / `StructureRendererOptions` / `StructureRenderer` 타입을 상위로 승격. `@geny/web-editor-renderer` 는 이 인터페이스 패키지에 의존하는 첫 구현체로 남는다.
+- **진입 조건**: 없음 — self-contained. ADR 0007 Decision 없이도 인터페이스 추출은 경로 A/D/E 모두에게 공통 요건.
+- **산출**: 1 신규 패키지 + `@geny/web-editor-renderer` 의존성 추가 + 골든 step 에서 기존 22 테스트(web-avatar 20 + web-editor-renderer 2) green 유지.
+- **리스크**: 저. 인터페이스만 재배치이므로 바이트 단위 출력 불변.
 
-**자율 모드 결정**: 세션 113 에서는 **ADR 0007 초안** 을 쓴다. Decision 은 비워두고 Options / Context / Consequences 3 축을 채운 Draft 상태로 커밋 — 사용자가 다음 프롬프트로 방향을 정하면 그 지점을 결정 지점으로 삼아 후보 F 착수.
+**2순위 (사용자 합의 후에만)**:
+- **ADR 0007 Accept 커밋**: 사용자가 A/D/E 중 선택하면 Decision 채워서 Status Accepted 로 재커밋. `docs/13-tech-stack.md §2.2` 동시 재작성.
+- **세션 97 Runtime 착수 Spike**: ADR 확정 후. 선택된 렌더러로 halfbody v1.3.0 번들 + 회전 slider → 픽셀 렌더.
+- **v1.3.0→v1.4.0 migrator**: 리그 변경 범위 합의 후.
 
-**선행 read**:
-- `progress/adr/0003-rig-template-versioning.md` 와 `0005-rig-authoring-gate.md` — 템플릿(ADR 헤더/섹션/합의 경로) 참조.
-- `packages/web-avatar/src/*` — 현 `<geny-avatar>` 커스텀 엘리먼트의 happy-dom 모의 인터페이스. 실 렌더러가 replace 할 표면 범위 파악.
-- `docs/01`, `docs/14` §9 (Frontend) — Runtime 합류 시 기대 범위.
+**선행 read** (세션 114 에서):
+- `packages/web-editor-renderer/src/renderer.ts:15-80` — 승격 대상 인터페이스 8 개.
+- `packages/web-avatar/src/types.ts` — 번들 소비자 타입과의 관계 재정렬.
+- ADR 0002 (schema-first) — 인터페이스가 스키마와 이중화되지 않도록 가드.
 
-**세션 114 예약 후보**:
-- Runtime 착수(후보 F) 본격 진입 — ADR 0007 decision 확정 후.
-- v1.3.0→v1.4.0 migrator — 리그 변경 범위 합의 후.
+**세션 115+ 예약 후보**:
+- Option E 하이브리드 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규).
+- legacy opt-in 복제(후보 C)는 BL-DEPRECATION-POLICY 외부 대기 유지.
