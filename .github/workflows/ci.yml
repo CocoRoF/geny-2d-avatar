@@ -124,11 +124,25 @@ jobs:
           pnpm -F @geny/worker-generate build
 
       - name: Observability e2e
+        id: observability-e2e
         # 세션 77 `scripts/observability-e2e.mjs` 를 `--reuse-redis` 로 구동 — service container
         # 가 이미 noeviction 정책으로 떠있으므로 docker run 단계를 건너뛰고 PING→spawn→perf-harness
         # smoke→observability-smoke validation 4단계만 돈다. 파서 단위 테스트(세션 76)는 golden
         # step 22 에서 회귀, 본 lane 은 실 Redis 에 기반한 e2e.
         run: node scripts/observability-e2e.mjs --reuse-redis --redis-url "$REDIS_URL"
+
+      - name: Upload observability-e2e artifacts on failure
+        # 세션 79 — e2e 실패 시 producer/consumer/perf-harness/observability-smoke 로그를 artifact
+        # 로 보존. 이전에는 stderr tail 800자만 노출돼 CI log 만으론 원인 분석이 불충분했다.
+        # 성공 시엔 artifact 를 만들지 않음 (노이즈 방지) — 업스트림에서 snapshot 수집이 필요하면
+        # 별도 `--snapshot` 플래그 경로로 분리.
+        if: failure() && steps.observability-e2e.conclusion == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: observability-e2e-logs
+          path: artifacts/observability-e2e/
+          if-no-files-found: warn
+          retention-days: 7
 
   secret-scan:
     name: secret scan (gitleaks)

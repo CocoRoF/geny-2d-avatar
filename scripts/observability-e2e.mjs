@@ -22,6 +22,7 @@
 //     --redis-url redis://127.0.0.1:6379                  # 이미 떠있는 Redis 재사용
 
 import { spawn, spawnSync } from "node:child_process";
+import { createWriteStream, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -57,6 +58,9 @@ const JOBS = Number(ARGS["jobs"] ?? 20);
 const HARNESS_CONCURRENCY = Number(ARGS["harness-concurrency"] ?? 4);
 const CONSUMER_CONCURRENCY = Number(ARGS["consumer-concurrency"] ?? 4);
 const SNAPSHOT_PATH = ARGS["snapshot"] ? String(ARGS["snapshot"]) : null;
+const LOG_DIR = path.resolve(repoRoot, String(ARGS["log-dir"] ?? "artifacts/observability-e2e"));
+
+mkdirSync(LOG_DIR, { recursive: true });
 
 const cleanupTasks = [];
 
@@ -133,8 +137,19 @@ function startWorker(role, port, extra = []) {
   ];
   const proc = spawn("node", args, { cwd: repoRoot, env, stdio: ["ignore", "pipe", "pipe"] });
   const logs = [];
-  proc.stdout?.on("data", (c) => logs.push(c.toString()));
-  proc.stderr?.on("data", (c) => logs.push(c.toString()));
+  // 세션 79 — CI 실패 시 로그를 artifact 로 업로드하려면 파일로도 남겨야 함. 스트림이 살아있는
+  // 동안 flush 되도록 append 모드로 열고 exit 시 close.
+  const logPath = path.join(LOG_DIR, `${role}.log`);
+  const logFile = createWriteStream(logPath, { flags: "w" });
+  proc.stdout?.on("data", (c) => {
+    logs.push(c.toString());
+    logFile.write(c);
+  });
+  proc.stderr?.on("data", (c) => {
+    logs.push(c.toString());
+    logFile.write(c);
+  });
+  proc.once("exit", () => logFile.end());
   cleanupTasks.push(async () => {
     try {
       proc.kill("SIGTERM");
@@ -163,19 +178,23 @@ async function waitForHealth(role, url, logs) {
   console.log(`[e2e] ${role} OK — ${url}`);
 }
 
-function runSubprocess(cmd, args) {
+function runSubprocess(cmd, args, { logName } = {}) {
   return new Promise((ok, fail) => {
     const proc = spawn(cmd, args, { cwd: repoRoot, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
     const logs = [];
+    const logFile = logName ? createWriteStream(path.join(LOG_DIR, `${logName}.log`), { flags: "w" }) : null;
     proc.stdout?.on("data", (c) => {
       process.stdout.write(c);
       logs.push(c.toString());
+      logFile?.write(c);
     });
     proc.stderr?.on("data", (c) => {
       process.stderr.write(c);
       logs.push(c.toString());
+      logFile?.write(c);
     });
     proc.on("exit", (code) => {
+      logFile?.end();
       if (code === 0) ok(logs.join(""));
       else fail(new Error(`${cmd} ${args.join(" ")} → exit ${code}`));
     });
@@ -234,8 +253,8 @@ async function main() {
     "--target-url",
     `http://127.0.0.1:${PRODUCER_PORT}`,
     "--report",
-    "/tmp/obs-e2e-harness.json",
-  ]);
+    path.join(LOG_DIR, "perf-harness-report.json"),
+  ], { logName: "perf-harness" });
 
   // 메트릭 검증
   console.log("[e2e] ── observability-smoke ──");
@@ -251,9 +270,10 @@ async function main() {
     String(JOBS),
   ];
   if (SNAPSHOT_PATH) smokeArgs.push("--snapshot", SNAPSHOT_PATH);
-  await runSubprocess("node", smokeArgs);
+  await runSubprocess("node", smokeArgs, { logName: "observability-smoke" });
 
   console.log("[e2e] ✅ observability e2e pass");
+  console.log(`[e2e] logs saved to ${LOG_DIR}`);
 }
 
 let exitCode = 0;

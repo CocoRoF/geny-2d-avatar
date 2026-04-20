@@ -114,6 +114,7 @@ temp/
 scratch/
 .cache/
 .artifacts/
+artifacts/
 
 # === Docker / Infra ===
 *.tfstate
