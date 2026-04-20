@@ -1,0 +1,62 @@
+# observability smoke snapshot — 2026-04-19T22:27:51.838Z
+# producer http://127.0.0.1:9091
+# HELP geny_ai_call_cost_usd AI adapter cost in USD (success only, catalog §3)
+# TYPE geny_ai_call_cost_usd counter
+# HELP geny_ai_call_duration_seconds AI adapter call latency seconds (catalog §3)
+# TYPE geny_ai_call_duration_seconds histogram
+# HELP geny_ai_call_total AI adapter invocations (catalog §3)
+# TYPE geny_ai_call_total counter
+# HELP geny_ai_fallback_total AI adapter fallback events (catalog §3)
+# TYPE geny_ai_fallback_total counter
+# HELP geny_queue_depth BullMQ queue depth by state (catalog §2.1)
+# TYPE geny_queue_depth gauge
+geny_queue_depth{queue_name="geny-obs-75",state="active"} 0
+geny_queue_depth{queue_name="geny-obs-75",state="completed"} 20
+geny_queue_depth{queue_name="geny-obs-75",state="delayed"} 0
+geny_queue_depth{queue_name="geny-obs-75",state="failed"} 0
+geny_queue_depth{queue_name="geny-obs-75",state="waiting"} 0
+# HELP geny_queue_enqueued_total 큐에 투입된 누적 잡 수 (catalog §2.1)
+# TYPE geny_queue_enqueued_total counter
+geny_queue_enqueued_total{queue_name="geny-obs-75"} 20
+
+# consumer http://127.0.0.1:9092
+# HELP geny_ai_call_cost_usd AI adapter cost in USD (success only, catalog §3)
+# TYPE geny_ai_call_cost_usd counter
+geny_ai_call_cost_usd{model="0.1.0",stage="generation",vendor="nano-banana"} 0.30000000000000016
+# HELP geny_ai_call_duration_seconds AI adapter call latency seconds (catalog §3)
+# TYPE geny_ai_call_duration_seconds histogram
+geny_ai_call_duration_seconds_bucket{le="0.05",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="0.1",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="0.25",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="0.5",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="1",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="2",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="5",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="10",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="20",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="60",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_bucket{le="+Inf",model="0.1.0",stage="generation",vendor="nano-banana"} 20
+geny_ai_call_duration_seconds_sum{model="0.1.0",stage="generation",vendor="nano-banana"} 0.002
+geny_ai_call_duration_seconds_count{model="0.1.0",stage="generation",vendor="nano-banana"} 20
+# HELP geny_ai_call_total AI adapter invocations (catalog §3)
+# TYPE geny_ai_call_total counter
+geny_ai_call_total{model="0.1.0",stage="generation",status="success",vendor="nano-banana"} 20
+# HELP geny_ai_fallback_total AI adapter fallback events (catalog §3)
+# TYPE geny_ai_fallback_total counter
+# HELP geny_queue_duration_seconds 큐 처리 지연 — consumer 처리 구간 (catalog §2.1)
+# TYPE geny_queue_duration_seconds histogram
+geny_queue_duration_seconds_bucket{le="0.05",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="0.1",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="0.25",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="0.5",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="1",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="2",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="5",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="10",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="20",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="60",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_bucket{le="+Inf",outcome="succeeded",queue_name="geny-obs-75"} 20
+geny_queue_duration_seconds_sum{outcome="succeeded",queue_name="geny-obs-75"} 0.06200000000000003
+geny_queue_duration_seconds_count{outcome="succeeded",queue_name="geny-obs-75"} 20
+# HELP geny_queue_failed_total 큐 처리 실패 (terminal, catalog §2.1)
+# TYPE geny_queue_failed_total counter

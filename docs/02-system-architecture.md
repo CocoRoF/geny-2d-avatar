@@ -334,6 +334,40 @@ cost_estimate:
 - **Metrics**: 노드별 duration, 성공/실패율, 큐 길이, GPU 활용도, AI 벤더별 호출/비용.
 - **Traces**: 프런트 클릭 → API → 오케스트레이터 → 워커 → AI 벤더 까지 1개의 trace id.
 
+#### 9.1.1 Metrics exposition 스모크 (세션 75)
+
+`infra/observability/metrics-catalog.md` §2.1 (Queue state, BullMQ) + §3 (AI vendor calls) 의 실제 배선을 Foundation 단계에서 실측으로 고정. `scripts/observability-smoke.mjs` 가 producer(`/metrics`) + consumer(`/metrics`) 두 엔드포인트를 스크랩해 **합집합**이 카탈로그의 8개 메트릭 이름을 모두 포함하는지 검증 + sample count 가 던진 job 수 이상인지 확인.
+
+**분할 소유권** — Foundation 시점의 실측 결과:
+
+| 메트릭 | producer | consumer | 비고 |
+|---|---|---|---|
+| `geny_queue_depth{state}` | ✅ sample | — | BullMQ `getJobCounts()` producer 쪽 스냅샷 |
+| `geny_queue_enqueued_total` | ✅ sample | — | `Queue.add()` 직후 카운터 증가 |
+| `geny_queue_duration_seconds` | — | ✅ sample | consumer 쪽 처리 지연 histogram |
+| `geny_queue_failed_total` | — | ✅ TYPE (미발생) | terminal failure — 스모크 런에선 0 |
+| `geny_ai_call_total` | TYPE 만 | ✅ sample | producer 는 AI 어댑터 호출 안 함 |
+| `geny_ai_call_duration_seconds` | TYPE 만 | ✅ sample | 〃 |
+| `geny_ai_call_cost_usd` | TYPE 만 | ✅ sample | 〃 |
+| `geny_ai_fallback_total` | TYPE 만 | ✅ TYPE (미발생) | Mock 어댑터는 폴백 없음 |
+
+**실측 (N=20, queue=geny-obs-75, Redis 7.2-alpine:6381)**:
+
+```
+producer /metrics → 6 metric names (queue + ai TYPE)
+consumer /metrics → 6 metric names (queue_duration + ai samples)
+union             → 8 metric names (카탈로그 §2.1 + §3 완전 커버)
+samples: enqueued=20  ai_calls=20  ai_dur_count=20  queue_dur_count=20
+✅ all catalog §2.1 + §3 metrics present on union, samples above threshold
+```
+
+**해석**:
+- producer 는 큐 **수용 측 관찰자** (depth + enqueued), consumer 는 **처리 측 관찰자** (duration + failed). Prometheus 수집기 관점에서 두 대상이 따로 스크랩되는 것이 자연스럽고, 대시보드는 `sum without(instance)` 로 합쳐 보면 됨.
+- 카탈로그 §2.1 는 "하나의 서비스가 모두 노출" 을 요구하지 않는다 — 책임 분할이 정상. 본 세션 검증은 합집합 기준.
+- 스냅샷 `infra/observability/smoke-snapshot-session-75.txt` 에 원본 exposition 보존 — Runtime 축에서 실 Prometheus 스크레이퍼 붙일 때 비교 기준.
+
+Exit #3 관측 대시보드 증거 — `geny_queue_*` + `geny_ai_*` 실제 노출 확인으로 Foundation 단계 증거 확보 (실 Prometheus 수집 + Grafana 대시보드 배선은 Runtime 단계 과업).
+
 ### 9.2 대시보드 (초기 필수 3개)
 
 1. **Job Health**: WSAC, 완주율, 실패 원인 상위 10, p50/p90 TTFE.
