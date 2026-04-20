@@ -81,6 +81,7 @@ try {
     await runCategorize(bundle.meta.parts, t.id, expect);
     await runDomLifecycle(bundleUrl, expect);
     await runRendererMount(bundleUrl, expect);
+    await runLoggingRendererDebug(bundleUrl, expect);
   }
 
   log("✅ web-editor e2e pass (halfbody + fullbody)");
@@ -448,6 +449,93 @@ async function runRendererMount(bundleUrl, expect) {
     log(
       `  ✓ renderer mounted: parts=${renderer.partCount}, rotation via ${angleParam}, ` +
         `selection round-trip (${firstSlot} → ${secondSlot} → null)`,
+    );
+  } finally {
+    await window.happyDOM.close().catch(() => undefined);
+    for (const k of KEYS) g[k] = saved[k];
+  }
+}
+
+/**
+ * 세션 116 — `@geny/web-avatar-renderer` 의 `createLoggingRenderer` 가 `<geny-avatar>`
+ * 에 attach 되면 ready / parameterchange / destroy 세 이벤트를 모두 캡처하는지 증명.
+ * index.html 의 `?debug=logger` 스위치가 동작할 때 console 에 흐르는 stream 의 contract
+ * 를 테스트 assertion 으로 고정한다.
+ */
+async function runLoggingRendererDebug(bundleUrl, expect) {
+  log("LoggingRenderer debug stream (happy-dom + HTTP)");
+  const { Window } = await import("happy-dom");
+  const elementUrl = pathToFileURL(
+    resolve(repoRoot, "packages/web-avatar/dist/element.js"),
+  ).toString();
+  const rendererUrl = pathToFileURL(
+    resolve(repoRoot, "packages/web-avatar-renderer/dist/index.js"),
+  ).toString();
+  const { registerGenyAvatar } = await import(elementUrl);
+  const { createLoggingRenderer } = await import(rendererUrl);
+
+  const window = new Window({ url: `${new URL(bundleUrl).origin}/` });
+  const g = globalThis;
+  const KEYS = ["HTMLElement", "customElements", "CustomEvent", "Event", "document", "window"];
+  const saved = {};
+  for (const k of KEYS) saved[k] = g[k];
+  try {
+    for (const k of ["HTMLElement", "customElements", "CustomEvent", "Event", "document"]) {
+      g[k] = window[k];
+    }
+    g.window = window;
+    registerGenyAvatar();
+
+    const doc = window.document;
+    const el = doc.createElement("geny-avatar");
+    doc.body.appendChild(el);
+
+    const events = [];
+    const loggingRenderer = createLoggingRenderer({
+      element: el,
+      logger: (evt) => events.push(evt),
+    });
+
+    const ready = waitForEvent(el, "ready", 5000);
+    el.setAttribute("src", bundleUrl);
+    await ready;
+
+    assert.equal(loggingRenderer.readyCount, 1, "logger saw 1 ready");
+    assert.equal(loggingRenderer.partCount, expect.partsTotal, `partCount via inner NullRenderer = ${loggingRenderer.partCount}`);
+    assert.equal(events.length, 1, "logger received ready event");
+    assert.equal(events[0].kind, "ready");
+    assert.equal(events[0].meta.parts.length, expect.partsTotal);
+
+    // setParameter → parameterchange → logger emit.
+    const params = el.getParameters();
+    const firstId = Object.keys(params)[0];
+    const meta = events[0].meta;
+    const firstParam = meta.parameters.find((p) => p.id === firstId) ?? meta.parameters[0];
+    const [lo, hi] = firstParam.range;
+    const mid = (lo + hi) / 2;
+    const paramChange = waitForEvent(el, "parameterchange", 2000);
+    el.setParameter(firstParam.id, mid);
+    await paramChange;
+    assert.equal(events.length, 2, "logger received parameterchange event");
+    assert.equal(events[1].kind, "parameterchange");
+    assert.equal(events[1].detail.id, firstParam.id);
+    assert.equal(events[1].detail.value, mid);
+    assert.equal(loggingRenderer.parameterChangeCount, 1);
+
+    // destroy → logger 에 destroy entry 추가. 이후 이벤트는 log 무반영.
+    loggingRenderer.destroy();
+    assert.equal(events.length, 3, "logger received destroy event");
+    assert.equal(events[2].kind, "destroy");
+
+    // 주의: destroy 후에도 `<geny-avatar>` 는 살아있으므로 parameterchange 는 여전히
+    // 발화하지만, LoggingRenderer 의 리스너는 제거된 상태. logger 길이 고정 확인.
+    const postDestroyChange = waitForEvent(el, "parameterchange", 2000);
+    el.setParameter(firstParam.id, lo);
+    await postDestroyChange;
+    assert.equal(events.length, 3, "post-destroy events not logged");
+
+    log(
+      `  ✓ logger captured: ready(parts=${expect.partsTotal}) → parameterchange(${firstParam.id}=${mid}) → destroy (events=${events.length})`,
     );
   } finally {
     await window.happyDOM.close().catch(() => undefined);

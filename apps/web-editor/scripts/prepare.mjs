@@ -52,6 +52,13 @@ step("build @geny/web-editor-renderer", () => {
   runPnpm(["--filter", "@geny/web-editor-renderer", "run", "build"]);
 });
 
+// 세션 116 — debug=logger 쿼리로 동작하는 `createLoggingRenderer` 를 브라우저에서
+// 직접 import 할 수 있도록 공용 vendor dist 에 포함. StructureRenderer 와 달리 기본
+// 경로에선 로드하지 않고(index.html 이 dynamic import) URL 파라미터 켜졌을 때만.
+step("build @geny/web-avatar-renderer", () => {
+  runPnpm(["--filter", "@geny/web-avatar-renderer", "run", "build"]);
+});
+
 step("copy @geny/web-avatar dist → public/vendor", () => {
   const src = resolve(repoRoot, "packages/web-avatar/dist");
   cpSync(src, vendorDir, { recursive: true });
@@ -66,6 +73,12 @@ step("copy @geny/web-editor-logic dist → public/vendor/web-editor-logic", () =
 step("copy @geny/web-editor-renderer dist → public/vendor/web-editor-renderer", () => {
   const src = resolve(repoRoot, "packages/web-editor-renderer/dist");
   const dst = join(vendorDir, "web-editor-renderer");
+  cpSync(src, dst, { recursive: true });
+});
+
+step("copy @geny/web-avatar-renderer dist → public/vendor/web-avatar-renderer", () => {
+  const src = resolve(repoRoot, "packages/web-avatar-renderer/dist");
+  const dst = join(vendorDir, "web-avatar-renderer");
   cpSync(src, dst, { recursive: true });
 });
 

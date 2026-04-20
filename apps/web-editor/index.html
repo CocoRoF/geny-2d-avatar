@@ -307,6 +307,14 @@
       import { CATEGORY_ORDER, categorize, parametersForPart } from "./public/vendor/web-editor-logic/index.js";
       import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
+      // 세션 116 — `?debug=logger` URL 파라미터가 있으면 `@geny/web-avatar-renderer`
+      // 의 `createLoggingRenderer` 를 `<geny-avatar>` 에 추가로 attach 해 ready /
+      // parameterchange / destroy 이벤트 스트림을 `console.debug` 로 흘린다. 기본
+      // 경로에선 import 하지 않아 런타임 바이트 무증가 (dynamic import).
+      const debugFlag = new URLSearchParams(location.search).get("debug") ?? "";
+      const debugLoggerEnabled = debugFlag.split(",").map((s) => s.trim()).includes("logger");
+      let debugLoggingRenderer = null;
+
       const statusEl = document.querySelector("#status");
       const groupsEl = document.querySelector("#parts-groups");
       const inspectorEl = document.querySelector("#inspector");
@@ -334,6 +342,25 @@
           if (entry) selectSidebarEntry(entry.li, entry.part, entry.cat, { fromRenderer: true });
         },
       });
+
+      // 세션 116 — `?debug=logger` 경로에서만 dynamic import. 실패해도 에디터 본연은
+      // 동작해야 하므로 catch 만 해두고 조용히 skip (dev 편의용 스위치).
+      if (debugLoggerEnabled) {
+        import("./public/vendor/web-avatar-renderer/index.js")
+          .then(({ createLoggingRenderer }) => {
+            debugLoggingRenderer = createLoggingRenderer({
+              element: el,
+              logger: (event) => {
+                // 구별 가능한 prefix 로 엔진 로그 / 다른 console 메시지와 섞이지 않게.
+                console.debug("[geny-avatar/logger]", event);
+              },
+            });
+            console.info("[geny-avatar/logger] attached via ?debug=logger");
+          })
+          .catch((err) => {
+            console.warn("[geny-avatar/logger] dynamic import failed", err);
+          });
+      }
 
       function renderParts(groups) {
         groupsEl.replaceChildren();
