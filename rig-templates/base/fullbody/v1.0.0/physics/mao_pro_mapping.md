@@ -60,7 +60,7 @@ v1.1.0 bump 시 프리셋별 on/off 표를 명시 규격화.
 
 ## 5. 저자 개입 유도 (ADR 0005 L3)
 
-`physics-lint --family fullbody` 가 기계 체크 C1~C10 을 통과하나, **다음 값은 실 렌더 검증 후 튜닝 필요**:
+`rig-template-lint --family fullbody` (세션 110 이전 이름 physics-lint) 가 기계 체크 C1~C13 을 통과하나, **다음 값은 실 렌더 검증 후 튜닝 필요**:
 
 - Setting13 `leg_l_angle` / `leg_r_angle` weight 25 는 걸음걸이 sway 강도 영향 — 실제 motion 팩(`idle.default@1.2.0`) 돌린 후 약함/강함 판단.
 - Setting11 `cloth_cape_sway.scale` 1.3 은 accessory 기준 상대값. cape 가 너무 출렁이면 1.0 으로 축소, 그래도 약하면 별도 Setting18 로 분리.

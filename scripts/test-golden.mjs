@@ -37,9 +37,11 @@
 //     로딩 + Mock 어댑터 3종 wiring + orchestrate→/metrics registry 반영 + extraMetricsHook
 //     chain + createMetricsServer 실 HTTP 바인딩 + fallback 라우팅 + runWebAvatarPipeline 위임
 //     회귀 (7 tests, 세션 39).
-// 18) rig-template physics-lint — halfbody v1.0.0..v1.3.0 physics.json 의 meta 카운트 무결성 +
-//     dictionary/settings id 1:1 + 파라미터 레퍼런스 + vertex_index 범위 + cubism_mapping 커버리지 +
-//     출력 네이밍 규약(`_(sway|phys|fuwa)(_[lr])?$`) + baseline diff 회귀 (9 checks, 세션 40).
+// 18) rig-template-lint — halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 physics.json 의 meta 카운트
+//     무결성 + dictionary/settings id 1:1 + 파라미터 레퍼런스 + vertex_index 범위 + cubism_mapping
+//     커버리지 + 출력 네이밍 규약(`_(sway|phys|fuwa)(_[lr])?$`) + parts↔parameters (C11) +
+//     deformers↔parameters (C12) + deformer 트리 무결성 (C13) + baseline diff 회귀.
+//     세션 40 physics-lint 출발 → 세션 110 리브랜딩.
 // 19) @geny/worker-generate tests — Foundation 워커 skeleton. JobStore (submit→FIFO→succeed/fail,
 //     stop guard, list ordering) + HTTP router (POST /jobs 202·GET /jobs/{id}·잘못된 JSON 400·
 //     잘못된 CT 415·필드 검증·405+Allow·404) + wiring e2e (Mock 로 orchestrate→/metrics 반영 +
@@ -114,7 +116,7 @@ const STEPS = [
   { name: "metrics-http tests", run: runMetricsHttpTests },
   { name: "exporter-pipeline tests", run: runExporterPipelineTests },
   { name: "orchestrator-service tests", run: runOrchestratorServiceTests },
-  { name: "rig-template physics-lint", run: runPhysicsLintTests },
+  { name: "rig-template-lint", run: runRigTemplateLintTests },
   { name: "worker-generate tests", run: runWorkerGenerateTests },
   { name: "perf-harness smoke", run: runPerfHarnessSmoke },
   { name: "job-queue-bullmq tests", run: runJobQueueBullMQTests },
@@ -421,9 +423,10 @@ async function runExporterPipelineTests() {
   await run("pnpm", ["-F", "@geny/exporter-pipeline", "test"], { cwd: repoRoot });
 }
 
-async function runPhysicsLintTests() {
-  // halfbody v1.0.0..v1.3.0 전부 clean + 변조 negative 케이스 + baseline diff (세션 40).
-  await run("node", ["scripts/rig-template/physics-lint.test.mjs"], { cwd: repoRoot });
+async function runRigTemplateLintTests() {
+  // halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 전부 clean + 변조 negative 케이스
+  // (C1~C13) + baseline diff. 세션 40 physics-lint 출발 → 세션 110 리브랜딩.
+  await run("node", ["scripts/rig-template/rig-template-lint.test.mjs"], { cwd: repoRoot });
 }
 
 async function runOrchestratorServiceTests() {

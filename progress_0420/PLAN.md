@@ -67,13 +67,12 @@
 - **소요**: 1 세션(patch 만) 혹은 2 세션(migrator 확장 포함).
 - **리스크**: (a)(c) 가 안 풀리면 golden 만 늘어나고 소비자 없음 → 단순 보관 비용. 방지: (a)(c) 해소 전까지는 후보 C 착수 금지.
 
-### 후보 D — `rig-template-lint` 리브랜딩
+### 후보 D — `rig-template-lint` 리브랜딩 ✅ **완료 (세션 110)**
 
-- **범위**: `scripts/rig-template/physics-lint.{mjs,test.mjs}` → `rig-template-lint.{mjs,test.mjs}`. golden step 의 `physics-lint` 호출 치환. README · 세션 doc 교차 참조 갱신. 헤더 코멘트 `C1~Cxx` 기준 재정렬.
-- **진입 조건**: C13 도입(후보 A 완료) 이후 권장 — lint catalog 가 physics 외 3 축(C10 family / C11 parts / C12 deformers / C13 tree)으로 과반 이상이 될 때 리브랜딩 비용 정당화.
-- **산출**: 파일 rename + golden step 재배선. test / lint 결과는 불변.
-- **소요**: 1 세션(mechanical rename).
-- **리스크**: 외부 문서의 하드코딩된 `physics-lint` 레퍼런스가 남을 수 있음 — grep 으로 전수 치환.
+- **범위**: `scripts/rig-template/physics-lint.{mjs,test.mjs}` → `rig-template-lint.{mjs,test.mjs}`. golden step name `rig-template physics-lint` → `rig-template-lint`. docs/03 §6.2/§13.1 갱신. fullbody README / mao_pro_mapping 갱신. progress_0420/ 3 파일 갱신.
+- **정책**: 세션 로그 (`progress/sessions/*`) 와 ADR 0005 는 역사 보존 — 당시 파일 이름(`physics-lint`) 그대로 유지. 에러 메시지 prefix `C1~C13` 도 그대로 — session 로그 / ADR 0005 의 역사 식별자 보존.
+- **산출**: 파일 rename (git mv) + 내부 로그 prefix `[physics-lint]` → `[rig-template-lint]` + CLI Usage / error 메시지 rename. 공식 5 템플릿 lint 결과는 byte-equal 유지, golden 불변.
+- **후속**: 향후 `scripts/rig-template/deformer-lint.mjs` 같은 수직 분리가 필요해지면 ADR 0005 L2 변경으로 처리.
 
 ### 후보 E — 세션 96 실 staging 배포
 
@@ -98,9 +97,9 @@
 ```
 [완료]
   세션 109 = 후보 A (C13 deformer 트리 무결성) ✅
+  세션 110 = 후보 D (rig-template-lint 리브랜딩) ✅
 
 [즉시 착수 가능]
-  세션 110 = 후보 D (rig-template-lint 리브랜딩)  ← 후보 A 완료로 임계 도달
   세션 111 = 후보 B (migrator skeleton)  ← BL-MIGRATOR 해소
   세션 ?   = 후보 G (C14 parts↔deformers 사각형 완성)  ← self-contained, 신규
 
@@ -122,9 +121,9 @@
 ### 3.1 추천 실행 순서 근거
 
 1. ~~**후보 A**~~ — 세션 109 완료 ✅.
-2. **후보 D 가 가장 먼저** (세션 110) — C11~C13 누적으로 physics 색채 충분히 옅음. mechanical rename 이라 1 세션. 세션 109 의 컨텍스트(`physics-lint.mjs` 코드) 가 살아있을 때 소화하는 편이 인지 비용 최저.
+2. ~~**후보 D**~~ — 세션 110 완료 ✅.
 3. **후보 B 가 그 다음** (세션 111) — 내부 블로커(BL-MIGRATOR) 해소만으로 legacy opt-in + 향후 v1.4.0 바이브 아웃 두 경로가 동시에 열린다. 외부 블록에 선행 투자.
-4. **후보 G (C14)** 는 A/D 와 독립 — 언제든 끼워넣기 가능. self-contained.
+4. **후보 G (C14)** 는 독립 — 언제든 끼워넣기 가능. self-contained.
 5. **후보 C 는 (a)(b) 둘 다 풀릴 때까지 대기** — (b) 는 후보 B 로 자체 해소되지만 (a) 가 외부라서 무기한.
 6. **후보 E / F 는 외부 의존** — 들어올 때 연속 묶음으로 소화.
 
@@ -173,17 +172,18 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 110)
+## 7. 다음 즉시 행동 (세션 111)
 
-**결정**: 후보 D — `physics-lint` → `rig-template-lint` 리브랜딩.
+**결정**: 후보 B — `packages/migrator/` skeleton + `v1.2.0→v1.3.0.mjs`.
 
 **이유**:
-- C11~C13 누적으로 physics 색채가 옅어짐 (lint 13 규칙 중 physics 고유 C1~C10 = 10 축, cross-file/tree = C11/C12/C13 3 축).
-- 세션 109 에서 `physics-lint.mjs` 컨텍스트가 살아있어 rename 실수 최소.
-- mechanical — 리스크 0, 소요 1 세션.
-- 후보 B (migrator skeleton) 은 패키지 신설이라 상대적 무게가 있어 컨텍스트 전환 비용이 있음. D 후 B 순서로 1~2 세션 더 소화하고 그 다음으로.
+- 내부 블로커 BL-MIGRATOR 해소 — legacy opt-in (후보 C) 의 3 블로커 중 (b) 가 자체 풀림 → (a) 외부 정책만 해소되면 바로 착수 가능 상태 진입.
+- v1.3.0 → v1.4.0 같은 미래 bump 의 migration 이 `scripts/rig-template/migrate.mjs` ad-hoc 스크립트 대신 패키지로 모이는 첫 진입점.
+- self-contained, 외부 의존 0.
+- 소요 1~2 세션 (패키지 skeleton + 기존 migrate 로직 이동 + sha256 golden 불변 검증).
 
 **선행 read**:
-- `scripts/rig-template/physics-lint.{mjs,test.mjs}` — 파일 전체 rename 대상.
-- `scripts/test-golden.mjs` — golden step 에서 `physics-lint` 호출 위치.
-- `Taskfile.yml` / `README.md` / `docs/*` — 외부 참조 grep 대상.
+- `scripts/rig-template/migrate.mjs` — 기존 v1.0.0→v1.3.0 migration 로직 위치 (세션 27/37).
+- `scripts/rig-template/migrate.test.mjs` — 기존 round-trip 테스트.
+- `packages/` 의 다른 패키지 구조 (예: `@geny/license-verifier`) 를 skeleton 참고.
+- `scripts/test-golden.mjs` step `rig-template migrate tests` — migrate step 호출 위치.

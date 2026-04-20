@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// scripts/rig-template/physics-lint.test.mjs
-// physics-lint.mjs 회귀.
+// scripts/rig-template/rig-template-lint.test.mjs
+// rig-template-lint.mjs 회귀 (세션 110 리브랜딩, 원래 physics-lint.test.mjs).
 //
 // 수행:
 //  1) 모든 halfbody 공식 버전(v1.0.0 .. v1.3.0) 에 lintPhysics 를 실행해 errors == 0 검증.
@@ -17,14 +17,14 @@ import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { FAMILY_OUTPUT_RULES, diffPhysics, lintPhysics } from "./physics-lint.mjs";
+import { FAMILY_OUTPUT_RULES, diffPhysics, lintPhysics } from "./rig-template-lint.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..", "..");
 const halfbody = join(repoRoot, "rig-templates", "base", "halfbody");
 
 async function scratch() {
-  return mkdtemp(join(tmpdir(), "geny-physics-lint-"));
+  return mkdtemp(join(tmpdir(), "geny-rig-template-lint-"));
 }
 
 async function copyV13(dir) {
@@ -553,7 +553,7 @@ async function main() {
     console.log("  ✓ diff v1.2.0→v1.3.0 = +3 settings");
   }
 
-  console.log("[physics-lint] ✅ all checks pass");
+  console.log("[rig-template-lint] ✅ all checks pass");
 }
 
 main().catch((e) => {

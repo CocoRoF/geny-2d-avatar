@@ -56,18 +56,20 @@
 
 **해결 (4 단계)**:
 1. **세션 98** — `part-spec.schema.json` 에 optional `parameter_ids: string[]` (uniqueItems · minLength 1) 추가 + `parametersForPart` 에 Rule 0 (explicit) 우선 분기 추가. 기존 67 파츠 spec 전부 필드 생략한 채 검증 통과 — 점진 opt-in.
-2. **세션 99** — physics-lint C11 추가 (`parts/*.spec.json.parameter_ids` ↔ `parameters.json` cross-file 무결성 CI 게이트).
+2. **세션 99** — rig-template-lint(당시 physics-lint) C11 추가 (`parts/*.spec.json.parameter_ids` ↔ `parameters.json` cross-file 무결성 CI 게이트).
 3. **세션 100/101/102** — Face 14 + Hair·Body 15 파츠 opt-in. fullbody `leg_l/r`·`foot_l/r` 의 lower_body 파라미터가 `GROUPS_FOR_CATEGORY.Body=["body"]` 에 미포함이라 **에디터에 완전 비노출** 이었던 critical UX 버그 발견·수정.
 4. **세션 103** — exporter-core wire-through 누락 발견·복구. `web-avatar.schema.json` `parts[].items` + `WebAvatarPart` 타입 + `convertWebAvatar` spread copy + runtime types 4 지점 동시 패치. 세션 100/101/102 opt-in 이 비로소 실 번들에 도달.
 5. **세션 104** — editor `prepare.mjs` halfbody v1.2.0→v1.3.0 bump. opt-in 이 실 editor UX 에 도달.
 6. **세션 105** — halfbody v1.3.0 + fullbody v1.0.0 web-avatar 번들 4 골든 신규 승격 (이중 회귀 추적).
 7. **세션 106** — halfbody v1.3.0 ahoge `parameter_ids: ["ahoge_sway"]` opt-in (첫 "의도된 drift" 실증, narrow 3→1 -67%).
 8. **세션 107** — fullbody v1.0.0 ahoge 미러 + acc_belt `parameter_ids: []` (빈 배열 = overall-only 명시 선언). **opt-in 완결 선언** — 잔여 23 파츠는 substring-정확.
-9. **세션 108** — physics-lint C12 추가 (`deformers.json.nodes[].params_in[]` ↔ `parameters.json` cross-file 무결성). C11+C12 자매 쌍.
+9. **세션 108** — rig-template-lint(당시 physics-lint) C12 추가 (`deformers.json.nodes[].params_in[]` ↔ `parameters.json` cross-file 무결성). C11+C12 자매 쌍.
+10. **세션 109** — rig-template-lint(당시 physics-lint) C13 추가 (deformer 트리 무결성: duplicate / root-missing / root-parent / parent-missing / non-root-null-parent / cycle / orphan 7 sub-rule).
+11. **세션 110** — `physics-lint` → `rig-template-lint` 리브랜딩. C11~C13 누적으로 physics 색채 옅음 임계 도달. 파일 rename + golden step name 교체 + 외부 live 참조 치환. 세션 로그 / ADR 0005 원문 보존(역사 식별자).
 
 **최종 상태**: halfbody 19/30 + fullbody 27/38 파츠 opt-in. Face 슬라이더 narrow 30→4~10 / 60→6~10. critical UX 버그 0.
 
-### 1.5 physics-lint 12 규칙
+### 1.5 rig-template-lint 13 규칙 (세션 110 리브랜딩 — 이전 이름 `physics-lint`)
 
 | # | 검사 | 도입 세션 |
 |---|---|---|
@@ -83,8 +85,9 @@
 | C10 | family 별 출력 네이밍 (suffix + forbidden prefix) | 40 / **49 family split** |
 | C11 | `parts/*.spec.json.parameter_ids` ↔ `parameters.json` | 99 |
 | C12 | `deformers.json.nodes[].params_in[]` ↔ `parameters.json` | 108 |
+| C13 | deformer 트리 무결성 (7 sub-rule) | 109 |
 
-전부 fatal. `--baseline <dir>` 로 버전 간 structural diff. `--family <name>` override.
+전부 fatal. `--baseline <dir>` 로 버전 간 structural diff. `--family <name>` override. 30 테스트 케이스.
 
 ---
 
@@ -254,7 +257,7 @@ Stage 6 (pivot) 미착수.
 - `pnpm run test:golden` 29 step:
   - validate-schemas (checked=244)
   - exporter-core 102 + exporter-pipeline 10 + ai-adapter-core 68 + ai-adapter-nano-banana 23 + ai-adapters-fallback 53 + post-processing 111 + metrics-http 12 + orchestrator-service 12 + web-avatar 20 + web-editor-logic 57 + job-queue-bullmq 25 + worker-generate 21
-  - rig-template migrate + physics-lint 21
+  - rig-template migrate + rig-template-lint 30 (세션 110 이전 physics-lint)
   - web-preview e2e + web-editor e2e + observability e2e (Mock↔HTTP / 1-hop fallback / 2-hop fallback / terminal failure / unsafe content)
   - perf-harness smoke (Foundation Mock SLO)
 - `bullmq-integration` lane: redis:7.2-alpine service container + 4 redis-integration test + observability-e2e 2 step (`--vendor-mock` Mock↔HTTP + fallback).
@@ -348,7 +351,7 @@ DB/S3 미착수 (Runtime).
 
 ## 12. 핵심 결정축 누적 (세션 별 D-항목 중 재인용 가치)
 
-- **세션 49 D**: physics-lint C10 을 family 별로 분리 (`FAMILY_OUTPUT_RULES` 6 family enum 전부 등록). halfbody/masc_halfbody 에 한해 하반신 prefix 차단.
+- **세션 49 D**: rig-template-lint C10 (당시 physics-lint) 을 family 별로 분리 (`FAMILY_OUTPUT_RULES` 6 family enum 전부 등록). halfbody/masc_halfbody 에 한해 하반신 prefix 차단.
 - **세션 65 D**: worker-generate `--role producer|consumer|both`. producer-only 는 in-process orchestrate 훅 생략.
 - **세션 66 D6**: `GENY_WORKER_CONCURRENCY` env 선행 주입 (세션 67 CLI flag 도입 시 idempotent upgrade).
 - **세션 85 D7**: `cost_usd` success-only — `metrics.onCall` 이 `costUsd` 를 success 경로에서만 전달. nano/sdxl 실패 샘플에는 cost 없음.
@@ -372,4 +375,4 @@ DB/S3 미착수 (Runtime).
 | legacy v1.0.0~v1.2.0 `parameter_ids` 복제 | 🟡 보류 | 세션 105 D1 3 블로커 (docs/03 §7.3 / migrator 부재 / 소비자 없음) |
 | `packages/migrator/` skeleton | ⚪ 후보 | 위 블로커 (b) 해소 경로 |
 | C13 deformer 트리 무결성 (orphan/cycle/parent) | ⚪ 후보 | 세션 108 후속 — self-contained, 우선순위 자유 |
-| `physics-lint` → `rig-template-lint` 리브랜딩 | ⚪ 보류 | C11+C12+C13 누적 시 임계점 (세션 99 D1 / 108 D1) |
+| `physics-lint` → `rig-template-lint` 리브랜딩 | ✅ 완료 (세션 110) | — |

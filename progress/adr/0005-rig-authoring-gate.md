@@ -148,3 +148,9 @@ path 불변성 / `apiModel` 분리 / bytes-only exporter-core 각각을 별도 A
 - **신규 base(fullbody) 도입 시점**: 현재 C10 네이밍 regex 와 C9 cubism_mapping 커버리지는 halfbody 기준. fullbody 에서 파라미터 축이 바뀌면 네이밍 규약을 base-specific 으로 분리할지 재검토.
 - **외부 기여 게이트**: 템플릿 마켓플레이스 오픈(docs/16) 시점에 physics-lint + migrate(dry-run) 를 CI 요건으로 강제.
 - **세션 44+**: worker skeleton — L4 `apiModel` 분리 계약을 worker 쪽 HTTP 실호출에서 재검증.
+
+---
+
+## Addendum (2026-04-20, 세션 110)
+
+`physics-lint.mjs` 가 C11 (parts↔parameters, 세션 99) / C12 (deformers↔parameters, 세션 108) / C13 (deformer 트리, 세션 109) 누적으로 physics 색채가 옅어져 **세션 110 에서 `rig-template-lint.mjs` 로 리브랜딩**. 본문 이전 참조의 `physics-lint` 는 현재 `scripts/rig-template/rig-template-lint.mjs` 를 가리킴. 에러 prefix `C1~C13` 및 rule 번호는 역사 식별자로 보존 — 이 ADR 본문의 "C1~C10" 지시는 세션 40 도입 시점 기준(정합).

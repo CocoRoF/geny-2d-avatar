@@ -1,12 +1,18 @@
 #!/usr/bin/env node
-// scripts/rig-template/physics-lint.mjs
-// 리그 템플릿 `physics/physics.json` authoring gate.
+// scripts/rig-template/rig-template-lint.mjs
+// 리그 템플릿 authoring gate (ADR 0005 L2).
+//
+// 세션 110 (2026-04-20) 리브랜딩: 원래 이름 `physics-lint.mjs` — 세션 40 에서 physics.json
+// 전용 gate 로 출발했으나 C11(parts↔parameters) / C12(deformers↔parameters) / C13(deformer
+// 트리) 가 누적되며 physics 색채가 옅어져 리브랜딩. 기존 C1~C10 (physics 본연) + C11~C13
+// (cross-file + tree) 모두 한 파일에서 관리. 에러 메시지 prefix 는 C1~C13 그대로 유지 —
+// session 로그 / ADR 0005 의 역사 식별자 보존.
 //
 // CLI:
-//   node scripts/rig-template/physics-lint.mjs <templateDir> [--baseline <dir>] [--family <name>]
+//   node scripts/rig-template/rig-template-lint.mjs <templateDir> [--baseline <dir>] [--family <name>]
 //
 // 예:
-//   node scripts/rig-template/physics-lint.mjs rig-templates/base/halfbody/v1.3.0
+//   node scripts/rig-template/rig-template-lint.mjs rig-templates/base/halfbody/v1.3.0
 //
 // 체크 항목 (전부 fatal — 1 개라도 실패 시 exit 1):
 //   C1. meta.physics_setting_count === physics_settings.length
@@ -108,13 +114,13 @@ export async function lintPhysics(templateDir, options = {}) {
   const parametersPath = join(templateDir, "parameters.json");
   const manifestPath = join(templateDir, "template.manifest.json");
   if (!existsSync(physicsPath)) {
-    throw new Error(`physics-lint: ${physicsPath} 없음`);
+    throw new Error(`rig-template-lint: ${physicsPath} 없음`);
   }
   if (!existsSync(parametersPath)) {
-    throw new Error(`physics-lint: ${parametersPath} 없음`);
+    throw new Error(`rig-template-lint: ${parametersPath} 없음`);
   }
   if (!existsSync(manifestPath)) {
-    throw new Error(`physics-lint: ${manifestPath} 없음`);
+    throw new Error(`rig-template-lint: ${manifestPath} 없음`);
   }
   const physics = JSON.parse(await readFile(physicsPath, "utf8"));
   const parameters = JSON.parse(await readFile(parametersPath, "utf8"));
@@ -127,13 +133,13 @@ export async function lintPhysics(templateDir, options = {}) {
   const family = options.familyOverride ?? manifest.family;
   if (!family) {
     throw new Error(
-      `physics-lint: template.manifest.json 에 family 필드가 없고 --family override 도 없음`,
+      `rig-template-lint: template.manifest.json 에 family 필드가 없고 --family override 도 없음`,
     );
   }
   const rule = FAMILY_OUTPUT_RULES[family];
   if (!rule) {
     throw new Error(
-      `physics-lint: family="${family}" 에 등록된 네이밍 규칙 없음 — FAMILY_OUTPUT_RULES 에 추가 필요`,
+      `rig-template-lint: family="${family}" 에 등록된 네이밍 규칙 없음 — FAMILY_OUTPUT_RULES 에 추가 필요`,
     );
   }
 
@@ -468,7 +474,7 @@ async function main(argv) {
   const args = argv.slice(2);
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
     process.stderr.write(
-      "Usage: node scripts/rig-template/physics-lint.mjs <templateDir> [--baseline <dir>] [--family <name>]\n",
+      "Usage: node scripts/rig-template/rig-template-lint.mjs <templateDir> [--baseline <dir>] [--family <name>]\n",
     );
     process.exit(args.length === 0 ? 1 : 0);
   }
@@ -487,7 +493,7 @@ async function main(argv) {
   }
   const positional = args.filter((x, i) => !x.startsWith("--") && !skipIdx.has(i));
   if (positional.length !== 1) {
-    process.stderr.write("physics-lint: 정확히 1 개의 templateDir 이 필요\n");
+    process.stderr.write("rig-template-lint: 정확히 1 개의 templateDir 이 필요\n");
     process.exit(1);
   }
   const templateDir = resolve(positional[0]);
@@ -495,7 +501,7 @@ async function main(argv) {
   const { errors, summary } = res;
 
   process.stdout.write(
-    `physics-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind deformers=${summary.deformer_nodes_checked}/${summary.deformer_params_in_checked}params tree=${summary.deformer_tree_checked ? "ok" : "skip"}\n`,
+    `rig-template-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind deformers=${summary.deformer_nodes_checked}/${summary.deformer_params_in_checked}params tree=${summary.deformer_tree_checked ? "ok" : "skip"}\n`,
   );
   for (const e of errors) process.stderr.write(`  ✗ ${e}\n`);
   if (errors.length === 0) process.stdout.write("  ✓ all checks pass\n");

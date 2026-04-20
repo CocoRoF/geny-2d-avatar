@@ -48,7 +48,7 @@
 | Gate | 세션 | 상태 |
 |---|---|---|
 | L1 Migrator (v1.3.0 halfbody → v1.0.0 fullbody 는 없음 — 별도 family) | — | N/A (새 family) |
-| L2 physics-lint `--family fullbody` | 57 | 파츠/물리 저작 후 활성 |
+| L2 rig-template-lint `--family fullbody` (세션 110 이전 이름 physics-lint) | 57 | 파츠/물리 저작 후 활성 |
 | L3 저자 판단 (physics tuning) | 57 | 세션 57 에서 `_sway/_phys/_fuwa` 계수 결정 |
 | L4 파이프라인 불변식 | 59 | `@geny/exporter-core` family=fullbody 분기 후 byte-equal golden |
 
@@ -56,4 +56,4 @@
 
 - 계획: [`progress/plans/fullbody-v1-authoring.md`](../../../../progress/plans/fullbody-v1-authoring.md)
 - 세션 52 (계획 수립): [`progress/sessions/2026-04-19-session-52-fullbody-authoring-review.md`](../../../../progress/sessions/2026-04-19-session-52-fullbody-authoring-review.md)
-- FAMILY_OUTPUT_RULES: [`scripts/rig-template/physics-lint.mjs`](../../../../scripts/rig-template/physics-lint.mjs) (세션 49)
+- FAMILY_OUTPUT_RULES: [`scripts/rig-template/rig-template-lint.mjs`](../../../../scripts/rig-template/rig-template-lint.mjs) (세션 49, 세션 110 리브랜딩)
