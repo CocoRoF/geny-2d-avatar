@@ -1,0 +1,864 @@
+{
+  "atlas": {
+    "path": "atlas.json",
+    "sha256": "1bc0cff15f87a7e226c502c9323fc2593b4d7576e83979be5015bf8ed0ed3465"
+  },
+  "avatar_id": null,
+  "expressions": [
+    {
+      "expression_id": "expression.neutral",
+      "fade_in_sec": 0.3,
+      "fade_out_sec": 0.3,
+      "name_en": "Neutral"
+    },
+    {
+      "expression_id": "expression.smile",
+      "fade_in_sec": 0.5,
+      "fade_out_sec": 0.5,
+      "name_en": "Smile"
+    },
+    {
+      "expression_id": "expression.wink",
+      "fade_in_sec": 0.2,
+      "fade_out_sec": 0.3,
+      "name_en": "Wink"
+    }
+  ],
+  "format": 1,
+  "motions": [
+    {
+      "duration_sec": 2,
+      "fade_in_sec": 0.25,
+      "fade_out_sec": 0.35,
+      "loop": false,
+      "pack_id": "accessory.greet"
+    },
+    {
+      "duration_sec": 1.5,
+      "fade_in_sec": 0.15,
+      "fade_out_sec": 0.2,
+      "loop": false,
+      "pack_id": "ahoge.bounce"
+    },
+    {
+      "duration_sec": 0.3,
+      "fade_in_sec": 0.05,
+      "fade_out_sec": 0.05,
+      "loop": false,
+      "pack_id": "blink.auto"
+    },
+    {
+      "duration_sec": 2,
+      "fade_in_sec": 0.3,
+      "fade_out_sec": 0.3,
+      "loop": false,
+      "pack_id": "greet.wave"
+    },
+    {
+      "duration_sec": 4,
+      "fade_in_sec": 1,
+      "fade_out_sec": 1,
+      "loop": true,
+      "pack_id": "idle.default"
+    },
+    {
+      "duration_sec": 6,
+      "fade_in_sec": 1.5,
+      "fade_out_sec": 1.5,
+      "loop": true,
+      "pack_id": "idle.sleepy"
+    },
+    {
+      "duration_sec": 2,
+      "fade_in_sec": 0.1,
+      "fade_out_sec": 0.1,
+      "loop": false,
+      "pack_id": "lipsync.mock"
+    },
+    {
+      "duration_sec": 1,
+      "fade_in_sec": 0.1,
+      "fade_out_sec": 0.1,
+      "loop": false,
+      "pack_id": "nod.yes"
+    },
+    {
+      "duration_sec": 1,
+      "fade_in_sec": 0.1,
+      "fade_out_sec": 0.1,
+      "loop": false,
+      "pack_id": "shake.no"
+    }
+  ],
+  "parameter_groups": [
+    {
+      "display_name_en": "Body",
+      "id": "body"
+    },
+    {
+      "display_name_en": "Brows",
+      "id": "brows"
+    },
+    {
+      "display_name_en": "Eyes",
+      "id": "eyes"
+    },
+    {
+      "display_name_en": "Face",
+      "id": "face"
+    },
+    {
+      "display_name_en": "Hair",
+      "id": "hair"
+    },
+    {
+      "display_name_en": "Mouth",
+      "id": "mouth"
+    },
+    {
+      "display_name_en": "Overall",
+      "id": "overall"
+    }
+  ],
+  "parameters": [
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "body",
+      "id": "accessory_back_sway",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "body",
+      "id": "accessory_front_sway",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "ahoge_sway",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "body",
+      "id": "arm_l_angle",
+      "range": [
+        -30,
+        30
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "body",
+      "id": "arm_pose_variant",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "body",
+      "id": "arm_r_angle",
+      "range": [
+        -30,
+        30
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "body",
+      "id": "body_angle_x",
+      "range": [
+        -10,
+        10
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "body",
+      "id": "body_angle_y",
+      "range": [
+        -10,
+        10
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "body",
+      "id": "body_angle_z",
+      "range": [
+        -10,
+        10
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "body",
+      "id": "body_breath",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "body",
+      "id": "body_breath_phys",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "brows",
+      "id": "brow_l_angle",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "brows",
+      "id": "brow_l_form",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "brows",
+      "id": "brow_l_x",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "brows",
+      "id": "brow_l_y",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "brows",
+      "id": "brow_r_angle",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "brows",
+      "id": "brow_r_form",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "brows",
+      "id": "brow_r_x",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "brows",
+      "id": "brow_r_y",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "body",
+      "id": "cloth_main_fuwa",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "eyes",
+      "id": "eye_ball_form",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "eyes",
+      "id": "eye_ball_x",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "eyes",
+      "id": "eye_ball_y",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "eyes",
+      "id": "eye_form_l",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "eyes",
+      "id": "eye_form_r",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 1,
+      "group": "eyes",
+      "id": "eye_open_l",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 1,
+      "group": "eyes",
+      "id": "eye_open_r",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "eyes",
+      "id": "eye_smile_l",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "eyes",
+      "id": "eye_smile_r",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "hair_back_fuwa",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "hair_back_sway",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "hair_front_fuwa",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "hair_front_sway",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "hair_side_fuwa_l",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "hair_side_fuwa_r",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "hair_side_sway_l",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "hair",
+      "id": "hair_side_sway_r",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "face",
+      "id": "head_angle_x",
+      "range": [
+        -30,
+        30
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "face",
+      "id": "head_angle_y",
+      "range": [
+        -30,
+        30
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "face",
+      "id": "head_angle_z",
+      "range": [
+        -30,
+        30
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "mouth",
+      "id": "mouth_down",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "mouth",
+      "id": "mouth_up",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "mouth",
+      "id": "mouth_vowel_a",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "mouth",
+      "id": "mouth_vowel_e",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "mouth",
+      "id": "mouth_vowel_i",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "mouth",
+      "id": "mouth_vowel_o",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "core",
+      "default": 0,
+      "group": "mouth",
+      "id": "mouth_vowel_u",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "overall",
+      "id": "overall_rotate",
+      "range": [
+        -30,
+        30
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "overall",
+      "id": "overall_x",
+      "range": [
+        -1,
+        1
+      ]
+    },
+    {
+      "channel": "extension",
+      "default": 0,
+      "group": "overall",
+      "id": "overall_y",
+      "range": [
+        -1,
+        1
+      ]
+    }
+  ],
+  "parts": [
+    {
+      "role": "accessory_back",
+      "slot_id": "accessory_back"
+    },
+    {
+      "role": "accessory_front",
+      "slot_id": "accessory_front"
+    },
+    {
+      "role": "hair_front",
+      "slot_id": "ahoge"
+    },
+    {
+      "role": "arm_l",
+      "slot_id": "arm_l_a"
+    },
+    {
+      "role": "arm_l",
+      "slot_id": "arm_l_b"
+    },
+    {
+      "role": "arm_r",
+      "slot_id": "arm_r_a"
+    },
+    {
+      "role": "arm_r",
+      "slot_id": "arm_r_b"
+    },
+    {
+      "role": "brow_l",
+      "slot_id": "brow_l"
+    },
+    {
+      "role": "brow_r",
+      "slot_id": "brow_r"
+    },
+    {
+      "parameter_ids": [
+        "head_angle_x",
+        "head_angle_y",
+        "head_angle_z"
+      ],
+      "role": "cheek_blush",
+      "slot_id": "cheek_blush"
+    },
+    {
+      "role": "cloth_main",
+      "slot_id": "cloth_main"
+    },
+    {
+      "parameter_ids": [
+        "eye_ball_x",
+        "eye_ball_y",
+        "eye_ball_form",
+        "eye_open_l"
+      ],
+      "role": "eye_iris_l",
+      "slot_id": "eye_iris_l"
+    },
+    {
+      "parameter_ids": [
+        "eye_ball_x",
+        "eye_ball_y",
+        "eye_ball_form",
+        "eye_open_r"
+      ],
+      "role": "eye_iris_r",
+      "slot_id": "eye_iris_r"
+    },
+    {
+      "parameter_ids": [
+        "eye_open_l",
+        "eye_smile_l",
+        "eye_form_l"
+      ],
+      "role": "eye_lash_lower_l",
+      "slot_id": "eye_lash_lower_l"
+    },
+    {
+      "parameter_ids": [
+        "eye_open_r",
+        "eye_smile_r",
+        "eye_form_r"
+      ],
+      "role": "eye_lash_lower_r",
+      "slot_id": "eye_lash_lower_r"
+    },
+    {
+      "parameter_ids": [
+        "eye_open_l",
+        "eye_smile_l",
+        "eye_form_l"
+      ],
+      "role": "eye_lash_upper_l",
+      "slot_id": "eye_lash_upper_l"
+    },
+    {
+      "parameter_ids": [
+        "eye_open_r",
+        "eye_smile_r",
+        "eye_form_r"
+      ],
+      "role": "eye_lash_upper_r",
+      "slot_id": "eye_lash_upper_r"
+    },
+    {
+      "parameter_ids": [
+        "eye_open_l",
+        "eye_smile_l",
+        "eye_form_l"
+      ],
+      "role": "eye_white_l",
+      "slot_id": "eye_white_l"
+    },
+    {
+      "parameter_ids": [
+        "eye_open_r",
+        "eye_smile_r",
+        "eye_form_r"
+      ],
+      "role": "eye_white_r",
+      "slot_id": "eye_white_r"
+    },
+    {
+      "parameter_ids": [
+        "head_angle_x",
+        "head_angle_y",
+        "head_angle_z"
+      ],
+      "role": "face_base",
+      "slot_id": "face_base"
+    },
+    {
+      "parameter_ids": [
+        "head_angle_x",
+        "head_angle_y",
+        "head_angle_z"
+      ],
+      "role": "face_shadow",
+      "slot_id": "face_shadow"
+    },
+    {
+      "role": "hair_back",
+      "slot_id": "hair_back"
+    },
+    {
+      "role": "hair_front",
+      "slot_id": "hair_front"
+    },
+    {
+      "parameter_ids": [
+        "hair_side_sway_l",
+        "hair_side_fuwa_l"
+      ],
+      "role": "hair_side_l",
+      "slot_id": "hair_side_l"
+    },
+    {
+      "parameter_ids": [
+        "hair_side_sway_r",
+        "hair_side_fuwa_r"
+      ],
+      "role": "hair_side_r",
+      "slot_id": "hair_side_r"
+    },
+    {
+      "parameter_ids": [
+        "mouth_vowel_a",
+        "mouth_vowel_i",
+        "mouth_vowel_u",
+        "mouth_vowel_e",
+        "mouth_vowel_o",
+        "mouth_up",
+        "mouth_down"
+      ],
+      "role": "mouth_base",
+      "slot_id": "mouth_base"
+    },
+    {
+      "parameter_ids": [
+        "mouth_vowel_a",
+        "mouth_vowel_i",
+        "mouth_vowel_u",
+        "mouth_vowel_e",
+        "mouth_vowel_o"
+      ],
+      "role": "mouth_inner",
+      "slot_id": "mouth_inner"
+    },
+    {
+      "parameter_ids": [
+        "head_angle_x",
+        "head_angle_y",
+        "head_angle_z",
+        "body_breath",
+        "body_breath_phys"
+      ],
+      "role": "neck",
+      "slot_id": "neck"
+    },
+    {
+      "parameter_ids": [
+        "head_angle_x",
+        "head_angle_y",
+        "head_angle_z"
+      ],
+      "role": "nose",
+      "slot_id": "nose"
+    },
+    {
+      "parameter_ids": [
+        "body_angle_x",
+        "body_angle_y",
+        "body_angle_z",
+        "body_breath",
+        "body_breath_phys"
+      ],
+      "role": "torso",
+      "slot_id": "torso"
+    }
+  ],
+  "physics_summary": {
+    "setting_count": 12,
+    "total_output_count": 13
+  },
+  "schema_version": "v1",
+  "template_id": "tpl.base.v1.halfbody",
+  "template_version": "1.3.0",
+  "textures": [
+    {
+      "bytes": 69,
+      "height": 4,
+      "path": "textures/base.png",
+      "purpose": "albedo",
+      "sha256": "f164334dc3985e3b8d95b71e59462c9c4f6d80c7ede23238c8759d9c4495a6db",
+      "width": 4
+    }
+  ]
+}

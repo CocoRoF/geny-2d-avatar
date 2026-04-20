@@ -1,0 +1,26 @@
+{
+  "file_count": 4,
+  "files": [
+    {
+      "bytes": 222,
+      "path": "atlas.json",
+      "sha256": "1bc0cff15f87a7e226c502c9323fc2593b4d7576e83979be5015bf8ed0ed3465"
+    },
+    {
+      "bytes": 630,
+      "path": "bundle.json",
+      "sha256": "54fb69cabba0a7022a7193436329bcaeb320e74269d6a78f8080ec1b7829f34a"
+    },
+    {
+      "bytes": 69,
+      "path": "textures/base.png",
+      "sha256": "f164334dc3985e3b8d95b71e59462c9c4f6d80c7ede23238c8759d9c4495a6db"
+    },
+    {
+      "bytes": 17933,
+      "path": "web-avatar.json",
+      "sha256": "1154579fe465bde8a0ac30a7ff6b9a1bc2838757b1c1bd30a2b22200a1083a55"
+    }
+  ],
+  "total_bytes": 18854
+}

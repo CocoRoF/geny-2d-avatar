@@ -197,6 +197,76 @@ test("assembleWebAvatarBundle: textureOverrides 가 template.textures 를 대체
   }
 });
 
+// 세션 105 — halfbody v1.3.0 + fullbody v1.0.0 web-avatar 번들 L4 golden 승격.
+// 세션 103 wire-through 로 parameter_ids 가 실 번들에 방출되고(halfbody 18 / fullbody 25),
+// 세션 104 에서 editor 가 halfbody v1.3.0 을 assembly 하기 시작 → 회귀 방어 대상.
+// 세션 103 D5 "의도된 drift" 의 최종 종결 — 이 시점부터 parameter_ids 변경이 golden 에 나타난다.
+test("assembleWebAvatarBundle: halfbody v1.3.0 bundle snapshot matches golden (세션 105)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
+  const dir = scratch();
+  try {
+    const res = assembleWebAvatarBundle(tpl, dir);
+    const got = snapshotBundle(res);
+    const want = readFileSync(
+      join(goldenDir, "halfbody_v1.3.0.web-avatar-bundle.snapshot.json"),
+      "utf8",
+    );
+    assert.equal(got, want);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("assembleWebAvatarBundle: halfbody v1.3.0 web-avatar.json byte-for-byte + parameter_ids 전파 (세션 105)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
+  const dir = scratch();
+  try {
+    assembleWebAvatarBundle(tpl, dir);
+    const got = readFileSync(join(dir, "web-avatar.json"), "utf8");
+    const want = readFileSync(join(goldenDir, "halfbody_v1.3.0.web-avatar.json"), "utf8");
+    assert.equal(got, want);
+    const parts = (JSON.parse(got) as { parts: Array<{ parameter_ids?: string[] }> }).parts;
+    const withIds = parts.filter((p) => Array.isArray(p.parameter_ids)).length;
+    assert.equal(parts.length, 30, "halfbody v1.3.0 = 30 parts (ahoge 포함)");
+    assert.equal(withIds, 18, "halfbody v1.3.0 opt-in 18 parts (세션 100 Face 14 + 세션 102 비-Face 4)");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("assembleWebAvatarBundle: fullbody v1.0.0 bundle snapshot matches golden (세션 105)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/fullbody/v1.0.0"));
+  const dir = scratch();
+  try {
+    const res = assembleWebAvatarBundle(tpl, dir);
+    const got = snapshotBundle(res);
+    const want = readFileSync(
+      join(goldenDir, "fullbody_v1.0.0.web-avatar-bundle.snapshot.json"),
+      "utf8",
+    );
+    assert.equal(got, want);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("assembleWebAvatarBundle: fullbody v1.0.0 web-avatar.json byte-for-byte + parameter_ids 전파 (세션 105)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/fullbody/v1.0.0"));
+  const dir = scratch();
+  try {
+    assembleWebAvatarBundle(tpl, dir);
+    const got = readFileSync(join(dir, "web-avatar.json"), "utf8");
+    const want = readFileSync(join(goldenDir, "fullbody_v1.0.0.web-avatar.json"), "utf8");
+    assert.equal(got, want);
+    const parts = (JSON.parse(got) as { parts: Array<{ parameter_ids?: string[] }> }).parts;
+    const withIds = parts.filter((p) => Array.isArray(p.parameter_ids)).length;
+    assert.equal(parts.length, 38, "fullbody v1.0.0 = 38 parts");
+    assert.equal(withIds, 25, "fullbody v1.0.0 opt-in 25 parts (세션 101 Face 14 + 세션 102 비-Face 11)");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("assembleWebAvatarBundle: textureOverrides path 가 template 에 없으면 throw (세션 35)", () => {
   const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
   const dir = scratch();
