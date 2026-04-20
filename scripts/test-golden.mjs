@@ -64,6 +64,11 @@
 // 25) mock-vendor-server tests — 세션 82. nano-banana/sdxl/flux-fill HTTP 계약 재현 서버의
 //     계약 회귀 (3 엔드포인트 결정론적 image_sha256 + 401/400/404 + latency/fail 주입 + argv 파서,
 //     13 tests). 실 벤더 키 없이 HTTP 경로 end-to-end 를 두드릴 수 있도록 하는 dev/CI 도구.
+// 26) observability Mock↔HTTP 스냅샷 drift 검사 — 세션 83. `smoke-snapshot-session-75.txt`
+//     (Mock 어댑터 경로) ↔ `smoke-snapshot-http-session-83.txt` (`--vendor-mock` 로 캡처한 실
+//     HTTP 어댑터 경로) 두 커밋된 스냅샷을 `observability-snapshot-diff.mjs` 로 structural drift=0
+//     어서션. Mock → HTTP 전환이 관측 계약(metric 이름 + label 키 집합)을 보존한다는 Foundation
+//     불변식 CI 고정. Redis/Docker 불필요 — 두 파일을 fs 로 읽어 비교만 하므로 수 ms.
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -101,6 +106,7 @@ const STEPS = [
   { name: "observability-snapshot-diff parser tests", run: runObservabilitySnapshotDiffTests },
   { name: "web-editor e2e", run: runWebEditorE2E },
   { name: "mock-vendor-server tests", run: runMockVendorServerTests },
+  { name: "observability Mock↔HTTP snapshot drift", run: runObservabilityMockHttpDriftCheck },
 ];
 
 const failed = [];
@@ -285,6 +291,16 @@ async function runWebEditorE2E() {
 
 async function runMockVendorServerTests() {
   await run("node", ["scripts/mock-vendor-server.test.mjs"], { cwd: repoRoot });
+}
+
+async function runObservabilityMockHttpDriftCheck() {
+  // 세션 83 — Mock ↔ HTTP 경로 관측 계약 동등성. --vendor-mock 으로 생성한 HTTP 경로 스냅샷이
+  // Foundation Mock 스냅샷(세션 75) 과 metric 이름 · label 키 집합을 보존하는지 검사.
+  await run("node", [
+    "scripts/observability-snapshot-diff.mjs",
+    "--baseline", "infra/observability/smoke-snapshot-session-75.txt",
+    "--current", "infra/observability/smoke-snapshot-http-session-83.txt",
+  ], { cwd: repoRoot });
 }
 
 async function runLicenseVerifierTests() {

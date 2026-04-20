@@ -22,7 +22,7 @@
 //     --redis-url redis://127.0.0.1:6379                  # 이미 떠있는 Redis 재사용
 
 import { spawn, spawnSync } from "node:child_process";
-import { createWriteStream, mkdirSync } from "node:fs";
+import { createWriteStream, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,6 +59,15 @@ const HARNESS_CONCURRENCY = Number(ARGS["harness-concurrency"] ?? 4);
 const CONSUMER_CONCURRENCY = Number(ARGS["consumer-concurrency"] ?? 4);
 const SNAPSHOT_PATH = ARGS["snapshot"] ? String(ARGS["snapshot"]) : null;
 const LOG_DIR = path.resolve(repoRoot, String(ARGS["log-dir"] ?? "artifacts/observability-e2e"));
+// 세션 83 — `--vendor-mock` 시 scripts/mock-vendor-server.mjs 를 ephemeral port 로 기동하고
+// adapters.json 의 endpoint 를 덮어쓴 임시 카탈로그 + API key env 를 워커에 주입. Mock 어댑터가
+// 아닌 **실 HTTP 어댑터** 경로로 perf-harness smoke 가 흐르게 된다 (세션 82 mock-vendor-server
+// 는 그 HTTP 계약 재현 담당).
+const VENDOR_MOCK = ARGS["vendor-mock"] === true;
+const MOCK_SEED = Number(ARGS["mock-seed"] ?? 42);
+const MOCK_LATENCY_MEAN_MS = Number(ARGS["mock-latency-mean-ms"] ?? 0);
+const MOCK_LATENCY_JITTER_MS = Number(ARGS["mock-latency-jitter-ms"] ?? 0);
+const MOCK_FAIL_RATE = Number(ARGS["mock-fail-rate"] ?? 0);
 
 mkdirSync(LOG_DIR, { recursive: true });
 
@@ -119,8 +128,8 @@ function startRedisContainer() {
   });
 }
 
-function startWorker(role, port, extra = []) {
-  const env = { ...process.env, REDIS_URL };
+function startWorker(role, port, extra = [], extraEnv = {}) {
+  const env = { ...process.env, REDIS_URL, ...extraEnv };
   const args = [
     "apps/worker-generate/dist/main.js",
     "--port",
@@ -201,8 +210,69 @@ function runSubprocess(cmd, args, { logName } = {}) {
   });
 }
 
+// 세션 83 — mock-vendor-server 를 ephemeral port 로 기동하고 "mock-vendor listening: <url>"
+// stdout 한 줄을 파싱해 base URL 을 반환. cleanupTasks 에 SIGTERM → 3s 뒤 SIGKILL 패턴을
+// push (세션 77 startWorker 와 동형).
+async function startMockVendor() {
+  const mockArgs = [
+    "scripts/mock-vendor-server.mjs",
+    "--port", "0",
+    "--seed", String(MOCK_SEED),
+    "--latency-mean-ms", String(MOCK_LATENCY_MEAN_MS),
+    "--latency-jitter-ms", String(MOCK_LATENCY_JITTER_MS),
+    "--fail-rate", String(MOCK_FAIL_RATE),
+  ];
+  const proc = spawn("node", mockArgs, { cwd: repoRoot, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+  const logFile = createWriteStream(path.join(LOG_DIR, "mock-vendor.log"), { flags: "w" });
+  let buf = "";
+  return await new Promise((ok, fail) => {
+    let resolved = false;
+    proc.stdout.on("data", (c) => {
+      logFile.write(c);
+      buf += c.toString();
+      const m = buf.match(/mock-vendor listening: (http:\/\/\S+)/);
+      if (m && !resolved) {
+        resolved = true;
+        const url = m[1];
+        console.log(`[e2e] mock-vendor OK — ${url}`);
+        cleanupTasks.push(async () => {
+          try { proc.kill("SIGTERM"); } catch {}
+          await new Promise((r) => {
+            const t = setTimeout(() => { try { proc.kill("SIGKILL"); } catch {} ; r(); }, 3000);
+            proc.once("exit", () => { clearTimeout(t); r(); });
+          });
+          logFile.end();
+          console.log("[e2e] mock-vendor stopped");
+        });
+        ok(url);
+      }
+    });
+    proc.stderr.on("data", (c) => logFile.write(c));
+    proc.once("exit", (code) => {
+      if (!resolved) fail(new Error(`mock-vendor exited before listening: code=${code}`));
+    });
+    setTimeout(() => {
+      if (!resolved) fail(new Error("mock-vendor listening line not seen within 5s"));
+    }, 5000).unref();
+  });
+}
+
+// infra/adapters/adapters.json 을 읽어 모든 어댑터의 `config.endpoint` 를 mock URL 로 치환한
+// 임시 카탈로그를 LOG_DIR 에 쓴다. api_key_env 키는 그대로 두고, 호출자가 env 에 "test-token"
+// 을 주입 (mock 은 키 값 일치를 보지 않고 헤더 존재만 검증 — 세션 82 D4).
+function writeHttpMockCatalog(mockUrl) {
+  const baseCatalogPath = path.resolve(repoRoot, "infra/adapters/adapters.json");
+  const catalog = JSON.parse(readFileSync(baseCatalogPath, "utf8"));
+  for (const entry of catalog.adapters) {
+    if (entry.config) entry.config.endpoint = mockUrl;
+  }
+  const tmpPath = path.join(LOG_DIR, "vendor-mock-catalog.json");
+  writeFileSync(tmpPath, JSON.stringify(catalog, null, 2) + "\n");
+  return tmpPath;
+}
+
 async function main() {
-  console.log(`[e2e] reuse-redis=${REUSE_REDIS} redis=${REDIS_URL} queue=${QUEUE_NAME} jobs=${JOBS}`);
+  console.log(`[e2e] reuse-redis=${REUSE_REDIS} redis=${REDIS_URL} queue=${QUEUE_NAME} jobs=${JOBS} vendor-mock=${VENDOR_MOCK}`);
 
   if (!REUSE_REDIS) {
     startRedisContainer();
@@ -231,13 +301,28 @@ async function main() {
     console.log("[e2e] redis PING OK");
   }
 
-  const producer = startWorker("producer", PRODUCER_PORT);
+  let httpArgs = [];
+  let httpEnv = {};
+  if (VENDOR_MOCK) {
+    const mockUrl = await startMockVendor();
+    const catalogPath = writeHttpMockCatalog(mockUrl);
+    httpArgs = ["--http", "--catalog", catalogPath];
+    httpEnv = {
+      NANO_BANANA_API_KEY: "test-token",
+      SDXL_API_KEY: "test-token",
+      FLUX_FILL_API_KEY: "test-token",
+    };
+    console.log(`[e2e] vendor-mock wired — catalog=${catalogPath}`);
+  }
+
+  const producer = startWorker("producer", PRODUCER_PORT, httpArgs, httpEnv);
   await waitForHealth("producer", `http://127.0.0.1:${PRODUCER_PORT}/healthz`, producer.logs);
 
   const consumer = startWorker("consumer", CONSUMER_PORT, [
     "--concurrency",
     String(CONSUMER_CONCURRENCY),
-  ]);
+    ...httpArgs,
+  ], httpEnv);
   await waitForHealth("consumer", `http://127.0.0.1:${CONSUMER_PORT}/healthz`, consumer.logs);
 
   // 스모크 부하
