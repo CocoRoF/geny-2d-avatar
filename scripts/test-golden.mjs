@@ -86,6 +86,7 @@ const STEPS = [
   { name: "worker-generate tests", run: runWorkerGenerateTests },
   { name: "perf-harness smoke", run: runPerfHarnessSmoke },
   { name: "job-queue-bullmq tests", run: runJobQueueBullMQTests },
+  { name: "observability-smoke parser tests", run: runObservabilitySmokeParserTests },
 ];
 
 const failed = [];
@@ -355,6 +356,12 @@ async function runPerfHarnessSmoke() {
 async function runJobQueueBullMQTests() {
   // ai-adapter-core dist 는 step 8 에서 빌드됨 — job-queue-bullmq 의 workspace 참조가 풀린다.
   await run("pnpm", ["-F", "@geny/job-queue-bullmq", "test"], { cwd: repoRoot });
+}
+
+async function runObservabilitySmokeParserTests() {
+  // observability-smoke.mjs 의 Prometheus exposition 파서(extractMetricNames + readSampleValue)
+  // 를 기동 없이 순수 단위 테스트. 세션 76.
+  await run("node", ["scripts/observability-smoke.test.mjs"], { cwd: repoRoot });
 }
 
 // ---------- util ----------

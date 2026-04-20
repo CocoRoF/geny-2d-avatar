@@ -20,6 +20,7 @@
 //     --snapshot infra/observability/smoke-snapshot-session-75.txt
 
 import { writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 function parseArgv(argv) {
   const out = {};
@@ -68,7 +69,7 @@ async function scrape(url) {
 // Prometheus exposition 에서 메트릭 이름 집합 추출.
 // `# TYPE <name> <kind>` 라인 + 샘플 라인(`<name>{...} <value>` 또는 `<name> <value>`) 둘 다 수집.
 // 히스토그램은 `<name>_bucket` / `<name>_sum` / `<name>_count` 접미사를 제거해 base name 으로 축약.
-function extractMetricNames(exposition) {
+export function extractMetricNames(exposition) {
   const names = new Set();
   for (const line of exposition.split("\n")) {
     if (!line || line.startsWith("# HELP")) continue;
@@ -92,7 +93,7 @@ function extractMetricNames(exposition) {
 
 // 특정 메트릭 이름 + 레이블 조건에 맞는 첫 샘플의 value 를 읽는다.
 // labelFilter 가 주어지면 라벨이 전부 포함돼야 매치 (부분 일치 OK).
-function readSampleValue(exposition, metricName, labelFilter = {}) {
+export function readSampleValue(exposition, metricName, labelFilter = {}) {
   const lines = exposition.split("\n");
   for (const line of lines) {
     if (line.startsWith("#") || !line.trim()) continue;
@@ -227,7 +228,11 @@ async function main() {
   console.log(JSON.stringify(report, null, 2));
 }
 
-main().catch((err) => {
-  console.error("[obs-smoke] error:", err);
-  process.exit(1);
-});
+// CLI 가 직접 실행될 때만 main() — import 는 pure (테스트에서 extractMetricNames/readSampleValue 만 임포트 가능).
+const entryPath = process.argv[1] ? fileURLToPath(import.meta.url) : null;
+if (entryPath && process.argv[1] === entryPath) {
+  main().catch((err) => {
+    console.error("[obs-smoke] error:", err);
+    process.exit(1);
+  });
+}
