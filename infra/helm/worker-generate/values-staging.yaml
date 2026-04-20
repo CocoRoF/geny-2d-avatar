@@ -1,0 +1,48 @@
+# staging 환경 override — Foundation → Runtime 브리지.
+#
+# 목적: kube-prometheus-stack 이 Foundation `/metrics` exposition 을 실제로 수집하는지
+# 검증하는 경로. Mock 어댑터만 쓰므로 벤더 비용 없음, producer/consumer 각 1 replica 로
+# 비용 최소. `scripts/observability-snapshot-diff.mjs` 와 쌍을 이뤄 세션 75 smoke
+# 스냅샷 대비 drift 를 staging 단위에서 자동 검증한다 (세션 80).
+
+worker:
+  driver: bullmq
+  queueName: geny-generate-staging
+  httpAdapters:
+    enabled: false                  # Foundation Mock 어댑터만
+
+redis:
+  existingSecret: "redis-geny-redis-connection"
+  existingSecretKey: "REDIS_URL"
+
+producer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+consumer:
+  replicas: 1
+  concurrency: 4
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# kube-prometheus-stack operator 는 기본적으로 ServiceMonitor 에 `release=<helm-release-name>`
+# 라벨이 붙어있는지 matchLabels selector 로 찾는다. kps 가 `kube-prometheus-stack` 이름으로
+# 설치된 환경 기준 (helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack).
+# 다른 릴리스 이름을 쓰는 클러스터에선 여기서 덮어쓴다.
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  labels:
+    release: kube-prometheus-stack

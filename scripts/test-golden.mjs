@@ -87,6 +87,7 @@ const STEPS = [
   { name: "perf-harness smoke", run: runPerfHarnessSmoke },
   { name: "job-queue-bullmq tests", run: runJobQueueBullMQTests },
   { name: "observability-smoke parser tests", run: runObservabilitySmokeParserTests },
+  { name: "observability-snapshot-diff parser tests", run: runObservabilitySnapshotDiffTests },
 ];
 
 const failed = [];
@@ -362,6 +363,13 @@ async function runObservabilitySmokeParserTests() {
   // observability-smoke.mjs 의 Prometheus exposition 파서(extractMetricNames + readSampleValue)
   // 를 기동 없이 순수 단위 테스트. 세션 76.
   await run("node", ["scripts/observability-smoke.test.mjs"], { cwd: repoRoot });
+}
+
+async function runObservabilitySnapshotDiffTests() {
+  // observability-snapshot-diff.mjs — exposition 파서 확장 (label key 집합) + diff 알고리즘
+  // (added/removed/labelDrift/sampleCountDelta). smoke-snapshot-session-75.txt self-diff 회귀
+  // 포함. 세션 80.
+  await run("node", ["scripts/observability-snapshot-diff.test.mjs"], { cwd: repoRoot });
 }
 
 // ---------- util ----------
