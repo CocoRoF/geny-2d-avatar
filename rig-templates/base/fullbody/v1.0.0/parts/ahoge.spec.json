@@ -28,6 +28,7 @@
     "max_iter": 2
   },
   "dependencies": ["hair_front"],
+  "parameter_ids": ["ahoge_sway"],
   "validation": {
     "must_cover_anchor": false,
     "min_alpha_area_frac": 0.002,

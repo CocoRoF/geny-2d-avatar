@@ -261,7 +261,7 @@ test("assembleWebAvatarBundle: fullbody v1.0.0 web-avatar.json byte-for-byte + p
     const parts = (JSON.parse(got) as { parts: Array<{ parameter_ids?: string[] }> }).parts;
     const withIds = parts.filter((p) => Array.isArray(p.parameter_ids)).length;
     assert.equal(parts.length, 38, "fullbody v1.0.0 = 38 parts");
-    assert.equal(withIds, 25, "fullbody v1.0.0 opt-in 25 parts (세션 101 Face 14 + 세션 102 비-Face 11)");
+    assert.equal(withIds, 27, "fullbody v1.0.0 opt-in 27 parts (세션 101 Face 14 + 세션 102 비-Face 11 + 세션 107 ahoge 1 + acc_belt 1)");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

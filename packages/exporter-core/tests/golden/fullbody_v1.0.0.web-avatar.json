@@ -732,6 +732,7 @@
   ],
   "parts": [
     {
+      "parameter_ids": [],
       "role": "accessory",
       "slot_id": "acc_belt"
     },
@@ -744,6 +745,9 @@
       "slot_id": "accessory_front"
     },
     {
+      "parameter_ids": [
+        "ahoge_sway"
+      ],
       "role": "hair_front",
       "slot_id": "ahoge"
     },
