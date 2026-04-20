@@ -35,6 +35,7 @@ import {
   type GenerationTask,
   type MetricsHook,
   type OrchestrateOutcome,
+  type SafetyFilter,
 } from "@geny/ai-adapter-core";
 import {
   HttpNanoBananaClient,
@@ -248,6 +249,12 @@ export interface CreateOrchestratorServiceOptions {
   extraMetricsHook?: MetricsHook;
   /** createMetricsServer 에 전달할 fallback 핸들러(예: API 라우트). */
   metricsServerFallback?: CreateMetricsServerOptions["fallback"];
+  /**
+   * `routeWithFallback` 의 안전성 필터 훅. Foundation 기본은 미주입(= NoopSafetyFilter 동일).
+   * 주입 시 adapter.generate() 결과가 `allowed=false` 면 `UNSAFE_CONTENT` 로 기록 후 다음 후보
+   * 폴백 → `geny_ai_fallback_total{reason="unsafe"}` 샘플 방출 (세션 88 e2e).
+   */
+  safety?: SafetyFilter;
 }
 
 export interface OrchestratorService {
@@ -305,6 +312,7 @@ export function createOrchestratorService(
         factories,
         registry: adapterRegistry,
         metrics: metricsHook,
+        ...(opts.safety ? { safety: opts.safety } : {}),
       });
     },
     runWebAvatarPipeline(template, outDir, pipelineOpts) {

@@ -58,6 +58,8 @@ import {
 
 import { createWorkerGenerate, type JobStoreFactory } from "./index.js";
 import { parseArgs, type CliArgs } from "./args.js";
+import { createSafetyFilterFromPreset, parseSafetyPreset } from "./safety-preset.js";
+import type { SafetyFilter } from "@geny/ai-adapter-core";
 
 const DEFAULT_SAMPLER_INTERVAL_MS = 30_000;
 
@@ -114,11 +116,15 @@ async function main(): Promise<void> {
     factories = { ...mockFactories, ...httpFactories };
   }
 
+  const safety: SafetyFilter | undefined = args.safetyPreset
+    ? createSafetyFilterFromPreset(parseSafetyPreset(args.safetyPreset))
+    : undefined;
+
   if (args.role === "consumer") {
-    await runConsumer(args, parsedCatalog, factories, httpNames);
+    await runConsumer(args, parsedCatalog, factories, httpNames, safety);
     return;
   }
-  await runProducerOrBoth(args, parsedCatalog, factories, httpNames);
+  await runProducerOrBoth(args, parsedCatalog, factories, httpNames, safety);
 }
 
 async function runProducerOrBoth(
@@ -126,6 +132,7 @@ async function runProducerOrBoth(
   catalog: AdapterCatalog,
   factories: AdapterFactories,
   httpNames: string[],
+  safety: SafetyFilter | undefined,
 ): Promise<void> {
   // `onEnqueued` 는 store 생성 이전에 설정되지만, counter 는 worker.service.registry 가 만들어진
   // **이후** 등록할 수 있다 — 순환 의존. closure ref 로 늦 바인딩.
@@ -148,7 +155,7 @@ async function runProducerOrBoth(
   }
 
   const worker = createWorkerGenerate({
-    orchestratorOptions: { catalog, factories },
+    orchestratorOptions: { catalog, factories, ...(safety ? { safety } : {}) },
     ...(storeFactory ? { storeFactory } : {}),
     logger: stderrLogger(),
   });
@@ -223,8 +230,13 @@ async function runConsumer(
   catalog: AdapterCatalog,
   factories: AdapterFactories,
   httpNames: string[],
+  safety: SafetyFilter | undefined,
 ): Promise<void> {
-  const svc: OrchestratorService = createOrchestratorService({ catalog, factories });
+  const svc: OrchestratorService = createOrchestratorService({
+    catalog,
+    factories,
+    ...(safety ? { safety } : {}),
+  });
   const failedCounter = svc.registry.counter(
     "geny_queue_failed_total",
     "큐 처리 실패 (terminal, catalog §2.1)",

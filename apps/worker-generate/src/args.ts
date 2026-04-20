@@ -24,6 +24,8 @@ export interface CliArgs {
   queueName: string;
   role: Role;
   concurrency: number | undefined;
+  /** 세션 88 — SafetyFilter 프리셋 spec. 원문 그대로 저장, main.ts 가 `parseSafetyPreset` 으로 해석. */
+  safetyPreset: string | undefined;
 }
 
 export const DEFAULT_QUEUE_NAME = "geny-generate";
@@ -56,6 +58,7 @@ export function parseArgs(argv: readonly string[], opts: ParseArgsOptions = {}):
   let queueName = DEFAULT_QUEUE_NAME;
   let role: Role = "both";
   let concurrencyCli: number | undefined;
+  let safetyPreset: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--port") {
@@ -94,11 +97,16 @@ export function parseArgs(argv: readonly string[], opts: ParseArgsOptions = {}):
       const v = argv[++i];
       if (!v) throw new Error("--concurrency 값 누락");
       concurrencyCli = parseConcurrency(v, "--concurrency");
+    } else if (a === "--safety-preset") {
+      const v = argv[++i];
+      if (!v) throw new Error("--safety-preset 값 누락");
+      safetyPreset = v;
     } else if (a === "--help" || a === "-h") {
       process.stdout.write(
         "usage: worker-generate [--port N] [--host H] [--catalog PATH] [--http]" +
           " [--driver in-memory|bullmq] [--queue-name NAME]" +
-          " [--role producer|consumer|both] [--concurrency N]\n",
+          " [--role producer|consumer|both] [--concurrency N]" +
+          " [--safety-preset noop|block-vendors:NAME[,NAME...]]\n",
       );
       process.exit(0);
     } else {
@@ -116,5 +124,5 @@ export function parseArgs(argv: readonly string[], opts: ParseArgsOptions = {}):
       concurrency = parseConcurrency(envRaw, `env ${CONCURRENCY_ENV}`);
     }
   }
-  return { port, host, catalog, http, driver, queueName, role, concurrency };
+  return { port, host, catalog, http, driver, queueName, role, concurrency, safetyPreset };
 }

@@ -30,6 +30,7 @@ import assert from "node:assert/strict";
 import {
   validateFallbackSnapshot,
   validateTerminalFailureSnapshot,
+  validateUnsafeSnapshot,
   readSample,
   hasAnySample,
   listSamples,
@@ -331,6 +332,74 @@ check("terminal: 2-hop baseline 을 terminal 모드로 돌리면 flux-fill 5xx /
   assert.ok(violations.some((v) => v.includes("geny_queue_failed_total{reason=ai_5xx}") && v.includes("missing")));
   assert.ok(violations.some((v) => v.includes("outcome=failed")));
   assert.ok(violations.some((v) => v.includes("status=success")));
+});
+
+// ── unsafe (세션 88) — nano SafetyFilter 차단 → sdxl 폴백 성공 ──
+
+const FULL_UNSAFE = [
+  "# TYPE geny_ai_call_total counter",
+  'geny_ai_call_total{model="0.1.0",stage="generation",status="unsafe",vendor="nano-banana"} 20',
+  'geny_ai_call_total{model="0.1.0",stage="generation",status="success",vendor="sdxl"} 20',
+  "# TYPE geny_ai_fallback_total counter",
+  'geny_ai_fallback_total{from_vendor="nano-banana",reason="unsafe",to_vendor="sdxl"} 20',
+  "# TYPE geny_queue_duration_seconds histogram",
+  'geny_queue_duration_seconds_count{outcome="succeeded",queue_name="x"} 20',
+  "# TYPE geny_queue_failed_total counter",
+  "",
+].join("\n");
+
+check("unsafe full snapshot → 0 violations", () => {
+  const { violations, report } = validateUnsafeSnapshot(FULL_UNSAFE, 20);
+  assert.deepEqual(violations, [], `unexpected: ${JSON.stringify(violations)}`);
+  assert.equal(report.mode, "unsafe");
+  assert.equal(report.fallback_nano_to_sdxl_unsafe, 20);
+  assert.equal(report.call_total_nano_unsafe, 20);
+  assert.equal(report.call_total_sdxl_success, 20);
+  assert.equal(report.queue_duration_succeeded_count, 20);
+  assert.equal(report.queue_failed_has_sample, false);
+});
+
+check("unsafe: fallback_total{reason=unsafe} 누락 → violation", () => {
+  const text = FULL_UNSAFE.replace(/geny_ai_fallback_total\{.*\n/, "");
+  const { violations } = validateUnsafeSnapshot(text, 20);
+  assert.ok(
+    violations.some((v) => v.includes("reason=unsafe") && v.includes("missing")),
+    `expected fallback missing violation, got: ${JSON.stringify(violations)}`,
+  );
+});
+
+check("unsafe: call_total{status=unsafe,nano-banana} 누락 → violation", () => {
+  const text = FULL_UNSAFE.replace(/geny_ai_call_total\{[^}]*status="unsafe"[^}]*\}[^\n]*\n/, "");
+  const { violations } = validateUnsafeSnapshot(text, 20);
+  assert.ok(
+    violations.some((v) => v.includes("status=unsafe,vendor=nano-banana") && v.includes("missing")),
+    `expected nano unsafe missing violation, got: ${JSON.stringify(violations)}`,
+  );
+});
+
+check("unsafe: sdxl success 누락 → violation", () => {
+  const text = FULL_UNSAFE.replace(/geny_ai_call_total\{[^}]*status="success"[^}]*\}[^\n]*\n/, "");
+  const { violations } = validateUnsafeSnapshot(text, 20);
+  assert.ok(
+    violations.some((v) => v.includes("status=success,vendor=sdxl") && v.includes("missing")),
+    `expected sdxl success missing violation, got: ${JSON.stringify(violations)}`,
+  );
+});
+
+check("unsafe: queue_failed_total sample 있음 → violation", () => {
+  const text = FULL_UNSAFE.replace(
+    "# TYPE geny_queue_failed_total counter",
+    '# TYPE geny_queue_failed_total counter\ngeny_queue_failed_total{queue_name="x",reason="other"} 1',
+  );
+  const { violations } = validateUnsafeSnapshot(text, 20);
+  assert.ok(violations.some((v) => v.includes("geny_queue_failed_total has samples")));
+});
+
+check("unsafe: hop1 5xx 베이스라인을 unsafe 모드로 돌리면 reason/status 두 축 위반", () => {
+  // FULL (hop1 5xx, 세션 84) 에는 unsafe label-set 이 없음 → unsafe 모드에서 다수 violation
+  const { violations } = validateUnsafeSnapshot(FULL, 20);
+  assert.ok(violations.some((v) => v.includes("reason=unsafe") && v.includes("missing")));
+  assert.ok(violations.some((v) => v.includes("status=unsafe") && v.includes("missing")));
 });
 
 process.stdout.write(`\n[fallback-validate-test] passed=${passed} failed=${failed}\n`);

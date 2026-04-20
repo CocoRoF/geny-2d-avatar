@@ -78,3 +78,17 @@ test("parseArgs: --role producer 는 in-memory driver 에서 거부 (세션 65 �
     /--driver bullmq 에서만/,
   );
 });
+
+test("parseArgs: --safety-preset 기본값 undefined (세션 88)", () => {
+  const args = parseArgs([], { env: {} });
+  assert.equal(args.safetyPreset, undefined);
+});
+
+test("parseArgs: --safety-preset 원문 보존 (파싱은 main.ts 가 담당)", () => {
+  const args = parseArgs(["--safety-preset", "block-vendors:nano-banana"], { env: {} });
+  assert.equal(args.safetyPreset, "block-vendors:nano-banana");
+});
+
+test("parseArgs: --safety-preset 값 누락 → throw", () => {
+  assert.throws(() => parseArgs(["--safety-preset"], { env: {} }), /값 누락/);
+});

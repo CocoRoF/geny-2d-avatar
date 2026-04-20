@@ -5,7 +5,7 @@
  * `observability-snapshot-diff.mjs` 가 metric 이름 + label 키 집합의 **구조적** drift 를 보는 반면,
  * 이 스크립트는 **fallback 경로가 실제로 발동됐는지** 를 label 값 + sample 값 레벨로 어서션한다.
  *
- * 세 가지 모드:
+ * 네 가지 모드:
  *
  *  - `--expect-hops 1` (기본, 세션 84): nano=1.0 / sdxl=0 / flux-fill=0 결정론 조합에서
  *    전부 nano-banana → sdxl 한 번 폴백 후 성공. 검증 5 축 (아래 1~5).
@@ -17,6 +17,10 @@
  *    (VENDOR_ERROR_5XX) 를 throw 하고 consumer `processWithMetrics` 가 `queue_failed_total{
  *    reason=ai_5xx}` + `queue_duration_seconds{outcome=failed}` 를 emit. 검증 9 축 (아래 1~9).
  *    hops 와 직교하는 독립 모드: 성공/실패 계약이 대칭 반전되므로 assertion shape 완전 교체.
+ *  - `--expect-unsafe` (세션 88): consumer `--safety-preset block-vendors:nano-banana` +
+ *    전 벤더 성공(fail-rate=0). nano-banana 의 결과만 SafetyFilter 가 차단 → UNSAFE_CONTENT 기록 후
+ *    sdxl 폴백 성공. `reason="5xx"` 가 아닌 `reason="unsafe"` label-set 으로 fallback_total 이
+ *    떠야 한다는 점이 hop1 5xx 모드와의 본질적 차이. 검증 5 축 (아래 U1~U5).
  *
  * 공통 검증 축 (1-hop 기준):
  *  1) `geny_ai_fallback_total{from_vendor="nano-banana", to_vendor="sdxl", reason="5xx"} >= N`
@@ -35,6 +39,17 @@
  *     만 증명됐음 (nano→sdxl). 여기서 **다른 label 조합**이 독립 샘플로 존재해야 함.
  *  7) `geny_ai_call_total{status="5xx", vendor="sdxl"} >= N`
  *     — sdxl 단의 5xx 도 독립 샘플. 2-hop 에서만 등장.
+ *
+ * UNSAFE 검증 축 (unsafe 모드, 세션 88 — hop1 5xx 와 구조 동형이되 reason/status 만 교체):
+ *  U1) `geny_ai_fallback_total{from_vendor="nano-banana", to_vendor="sdxl", reason="unsafe"} >= N`
+ *      — fallback 사유가 5xx 가 아니라 "unsafe" 로 분류돼야 한다 (routeWithFallback:173).
+ *  U2) `geny_ai_call_total{status="unsafe", vendor="nano-banana"} >= N`
+ *      — status 라벨이 "unsafe" 로 등장 (routeWithFallback:165, metrics.ts AdapterCallStatus).
+ *  U3) `geny_ai_call_total{status="success", vendor="sdxl"} >= N`
+ *      — 폴백 도착지 sdxl 이 성공.
+ *  U4) `geny_queue_duration_seconds_count{outcome="succeeded"} >= N`
+ *      — 잡 레벨에서는 성공으로 분류 (sdxl 이 결과를 반환했으므로).
+ *  U5) `geny_queue_failed_total` TYPE-only — terminal 실패 0.
  *
  * 터미널 실패 검증 축 (terminal 모드, 2-hop 과 독립):
  *  T1) `geny_ai_fallback_total{nano-banana→sdxl, 5xx} >= N` (공통 hop1)
@@ -72,6 +87,7 @@ function parseArgs(argv) {
     else if (a === "--expect-jobs") { out.expectJobs = Number(next); i += 1; }
     else if (a === "--expect-hops") { out.expectHops = Number(next); i += 1; }
     else if (a === "--expect-terminal-failure") { out.expectTerminalFailure = true; }
+    else if (a === "--expect-unsafe") { out.expectUnsafe = true; }
     else if (a === "--verbose") { out.verbose = true; }
     else throw new Error(`unknown arg: ${a}`);
   }
@@ -325,21 +341,87 @@ export function validateTerminalFailureSnapshot(text, expectJobs) {
   return { report, violations };
 }
 
+/**
+ * UNSAFE_CONTENT 폴백 검증 — 세션 88. consumer `--safety-preset block-vendors:nano-banana`
+ * + 전 벤더 fail-rate=0 조합. routeWithFallback 가 nano-banana 결과를 safety.check → allowed=false
+ * 로 받아 status="unsafe" / reason="unsafe" 라벨로 메트릭 emit 후 sdxl 폴백 성공.
+ *
+ * hop1 5xx (validateFallbackSnapshot) 와 구조 동형이되, reason/status 두 라벨만 "5xx" → "unsafe" 로
+ * 교체된 형태. 별도 함수로 분리한 이유는 의미론적 구별을 테스트 레벨에서 보존하기 위함.
+ *
+ * @param {string} text
+ * @param {number} expectJobs
+ */
+export function validateUnsafeSnapshot(text, expectJobs) {
+  const violations = [];
+  const report = { mode: "unsafe" };
+
+  // U1) fallback_total{nano→sdxl, reason=unsafe}
+  const fallback = readSample(text, "geny_ai_fallback_total", {
+    from_vendor: "nano-banana", to_vendor: "sdxl", reason: "unsafe",
+  });
+  report.fallback_nano_to_sdxl_unsafe = fallback;
+  if (fallback === null) {
+    violations.push("geny_ai_fallback_total{from_vendor=nano-banana,to_vendor=sdxl,reason=unsafe} sample missing");
+  } else if (fallback < expectJobs) {
+    violations.push(`geny_ai_fallback_total{nano→sdxl,unsafe}=${fallback} < expected ${expectJobs}`);
+  }
+
+  // U2) call_total{status=unsafe, vendor=nano-banana}
+  const nanoUnsafe = readSample(text, "geny_ai_call_total", { status: "unsafe", vendor: "nano-banana" });
+  report.call_total_nano_unsafe = nanoUnsafe;
+  if (nanoUnsafe === null) {
+    violations.push("geny_ai_call_total{status=unsafe,vendor=nano-banana} sample missing");
+  } else if (nanoUnsafe < expectJobs) {
+    violations.push(`geny_ai_call_total{status=unsafe,vendor=nano-banana}=${nanoUnsafe} < expected ${expectJobs}`);
+  }
+
+  // U3) call_total{status=success, vendor=sdxl}
+  const sdxlSuccess = readSample(text, "geny_ai_call_total", { status: "success", vendor: "sdxl" });
+  report.call_total_sdxl_success = sdxlSuccess;
+  if (sdxlSuccess === null) {
+    violations.push("geny_ai_call_total{status=success,vendor=sdxl} sample missing");
+  } else if (sdxlSuccess < expectJobs) {
+    violations.push(`geny_ai_call_total{status=success,vendor=sdxl}=${sdxlSuccess} < expected ${expectJobs}`);
+  }
+
+  // U4) queue duration succeeded
+  const queueSucceeded = readSample(text, "geny_queue_duration_seconds_count", { outcome: "succeeded" });
+  report.queue_duration_succeeded_count = queueSucceeded;
+  if (queueSucceeded === null || queueSucceeded < expectJobs) {
+    violations.push(
+      `geny_queue_duration_seconds_count{outcome=succeeded}=${queueSucceeded} < expected ${expectJobs}`,
+    );
+  }
+
+  // U5) queue_failed_total TYPE-only
+  const queueFailedSample = hasAnySample(text, "geny_queue_failed_total");
+  report.queue_failed_has_sample = queueFailedSample;
+  if (queueFailedSample) {
+    violations.push("geny_queue_failed_total has samples — expected TYPE-only (no terminal failures)");
+  }
+
+  return { report, violations };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.file) {
     process.stderr.write("--file <snapshot.txt> required\n");
     process.exit(2);
   }
-  if (args.expectTerminalFailure && args.expectHops !== undefined) {
-    process.stderr.write("--expect-terminal-failure 와 --expect-hops 는 동시에 사용 불가\n");
+  const exclusiveModes = [args.expectTerminalFailure, args.expectUnsafe, args.expectHops !== undefined].filter(Boolean).length;
+  if (exclusiveModes > 1) {
+    process.stderr.write("--expect-terminal-failure / --expect-unsafe / --expect-hops 는 상호 배타\n");
     process.exit(2);
   }
   const expectJobs = Number.isFinite(args.expectJobs) ? args.expectJobs : 20;
   const text = readFileSync(args.file, "utf8");
-  const { report, violations } = args.expectTerminalFailure
-    ? validateTerminalFailureSnapshot(text, expectJobs)
-    : validateFallbackSnapshot(text, expectJobs, args.expectHops === 2 ? 2 : 1);
+  let result;
+  if (args.expectTerminalFailure) result = validateTerminalFailureSnapshot(text, expectJobs);
+  else if (args.expectUnsafe) result = validateUnsafeSnapshot(text, expectJobs);
+  else result = validateFallbackSnapshot(text, expectJobs, args.expectHops === 2 ? 2 : 1);
+  const { report, violations } = result;
   if (args.verbose) {
     process.stdout.write(`[fallback-validate] report=${JSON.stringify(report)}\n`);
   }

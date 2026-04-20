@@ -217,12 +217,34 @@ jobs:
             --log-dir artifacts/observability-e2e-terminal
           node scripts/observability-fallback-validate.mjs --file "$SNAP" --expect-terminal-failure --verbose
 
+      - name: Observability e2e (--vendor-mock UNSAFE_CONTENT fallback)
+        id: observability-e2e-unsafe
+        # 세션 88 — consumer `--safety-preset block-vendors:nano-banana` 로 nano-banana 결과만
+        # SafetyFilter 가 차단 (allowed=false) → UNSAFE_CONTENT 기록 후 sdxl 폴백 성공. fail-rate 는
+        # 기본 0 — 즉 3 벤더 전부 HTTP 레벨 성공이지만 nano-banana 결과만 SafetyFilter 레이어에서
+        # unsafe 로 판정된다. route-with-fallback 은 status="unsafe" call_total +
+        # reason="unsafe" fallback_total label-set 을 emit. 본 step 은 fresh 캡처 →
+        # `observability-fallback-validate --expect-unsafe` 로 5 축 회귀 (nano unsafe call_total,
+        # sdxl success call_total, nano→sdxl unsafe fallback_total, queue_succeeded, queue_failed
+        # TYPE-only). Foundation "UNSAFE_CONTENT 폴백 경로가 관측 상 없었던 일이 되지 않는다"
+        # 불변식 CI 고정. golden step 27 은 커밋된 baseline 을 파일-레벨로 검증하고, 본 lane 은
+        # orchestration 변조 탐지 담당.
+        run: |
+          set -euo pipefail
+          SNAP=/tmp/obs-unsafe-fresh.txt
+          node scripts/observability-e2e.mjs --reuse-redis --redis-url "$REDIS_URL" \
+            --vendor-mock --safety-preset block-vendors:nano-banana --expect-unsafe \
+            --snapshot "$SNAP" \
+            --queue-name geny-obs-88 --producer-port 9099 --consumer-port 9100 \
+            --log-dir artifacts/observability-e2e-unsafe
+          node scripts/observability-fallback-validate.mjs --file "$SNAP" --expect-unsafe --verbose
+
       - name: Upload observability-e2e artifacts on failure
         # 세션 79 — e2e 실패 시 producer/consumer/perf-harness/observability-smoke 로그를 artifact
         # 로 보존. 이전에는 stderr tail 800자만 노출돼 CI log 만으론 원인 분석이 불충분했다.
         # 성공 시엔 artifact 를 만들지 않음 (노이즈 방지) — 업스트림에서 snapshot 수집이 필요하면
         # 별도 `--snapshot` 플래그 경로로 분리.
-        if: failure() && (steps.observability-e2e.conclusion == 'failure' || steps.observability-e2e-vendor-mock.conclusion == 'failure' || steps.observability-e2e-fallback.conclusion == 'failure' || steps.observability-e2e-2hop.conclusion == 'failure' || steps.observability-e2e-terminal.conclusion == 'failure')
+        if: failure() && (steps.observability-e2e.conclusion == 'failure' || steps.observability-e2e-vendor-mock.conclusion == 'failure' || steps.observability-e2e-fallback.conclusion == 'failure' || steps.observability-e2e-2hop.conclusion == 'failure' || steps.observability-e2e-terminal.conclusion == 'failure' || steps.observability-e2e-unsafe.conclusion == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: observability-e2e-logs
@@ -232,6 +254,7 @@ jobs:
             artifacts/observability-e2e-fallback/
             artifacts/observability-e2e-2hop/
             artifacts/observability-e2e-terminal/
+            artifacts/observability-e2e-unsafe/
           if-no-files-found: warn
           retention-days: 7
 

@@ -69,16 +69,18 @@
 //     HTTP 어댑터 경로) 두 커밋된 스냅샷을 `observability-snapshot-diff.mjs` 로 structural drift=0
 //     어서션. Mock → HTTP 전환이 관측 계약(metric 이름 + label 키 집합)을 보존한다는 Foundation
 //     불변식 CI 고정. Redis/Docker 불필요 — 두 파일을 fs 로 읽어 비교만 하므로 수 ms.
-// 27) observability-fallback-validate + fallback 스냅샷 검증 — 세션 84/85/86. (a) 파서 회귀
-//     23 tests (1-hop 9 + 2-hop 5 + terminal 9 — readSample label exact-match,
-//     hasAnySample TYPE-only 구분, listSamples partial-label, violation 경로) (b) 세 커밋된
-//     베이스라인: `smoke-snapshot-fallback-session-84.txt` (1-hop, nano→sdxl) +
-//     `smoke-snapshot-fallback-session-85-2hop.txt` (2-hop, nano→sdxl→flux-fill) +
-//     `smoke-snapshot-terminal-session-86.txt` (terminal, 3 후보 전부 실패 → queue_failed_total
-//     {reason=ai_5xx}) 에 대해 각각 validator 실행. 1-hop 은 5 축, 2-hop 은 7 축, terminal 은
-//     9 축 (5xx 3 벤더 + fallback 2 hop + queue_failed{ai_5xx} + duration_count{failed} +
-//     success 샘플 부재). Foundation "fallback 경로(1-hop / 2-hop / terminal)가 관측 상
-//     없었던 일이 되지 않는다" 불변식 3-way 고정.
+// 27) observability-fallback-validate + fallback 스냅샷 검증 — 세션 84/85/86/88. (a) 파서 회귀
+//     29 tests (1-hop 9 + 2-hop 5 + terminal 9 + unsafe 6 — readSample label exact-match,
+//     hasAnySample TYPE-only 구분, listSamples partial-label, violation 경로) (b) 네 커밋된
+//     베이스라인: `smoke-snapshot-fallback-session-84.txt` (1-hop 5xx, nano→sdxl) +
+//     `smoke-snapshot-fallback-session-85-2hop.txt` (2-hop 5xx, nano→sdxl→flux-fill) +
+//     `smoke-snapshot-terminal-session-86.txt` (terminal 5xx, 3 후보 전부 실패 → queue_failed_total
+//     {reason=ai_5xx}) + `smoke-snapshot-unsafe-session-88.txt` (UNSAFE_CONTENT,
+//     SafetyFilter 로 nano-banana 결과 차단 → sdxl 폴백 성공, reason="unsafe")
+//     에 대해 각각 validator 실행. 1-hop 은 5 축, 2-hop 은 7 축, terminal 은 9 축,
+//     unsafe 는 5 축 (unsafe status/reason label-set + sdxl success + queue_succeeded +
+//     queue_failed TYPE-only). Foundation "fallback 경로(5xx 3 변종 + unsafe)가 관측 상
+//     없었던 일이 되지 않는다" 불변식 4-way 고정.
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 
 import { spawn } from "node:child_process";
@@ -318,9 +320,10 @@ async function runObservabilityFallbackValidator() {
   // 세션 84 — fallback 1-hop (nano→sdxl).
   // 세션 85 — fallback 2-hop (nano→sdxl→flux-fill).
   // 세션 86 — fallback terminal (3 후보 전부 실패 → queue_failed_total{reason=ai_5xx}).
-  // 세 베이스라인 모두 커밋돼 있고, 같은 validator 가 `--expect-hops {1|2}` 또는
-  // `--expect-terminal-failure` 로 분기. 파서 회귀 23 tests 도 본 step 에서 실행
-  // (1-hop 9 + 2-hop 5 + terminal 9).
+  // 세션 88 — fallback unsafe (SafetyFilter 가 nano-banana 결과 차단 → sdxl 폴백 성공).
+  // 네 베이스라인 모두 커밋돼 있고, 같은 validator 가 `--expect-hops {1|2}` /
+  // `--expect-terminal-failure` / `--expect-unsafe` 로 분기. 파서 회귀 29 tests 도 본 step 에서
+  // 실행 (1-hop 9 + 2-hop 5 + terminal 9 + unsafe 6).
   await run("node", ["scripts/observability-fallback-validate.test.mjs"], { cwd: repoRoot });
   await run("node", [
     "scripts/observability-fallback-validate.mjs",
@@ -335,6 +338,11 @@ async function runObservabilityFallbackValidator() {
     "scripts/observability-fallback-validate.mjs",
     "--file", "infra/observability/smoke-snapshot-terminal-session-86.txt",
     "--expect-terminal-failure",
+  ], { cwd: repoRoot });
+  await run("node", [
+    "scripts/observability-fallback-validate.mjs",
+    "--file", "infra/observability/smoke-snapshot-unsafe-session-88.txt",
+    "--expect-unsafe",
   ], { cwd: repoRoot });
 }
 

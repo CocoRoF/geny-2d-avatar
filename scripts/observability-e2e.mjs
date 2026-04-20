@@ -90,6 +90,11 @@ const HARNESS_WITH_MASK = ARGS["harness-with-mask"] === true;
 // success 계약 대신 failure 계약으로 체크 (jobs enqueued 는 여전히 N, 다만 성공 어서션은 skip).
 const HARNESS_IGNORE_ERRORS = ARGS["harness-ignore-errors"] === true;
 const EXPECT_TERMINAL_FAILURE = ARGS["expect-terminal-failure"] === true;
+// 세션 88 — UNSAFE_CONTENT fallback e2e. consumer 워커에 `--safety-preset <spec>` 주입.
+// `block-vendors:nano-banana` 는 첫 라우팅 후보의 결과만 차단 → sdxl 폴백 성공 →
+// `geny_ai_fallback_total{reason=unsafe}` 샘플이 /metrics 에 떠야 validator 가 계약을 증명한다.
+const SAFETY_PRESET = ARGS["safety-preset"] !== undefined ? String(ARGS["safety-preset"]) : undefined;
+const EXPECT_UNSAFE = ARGS["expect-unsafe"] === true;
 
 mkdirSync(LOG_DIR, { recursive: true });
 
@@ -347,6 +352,7 @@ async function main() {
     "--concurrency",
     String(CONSUMER_CONCURRENCY),
     ...httpArgs,
+    ...(SAFETY_PRESET !== undefined ? ["--safety-preset", SAFETY_PRESET] : []),
   ], httpEnv);
   await waitForHealth("consumer", `http://127.0.0.1:${CONSUMER_PORT}/healthz`, consumer.logs);
 
