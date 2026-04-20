@@ -223,6 +223,68 @@ async function main() {
     console.log("  ✓ FAMILY_OUTPUT_RULES 가 schema enum 6종 커버");
   }
 
+  // 2l) C11 — parts/*.spec.json 의 parameter_ids (세션 98) 가 parameters.json 에 없을 때 (세션 99)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    // 기존 파츠 중 하나에 존재하지 않는 id 주입
+    const specPath = join(dir, "parts", "ahoge.spec.json");
+    const spec = JSON.parse(await readFile(specPath, "utf8"));
+    spec.parameter_ids = ["ahoge_sway", "not_a_param_xyz"];
+    await writeFile(specPath, JSON.stringify(spec, null, 2));
+    const res = await lintPhysics(dir);
+    const c11 = res.errors.filter((e) => e.startsWith("C11"));
+    assert.equal(c11.length, 1, `expected 1 C11 error, got: ${res.errors.join(" / ")}`);
+    assert.ok(c11[0].includes("not_a_param_xyz"));
+    assert.ok(c11[0].includes("ahoge.spec.json"));
+    assert.equal(res.summary.parts_with_bindings, 1, "parts_with_bindings=1 (ahoge 만)");
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C11 parameter_ids 가 parameters.json 에 없을 때 차단");
+  }
+
+  // 2m) C11 — 유효한 parameter_ids 는 통과 (세션 99)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const specPath = join(dir, "parts", "ahoge.spec.json");
+    const spec = JSON.parse(await readFile(specPath, "utf8"));
+    spec.parameter_ids = ["ahoge_sway"]; // v1.3.0 parameters.json 에 실존
+    await writeFile(specPath, JSON.stringify(spec, null, 2));
+    const res = await lintPhysics(dir);
+    const c11 = res.errors.filter((e) => e.startsWith("C11"));
+    assert.equal(c11.length, 0, `expected 0 C11 errors, got: ${res.errors.join(" / ")}`);
+    assert.equal(res.summary.parts_with_bindings, 1);
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C11 유효 parameter_ids 통과");
+  }
+
+  // 2n) C11 — 빈 배열 parameter_ids 는 no-op (세션 98 의미: overall-only) (세션 99)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const specPath = join(dir, "parts", "ahoge.spec.json");
+    const spec = JSON.parse(await readFile(specPath, "utf8"));
+    spec.parameter_ids = [];
+    await writeFile(specPath, JSON.stringify(spec, null, 2));
+    const res = await lintPhysics(dir);
+    const c11 = res.errors.filter((e) => e.startsWith("C11"));
+    assert.equal(c11.length, 0);
+    assert.equal(res.summary.parts_with_bindings, 1, "빈 배열도 'bindings 존재' 로 계수");
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C11 빈 배열은 no-op");
+  }
+
+  // 2o) C11 — parameter_ids 필드가 없는 spec (기존 67 파츠 전부 해당) 은 no-op (세션 99)
+  {
+    // 공식 v1.3.0 그대로 lint → C11 오류 0, parts_checked=30, parts_with_bindings=0
+    const res = await lintPhysics(join(halfbody, "v1.3.0"));
+    const c11 = res.errors.filter((e) => e.startsWith("C11"));
+    assert.equal(c11.length, 0);
+    assert.equal(res.summary.parts_checked, 30);
+    assert.equal(res.summary.parts_with_bindings, 0, "세션 99 시점엔 opt-in 파츠 0");
+    console.log("  ✓ C11 parameter_ids 미지정 파츠는 backward-compat no-op");
+  }
+
   // 3) diff v1.2.0 vs v1.3.0 — 3 신규 세팅
   {
     const lines = await diffPhysics(join(halfbody, "v1.2.0"), join(halfbody, "v1.3.0"));

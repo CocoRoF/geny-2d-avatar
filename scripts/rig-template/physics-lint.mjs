@@ -23,6 +23,11 @@
 //        - C10-forbidden: 각 family 의 forbidden prefix 에 걸리지 않음.
 //        family 는 template.manifest.json.family 에서 읽으며, `--family` 로 override.
 //        Family rule 테이블은 FAMILY_OUTPUT_RULES 아래 참조.
+//   C11. `parts/*.spec.json` 의 `parameter_ids` (세션 98) 에 나열된 id 가 parameters.json
+//        의 parameters[].id 에 실제 존재하는지 교차 검증. parameters 의 minor-bump 로 id
+//        가 rename / 삭제됐을 때 드리프트를 CI 수준에서 조기 차단. 세션 98 의 silent-empty
+//        런타임 정책을 CI 안전망으로 보완. `parts/` 디렉토리가 없거나 `parameter_ids` 를
+//        사용하는 spec 이 0 건이면 no-op.
 //
 // --baseline 옵션:
 //   주어지면 타겟과 baseline physics.json 사이의 structural diff 리포트 (stdout 에 human-readable).
@@ -33,7 +38,7 @@
 //
 // 의존성: Node 20.11+ built-in 만 (readFile, JSON).
 
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
 
@@ -234,6 +239,31 @@ export async function lintPhysics(templateDir, options = {}) {
     }
   }
 
+  // C11 — parts/*.spec.json 의 parameter_ids 교차 검증. parts 디렉토리가 없거나 필드를
+  // 쓰는 spec 이 0 건이면 no-op. schema 단계에서는 id 존재 여부를 알 수 없어 (cross-ref
+  // 불가능) 이 시점이 유일한 CI 차단 지점.
+  let partsChecked = 0;
+  let partsWithBindings = 0;
+  const partsDir = join(templateDir, "parts");
+  if (existsSync(partsDir)) {
+    const entries = await readdir(partsDir);
+    for (const name of entries) {
+      if (!name.endsWith(".spec.json")) continue;
+      const specPath = join(partsDir, name);
+      const spec = JSON.parse(await readFile(specPath, "utf8"));
+      partsChecked += 1;
+      if (!Array.isArray(spec.parameter_ids)) continue;
+      partsWithBindings += 1;
+      for (const [i, id] of spec.parameter_ids.entries()) {
+        if (!paramById.has(id)) {
+          errors.push(
+            `C11 parts/${name}.parameter_ids[${i}]=${id} 이 parameters.json 에 없음 (slot_id=${spec.slot_id ?? "?"})`,
+          );
+        }
+      }
+    }
+  }
+
   return {
     errors,
     summary: {
@@ -243,6 +273,8 @@ export async function lintPhysics(templateDir, options = {}) {
       total_output_count: totalOut,
       vertex_count: totalVert,
       ids: settingIds,
+      parts_checked: partsChecked,
+      parts_with_bindings: partsWithBindings,
     },
   };
 }
@@ -330,7 +362,7 @@ async function main(argv) {
   const { errors, summary } = res;
 
   process.stdout.write(
-    `physics-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count}\n`,
+    `physics-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind\n`,
   );
   for (const e of errors) process.stderr.write(`  ✗ ${e}\n`);
   if (errors.length === 0) process.stdout.write("  ✓ all checks pass\n");
