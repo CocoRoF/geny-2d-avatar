@@ -49,6 +49,14 @@
         background: var(--bg-page);
         font-variant-numeric: tabular-nums;
       }
+      .topbar .template-picker {
+        padding: 4px 8px;
+        border: 1px solid var(--border);
+        background: var(--bg-panel);
+        border-radius: 6px;
+        font-size: 13px;
+        color: inherit;
+      }
       .topbar .actions { margin-left: auto; display: flex; gap: 6px; }
       .topbar button {
         padding: 4px 12px;
@@ -185,6 +193,7 @@
     <header class="topbar">
       <span class="brand">Geny Editor</span>
       <span id="avatar-name" class="avatar-name">—</span>
+      <select id="template-picker" class="template-picker" aria-label="template"></select>
       <div class="actions">
         <button disabled title="Runtime (세션 82+)">Save</button>
         <button disabled title="Runtime">History</button>
@@ -204,7 +213,7 @@
         <div class="stage">
           <div class="stage-inner">
             <div id="preview-hint">Stage 2 에선 번들 메타만 로드합니다. 실 렌더러는 Stage 3 이후 합류.</div>
-            <geny-avatar id="avatar" src="./public/sample/bundle.json"></geny-avatar>
+            <geny-avatar id="avatar"></geny-avatar>
           </div>
         </div>
         <div class="preview-controls">
@@ -227,12 +236,13 @@
       const groupsEl = document.querySelector("#parts-groups");
       const inspectorEl = document.querySelector("#inspector");
       const avatarNameEl = document.querySelector("#avatar-name");
+      const pickerEl = document.querySelector("#template-picker");
       const el = document.querySelector("#avatar");
 
       // docs/09 §4.3.1 — Face / Hair / Body / Accessory. halfbody v1.2.0 의 fine-grained role
       // (eye_iris_l, brow_l, arm_l, accessory_back…) 을 prefix 기반으로 UX 카테고리에 매핑한다.
-      // 정확 매칭이 아닌 prefix 규칙을 쓰는 이유: role 네이밍이 세밀해질수록 Map entry 가 폭발 —
-      // 세션 81 시점 27 고유 role 중 어느 하나도 빠짐없이 카테고리화 되도록 함.
+      // 세션 87 — fullbody v1.0.0 는 hip/leg/foot/cloth_skirt/acc_belt 등 generic role 을
+      // 쓰므로 (limb, clothing, accessory, torso) 정확 매칭 3 줄을 추가한다. Other=0 불변식 유지.
       const CATEGORY_ORDER = ["Face", "Hair", "Body", "Accessory"];
 
       function categoryOf(role) {
@@ -250,9 +260,11 @@
           role.startsWith("cloth_") ||
           role === "torso" ||
           role === "neck" ||
-          role === "body"
+          role === "body" ||
+          role === "limb" ||
+          role === "clothing"
         ) return "Body";
-        if (role.startsWith("accessory_")) return "Accessory";
+        if (role.startsWith("accessory_") || role === "accessory") return "Accessory";
         return "Other";
       }
 
@@ -343,6 +355,41 @@
         statusEl.textContent = `error — ${ev.detail.error?.message ?? ev.detail.error}`;
         console.error(ev.detail.error);
       });
+
+      function swapTemplate(bundleUrl) {
+        statusEl.className = "status";
+        statusEl.textContent = "로딩 중…";
+        groupsEl.replaceChildren();
+        inspectorEl.replaceChildren();
+        const hint = document.createElement("p");
+        hint.className = "empty-hint";
+        hint.textContent = "파츠를 선택하면 slot · role · 소속 그룹이 표시됩니다.";
+        inspectorEl.appendChild(hint);
+        el.setAttribute("src", bundleUrl);
+      }
+
+      (async function bootstrap() {
+        try {
+          const res = await fetch("./public/INDEX.json");
+          if (!res.ok) throw new Error(`INDEX.json HTTP ${res.status}`);
+          const manifest = await res.json();
+          const templates = Array.isArray(manifest.templates) ? manifest.templates : [];
+          if (templates.length === 0) throw new Error("INDEX.json.templates is empty");
+          pickerEl.replaceChildren();
+          for (const t of templates) {
+            const opt = document.createElement("option");
+            opt.value = t.bundle;
+            opt.textContent = t.label ?? t.id;
+            pickerEl.appendChild(opt);
+          }
+          pickerEl.addEventListener("change", () => swapTemplate(pickerEl.value));
+          swapTemplate(templates[0].bundle);
+        } catch (err) {
+          statusEl.className = "status err";
+          statusEl.textContent = `bootstrap error — ${err?.message ?? err}`;
+          console.error(err);
+        }
+      })();
     </script>
   </body>
 </html>
