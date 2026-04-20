@@ -37,18 +37,11 @@
 
 ## 2. 세션 후보 상세
 
-### 후보 A — C13 deformer 트리 무결성 (세션 108 자연 연장)
+### 후보 A — C13 deformer 트리 무결성 (세션 108 자연 연장) ✅ **완료 (세션 109)**
 
-- **범위**: `scripts/rig-template/physics-lint.mjs` 에 C13 블록 추가.
-  - `nodes[].parent` 가 null 이거나 다른 `nodes[].id` 를 가리킬 것
-  - `root_id` 가 `nodes[].id` 중 하나여야 함
-  - 사이클 없음 (DFS 방문 기록)
-  - orphan 없음 (root 에서 도달 가능해야 함)
-- **진입 조건**: 없음 — self-contained. C12 와 동일 파일(`deformers.json`) 한 번 더 순회.
-- **산출**: physics-lint rule 12→13, 테스트 21→25+ (음성 4 케이스 + 공식 5 템플릿 통과 sanity).
-- **소요**: 1 세션.
-- **리스크**: 없음. 기존 5 템플릿이 이미 트리 규칙을 지키고 있으므로 regress 0.
-- **후속**: 없음(트리 축 완결). 다만 C11+C12+C13 누적으로 `physics-lint` → `rig-template-lint` 리브랜딩 임계점 도달 — 후보 D 참조.
+- **범위**: `scripts/rig-template/physics-lint.mjs` 에 C13 블록 추가 — 7 sub-rule (duplicate / root-missing / root-parent / parent-missing / non-root-null-parent / cycle / orphan).
+- **산출**: physics-lint rule 12→**13**, 테스트 21→**30** (9 신규 케이스 2t~2ab). CLI header 에 `tree=<ok|skip>` 추가. 공식 5 템플릿 전부 tree=ok.
+- **후속**: `rig-template-lint` 리브랜딩 임계 도달 — 후보 D 승격. **C14 후보** 신설 (parts↔deformers 사각형 완성).
 
 ### 후보 B — `packages/migrator/` skeleton + `v1.2.0→v1.3.0.mjs`
 
@@ -103,26 +96,37 @@
 ## 3. 우선순위 (2026-04-20 판단)
 
 ```
+[완료]
+  세션 109 = 후보 A (C13 deformer 트리 무결성) ✅
+
 [즉시 착수 가능]
-  세션 109 = 후보 A (C13 deformer 트리 무결성)
-  세션 110 = 후보 B (migrator skeleton)  ← BL-MIGRATOR 해소
+  세션 110 = 후보 D (rig-template-lint 리브랜딩)  ← 후보 A 완료로 임계 도달
+  세션 111 = 후보 B (migrator skeleton)  ← BL-MIGRATOR 해소
+  세션 ?   = 후보 G (C14 parts↔deformers 사각형 완성)  ← self-contained, 신규
 
 [외부 블록 해소 후]
   세션 ? = 후보 E (staging)      ← BL-STAGING 해소 시
   세션 ? = 후보 C (legacy opt-in) ← BL-DEPRECATION-POLICY + 후보 B 완료
   세션 ? = 후보 F (Runtime)      ← Foundation 종료 선언 + ADR 0007
-
-[임계점 도달 시]
-  세션 ? = 후보 D (rig-template-lint 리브랜딩)  ← 후보 A 완료 후
 ```
+
+### 후보 G (신설, 세션 109 후속) — C14 `parts ↔ deformers` 사각형 완성
+
+- **범위**: `parts/*.spec.json.deformation_parent` 가 `deformers.nodes[].id` 중 하나를 가리키는지 교차 검증.
+- **진입 조건**: 없음 — self-contained. C11/C12/C13 과 동일 패턴.
+- **산출**: physics-lint rule 13→14, 테스트 30→34+.
+- **소요**: 1 세션.
+- **리스크**: 없음. 기존 5 템플릿의 deformation_parent 참조가 이미 정합.
+- **후속**: C11(parts↔parameters) + C12(deformers↔parameters) + C13(deformers 내부) + **C14(parts↔deformers)** 사각형 완결 — 리그 저작 게이트 L2 포화.
 
 ### 3.1 추천 실행 순서 근거
 
-1. **후보 A 가 가장 먼저** — self-contained, 1 세션, 리스크 0. 세션 108 의 직접 연장선이라 컨텍스트 비용 최저.
-2. **후보 B 가 그 다음** — 내부 블로커(BL-MIGRATOR) 해소만으로 legacy opt-in + 향후 v1.4.0 바이브 아웃 두 경로가 동시에 열린다. 외부 블록에 선행 투자.
-3. **후보 C 는 (a)(b) 둘 다 풀릴 때까지 대기** — (b) 는 후보 B 로 자체 해소되지만 (a) 가 외부라서 무기한. 그 사이 다른 self-contained 세션을 소화.
-4. **후보 D 는 A 이후 언제든** — mechanical 이라 급할 때 끼워넣기 좋음.
-5. **후보 E / F 는 외부 의존** — 들어올 때 연속 묶음으로 소화.
+1. ~~**후보 A**~~ — 세션 109 완료 ✅.
+2. **후보 D 가 가장 먼저** (세션 110) — C11~C13 누적으로 physics 색채 충분히 옅음. mechanical rename 이라 1 세션. 세션 109 의 컨텍스트(`physics-lint.mjs` 코드) 가 살아있을 때 소화하는 편이 인지 비용 최저.
+3. **후보 B 가 그 다음** (세션 111) — 내부 블로커(BL-MIGRATOR) 해소만으로 legacy opt-in + 향후 v1.4.0 바이브 아웃 두 경로가 동시에 열린다. 외부 블록에 선행 투자.
+4. **후보 G (C14)** 는 A/D 와 독립 — 언제든 끼워넣기 가능. self-contained.
+5. **후보 C 는 (a)(b) 둘 다 풀릴 때까지 대기** — (b) 는 후보 B 로 자체 해소되지만 (a) 가 외부라서 무기한.
+6. **후보 E / F 는 외부 의존** — 들어올 때 연속 묶음으로 소화.
 
 ### 3.2 비추 (하지 말 것)
 
@@ -169,17 +173,17 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 109)
+## 7. 다음 즉시 행동 (세션 110)
 
-**결정**: 후보 A — C13 deformer 트리 무결성.
+**결정**: 후보 D — `physics-lint` → `rig-template-lint` 리브랜딩.
 
 **이유**:
-- 세션 108 의 자연 연장(`deformers.json` 한 번 더 순회).
-- self-contained, 외부 의존 0.
-- 리스크 0 (기존 템플릿은 이미 트리 규칙 준수).
-- 소요 1 세션 — 다음 iteration 에서 후보 B 로 이어갈 수 있음.
+- C11~C13 누적으로 physics 색채가 옅어짐 (lint 13 규칙 중 physics 고유 C1~C10 = 10 축, cross-file/tree = C11/C12/C13 3 축).
+- 세션 109 에서 `physics-lint.mjs` 컨텍스트가 살아있어 rename 실수 최소.
+- mechanical — 리스크 0, 소요 1 세션.
+- 후보 B (migrator skeleton) 은 패키지 신설이라 상대적 무게가 있어 컨텍스트 전환 비용이 있음. D 후 B 순서로 1~2 세션 더 소화하고 그 다음으로.
 
 **선행 read**:
-- `scripts/rig-template/physics-lint.mjs` — C12 블록 이후 C13 삽입 지점.
-- `schema/v1/deformers.schema.json` — `nodes[].parent` / `root_id` 스키마 제약.
-- `rig-templates/halfbody/v1.3.0/deformers.json` 샘플 — 트리 구조 관찰.
+- `scripts/rig-template/physics-lint.{mjs,test.mjs}` — 파일 전체 rename 대상.
+- `scripts/test-golden.mjs` — golden step 에서 `physics-lint` 호출 위치.
+- `Taskfile.yml` / `README.md` / `docs/*` — 외부 참조 grep 대상.

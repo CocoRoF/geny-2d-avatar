@@ -34,6 +34,16 @@
 //        bump 로 id 가 rename / 삭제됐을 때 deformer 트리도 함께 끊어지므로 C11 의 자매
 //        체크. `deformers.json` 이 없거나 nodes 가 0 건이면 no-op. 빈 params_in (예:
 //        root, body_visual) 은 정상 — 컨테이너 노드는 자식만 묶고 params_in 을 안 가짐.
+//   C13. `deformers.json` 의 트리 무결성 (세션 109). C12 가 parameter id 축을 보는 반면
+//        C13 은 tree 내부 self-reference 축을 검증:
+//        - C13-duplicate: nodes[].id 는 유일해야 함 (중복 선언 시 parent 해석 모호성).
+//        - C13-root-missing: manifest 의 root_id 가 nodes[].id 중 하나여야 함.
+//        - C13-root-parent: root 노드의 parent 는 null 이어야 함 (트리 정점 불변식).
+//        - C13-parent-missing: 비-root 노드의 parent 가 실존 노드 id 를 가리켜야 함.
+//        - C13-non-root-null-parent: 비-root 노드는 parent=null 일 수 없음 (다중 루트 금지).
+//        - C13-cycle: root 에서 DFS 하면서 재방문 발생 시 사이클 (parent 포인터로 인한 고리).
+//        - C13-orphan: root 에서 도달 불가능한 노드 = 고아 (숨은 서브트리).
+//        `deformers.json` 이 없거나 nodes 가 0 건이면 no-op (C12 와 동일 베이스라인).
 //
 // --baseline 옵션:
 //   주어지면 타겟과 baseline physics.json 사이의 structural diff 리포트 (stdout 에 human-readable).
@@ -272,12 +282,16 @@ export async function lintPhysics(templateDir, options = {}) {
 
   // C12 — deformers.json nodes[].params_in 교차 검증 (세션 108). deformer 트리는 parts 와
   // 별도 축이지만 같은 parameters.json 을 공유. C11 의 자매 체크.
+  // C13 — deformer 트리 self-reference 무결성 (세션 109). 중복 id / root 불변 / parent 유효성
+  // / 사이클 / 고아. C12 와 같은 파일을 한 번 더 순회 — cost O(N) 추가.
   let deformerNodesChecked = 0;
   let deformerParamsInChecked = 0;
+  let deformerTreeChecked = false;
   const deformersPath = join(templateDir, "deformers.json");
   if (existsSync(deformersPath)) {
     const deformers = JSON.parse(await readFile(deformersPath, "utf8"));
-    for (const node of deformers.nodes ?? []) {
+    const nodes = deformers.nodes ?? [];
+    for (const node of nodes) {
       deformerNodesChecked += 1;
       if (!Array.isArray(node.params_in)) continue;
       for (const [i, id] of node.params_in.entries()) {
@@ -285,6 +299,95 @@ export async function lintPhysics(templateDir, options = {}) {
         if (!paramById.has(id)) {
           errors.push(
             `C12 deformers.nodes[${node.id ?? "?"}].params_in[${i}]=${id} 이 parameters.json 에 없음 (type=${node.type ?? "?"})`,
+          );
+        }
+      }
+    }
+
+    if (nodes.length > 0) {
+      deformerTreeChecked = true;
+      const nodeById = new Map();
+      const duplicateIds = new Set();
+      for (const node of nodes) {
+        if (typeof node.id !== "string") continue;
+        if (nodeById.has(node.id)) duplicateIds.add(node.id);
+        else nodeById.set(node.id, node);
+      }
+      for (const id of duplicateIds) {
+        errors.push(`C13-duplicate deformers.nodes 에 중복 id="${id}"`);
+      }
+
+      const rootId = deformers.root_id;
+      const rootNode = typeof rootId === "string" ? nodeById.get(rootId) : undefined;
+      if (!rootNode) {
+        errors.push(
+          `C13-root-missing deformers.root_id="${rootId ?? "?"}" 가 nodes[].id 중에 없음`,
+        );
+      } else if (rootNode.parent !== null) {
+        errors.push(
+          `C13-root-parent deformers.root_id="${rootId}" 노드의 parent=${JSON.stringify(rootNode.parent)} 이지만 null 이어야 함`,
+        );
+      }
+
+      for (const node of nodes) {
+        if (typeof node.id !== "string") continue;
+        if (node.id === rootId) continue;
+        if (node.parent === null || node.parent === undefined) {
+          errors.push(
+            `C13-non-root-null-parent deformers.nodes[${node.id}].parent 가 null (root_id="${rootId ?? "?"}" 외 노드는 parent 필수)`,
+          );
+          continue;
+        }
+        if (!nodeById.has(node.parent)) {
+          errors.push(
+            `C13-parent-missing deformers.nodes[${node.id}].parent="${node.parent}" 가 nodes[].id 중에 없음`,
+          );
+        }
+      }
+
+      // DFS from root — detect cycle (re-visit during active traversal) + orphan (unreachable).
+      if (rootNode) {
+        const visited = new Set();
+        const stack = [rootId];
+        while (stack.length > 0) {
+          const id = stack.pop();
+          if (visited.has(id)) continue;
+          visited.add(id);
+          for (const n of nodes) {
+            if (n.parent === id && nodeById.has(n.id)) {
+              stack.push(n.id);
+            }
+          }
+        }
+        // Cycle detection via parent-chain walk (separate from reachability DFS — catches
+        // cycles that don't include root).
+        for (const node of nodes) {
+          if (typeof node.id !== "string") continue;
+          if (node.id === rootId) continue;
+          const chain = new Set([node.id]);
+          let cursor = node.parent;
+          let steps = 0;
+          const maxSteps = nodes.length + 1;
+          while (cursor !== null && cursor !== undefined && steps < maxSteps) {
+            if (chain.has(cursor)) {
+              errors.push(
+                `C13-cycle deformers.nodes[${node.id}] parent 체인에 사이클: ${[...chain, cursor].join(" → ")}`,
+              );
+              break;
+            }
+            chain.add(cursor);
+            const parentNode = nodeById.get(cursor);
+            if (!parentNode) break;
+            cursor = parentNode.parent;
+            steps += 1;
+          }
+        }
+        // Orphan = valid node not reachable from root.
+        for (const node of nodes) {
+          if (typeof node.id !== "string") continue;
+          if (visited.has(node.id)) continue;
+          errors.push(
+            `C13-orphan deformers.nodes[${node.id}] 가 root="${rootId}" 에서 도달 불가능`,
           );
         }
       }
@@ -304,6 +407,7 @@ export async function lintPhysics(templateDir, options = {}) {
       parts_with_bindings: partsWithBindings,
       deformer_nodes_checked: deformerNodesChecked,
       deformer_params_in_checked: deformerParamsInChecked,
+      deformer_tree_checked: deformerTreeChecked,
     },
   };
 }
@@ -391,7 +495,7 @@ async function main(argv) {
   const { errors, summary } = res;
 
   process.stdout.write(
-    `physics-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind deformers=${summary.deformer_nodes_checked}/${summary.deformer_params_in_checked}params\n`,
+    `physics-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind deformers=${summary.deformer_nodes_checked}/${summary.deformer_params_in_checked}params tree=${summary.deformer_tree_checked ? "ok" : "skip"}\n`,
   );
   for (const e of errors) process.stderr.write(`  ✗ ${e}\n`);
   if (errors.length === 0) process.stdout.write("  ✓ all checks pass\n");

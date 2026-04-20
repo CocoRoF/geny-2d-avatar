@@ -376,6 +376,172 @@ async function main() {
     console.log("  ✓ C12 공식 halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 통과");
   }
 
+  // 2t) C13 — 중복 노드 id (세션 109)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const deformersPath = join(dir, "deformers.json");
+    const def = JSON.parse(await readFile(deformersPath, "utf8"));
+    // ahoge_warp 를 한번 더 복제해서 중복 id 생성.
+    const ahoge = def.nodes.find((n) => n.id === "ahoge_warp");
+    def.nodes.push({ ...ahoge });
+    await writeFile(deformersPath, JSON.stringify(def, null, 2));
+    const res = await lintPhysics(dir);
+    const dup = res.errors.filter((e) => e.startsWith("C13-duplicate"));
+    assert.equal(dup.length, 1, `expected 1 C13-duplicate, got: ${res.errors.join(" / ")}`);
+    assert.ok(dup[0].includes("ahoge_warp"));
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C13-duplicate 중복 노드 id 차단");
+  }
+
+  // 2u) C13 — root_id 가 nodes 에 없음 (세션 109)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const deformersPath = join(dir, "deformers.json");
+    const def = JSON.parse(await readFile(deformersPath, "utf8"));
+    def.root_id = "ghost_root";
+    await writeFile(deformersPath, JSON.stringify(def, null, 2));
+    const res = await lintPhysics(dir);
+    const missing = res.errors.filter((e) => e.startsWith("C13-root-missing"));
+    assert.equal(missing.length, 1, `expected 1 C13-root-missing, got: ${res.errors.join(" / ")}`);
+    assert.ok(missing[0].includes("ghost_root"));
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C13-root-missing root_id 가 nodes 에 없을 때 차단");
+  }
+
+  // 2v) C13 — root 노드의 parent 가 null 이 아님 (세션 109)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const deformersPath = join(dir, "deformers.json");
+    const def = JSON.parse(await readFile(deformersPath, "utf8"));
+    const root = def.nodes.find((n) => n.id === def.root_id);
+    root.parent = "overall_warp"; // 순환 유도
+    await writeFile(deformersPath, JSON.stringify(def, null, 2));
+    const res = await lintPhysics(dir);
+    const rp = res.errors.filter((e) => e.startsWith("C13-root-parent"));
+    assert.equal(rp.length, 1, `expected 1 C13-root-parent, got: ${res.errors.join(" / ")}`);
+    assert.ok(rp[0].includes('"root"'));
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C13-root-parent root 의 parent 가 null 이 아닐 때 차단");
+  }
+
+  // 2w) C13 — 비-root 노드의 parent 가 미존재 id (세션 109)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const deformersPath = join(dir, "deformers.json");
+    const def = JSON.parse(await readFile(deformersPath, "utf8"));
+    const target = def.nodes.find((n) => n.id === "ahoge_warp");
+    target.parent = "not_a_node_xyz";
+    await writeFile(deformersPath, JSON.stringify(def, null, 2));
+    const res = await lintPhysics(dir);
+    const pm = res.errors.filter((e) => e.startsWith("C13-parent-missing"));
+    assert.equal(pm.length, 1, `expected 1 C13-parent-missing, got: ${res.errors.join(" / ")}`);
+    assert.ok(pm[0].includes("ahoge_warp"));
+    assert.ok(pm[0].includes("not_a_node_xyz"));
+    // ahoge_warp 가 끊겨 고아로도 감지됨.
+    const orphans = res.errors.filter((e) => e.startsWith("C13-orphan"));
+    assert.ok(orphans.some((e) => e.includes("ahoge_warp")), `parent 끊긴 노드는 orphan 으로도 잡힘: ${res.errors.join(" / ")}`);
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C13-parent-missing 비-root parent 가 미존재 id 일 때 차단");
+  }
+
+  // 2x) C13 — 비-root 노드의 parent 가 null (다중 루트 금지) (세션 109)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const deformersPath = join(dir, "deformers.json");
+    const def = JSON.parse(await readFile(deformersPath, "utf8"));
+    const target = def.nodes.find((n) => n.id === "ahoge_warp");
+    target.parent = null;
+    await writeFile(deformersPath, JSON.stringify(def, null, 2));
+    const res = await lintPhysics(dir);
+    const nrn = res.errors.filter((e) => e.startsWith("C13-non-root-null-parent"));
+    assert.equal(nrn.length, 1, `expected 1 C13-non-root-null-parent, got: ${res.errors.join(" / ")}`);
+    assert.ok(nrn[0].includes("ahoge_warp"));
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C13-non-root-null-parent 다중 루트 차단");
+  }
+
+  // 2y) C13 — parent 체인 사이클 (세션 109). overall_warp.parent = ahoge_warp 로 설정 하면
+  // ahoge_warp.parent=head_pose_rot→neck_warp→body_pose_warp→breath_warp→overall_warp→ahoge_warp 로 사이클.
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const deformersPath = join(dir, "deformers.json");
+    const def = JSON.parse(await readFile(deformersPath, "utf8"));
+    const overall = def.nodes.find((n) => n.id === "overall_warp");
+    overall.parent = "ahoge_warp";
+    await writeFile(deformersPath, JSON.stringify(def, null, 2));
+    const res = await lintPhysics(dir);
+    const cyc = res.errors.filter((e) => e.startsWith("C13-cycle"));
+    assert.ok(cyc.length >= 1, `expected >=1 C13-cycle, got: ${res.errors.join(" / ")}`);
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C13-cycle parent 체인 사이클 탐지");
+  }
+
+  // 2z) C13 — 고아 노드 (root 에서 도달 불가) (세션 109)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const deformersPath = join(dir, "deformers.json");
+    const def = JSON.parse(await readFile(deformersPath, "utf8"));
+    // 완전 분리된 서브트리 추가. parent 가 자신의 형제(island 루트) 로, island 루트의 parent 는
+    // 다른 island 노드를 가리켜 root 에서 도달 불가능하지만 parent-missing 은 아니어야 함.
+    def.nodes.push({
+      id: "island_a",
+      type: "warp",
+      parent: "island_b",
+      params_in: [],
+    });
+    def.nodes.push({
+      id: "island_b",
+      type: "warp",
+      parent: "island_a",
+      params_in: [],
+    });
+    await writeFile(deformersPath, JSON.stringify(def, null, 2));
+    const res = await lintPhysics(dir);
+    const orphans = res.errors.filter((e) => e.startsWith("C13-orphan"));
+    assert.ok(orphans.some((e) => e.includes("island_a")), `island_a orphan: ${res.errors.join(" / ")}`);
+    assert.ok(orphans.some((e) => e.includes("island_b")), `island_b orphan: ${res.errors.join(" / ")}`);
+    // island pair 는 자체 사이클이기도 하므로 C13-cycle 도 같이 잡혀야 함.
+    const cyc = res.errors.filter((e) => e.startsWith("C13-cycle"));
+    assert.ok(cyc.length >= 1, `island pair 는 사이클: ${res.errors.join(" / ")}`);
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C13-orphan root 에서 도달 불가 노드 탐지");
+  }
+
+  // 2aa) C13 — 모든 공식 템플릿이 C13 통과 + tree_checked sanity (세션 109)
+  {
+    for (const v of ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0"]) {
+      const res = await lintPhysics(join(halfbody, v));
+      const c13 = res.errors.filter((e) => e.startsWith("C13"));
+      assert.equal(c13.length, 0, `halfbody ${v} C13 errors: ${res.errors.join(" / ")}`);
+      assert.equal(res.summary.deformer_tree_checked, true, `${v} tree_checked true`);
+    }
+    const fb = await lintPhysics(join(repoRoot, "rig-templates", "base", "fullbody", "v1.0.0"));
+    const c13fb = fb.errors.filter((e) => e.startsWith("C13"));
+    assert.equal(c13fb.length, 0, `fullbody v1.0.0 C13 errors: ${fb.errors.join(" / ")}`);
+    assert.equal(fb.summary.deformer_tree_checked, true);
+    console.log("  ✓ C13 공식 halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 통과");
+  }
+
+  // 2ab) C13 — deformers.json 누락 시 tree_checked=false + no-op (세션 109)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    await rm(join(dir, "deformers.json"));
+    const res = await lintPhysics(dir);
+    const c13 = res.errors.filter((e) => e.startsWith("C13"));
+    assert.equal(c13.length, 0);
+    assert.equal(res.summary.deformer_tree_checked, false);
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C13 deformers.json 누락 시 tree_checked=false no-op");
+  }
+
   // 3) diff v1.2.0 vs v1.3.0 — 3 신규 세팅
   {
     const lines = await diffPhysics(join(halfbody, "v1.2.0"), join(halfbody, "v1.3.0"));
