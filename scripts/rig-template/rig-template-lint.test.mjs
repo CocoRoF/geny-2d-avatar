@@ -542,6 +542,87 @@ async function main() {
     console.log("  ✓ C13 deformers.json 누락 시 tree_checked=false no-op");
   }
 
+  // 2ac) C14 — parts/*.spec.json.deformation_parent 가 deformers.nodes 에 없음 (세션 112)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const specPath = join(dir, "parts", "ahoge.spec.json");
+    const spec = JSON.parse(await readFile(specPath, "utf8"));
+    spec.deformation_parent = "ghost_warp_xyz";
+    await writeFile(specPath, JSON.stringify(spec, null, 2));
+    const res = await lintPhysics(dir);
+    const c14 = res.errors.filter((e) => e.startsWith("C14"));
+    assert.equal(c14.length, 1, `expected 1 C14, got: ${res.errors.join(" / ")}`);
+    assert.ok(c14[0].includes("ghost_warp_xyz"));
+    assert.ok(c14[0].includes("ahoge.spec.json"));
+    assert.ok(c14[0].includes('slot_id=ahoge'));
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C14 deformation_parent 가 deformers.nodes 에 없을 때 차단");
+  }
+
+  // 2ad) C14 — deformers.json 누락 시 no-op (세션 112)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    await rm(join(dir, "deformers.json"));
+    const res = await lintPhysics(dir);
+    const c14 = res.errors.filter((e) => e.startsWith("C14"));
+    assert.equal(c14.length, 0);
+    assert.equal(res.summary.parts_deformation_parents_checked, 0);
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C14 deformers.json 누락 시 no-op");
+  }
+
+  // 2ae) C14 — deformation_parent 이 string 이 아닐 때 skip (스키마 책임) (세션 112)
+  {
+    const dir = await scratch();
+    await copyV13(dir);
+    const specPath = join(dir, "parts", "ahoge.spec.json");
+    const spec = JSON.parse(await readFile(specPath, "utf8"));
+    delete spec.deformation_parent;
+    await writeFile(specPath, JSON.stringify(spec, null, 2));
+    const res = await lintPhysics(dir);
+    const c14 = res.errors.filter((e) => e.startsWith("C14"));
+    assert.equal(c14.length, 0, `누락된 deformation_parent 는 스키마 책임 — C14 에선 skip`);
+    // ahoge 하나만 빠져서 count 는 29 가 된다 (v1.3.0 파츠 30 중 29 에 string 존재).
+    assert.equal(res.summary.parts_deformation_parents_checked, 29);
+    await rm(dir, { recursive: true, force: true });
+    console.log("  ✓ C14 deformation_parent 누락 spec 은 skip (스키마 책임)");
+  }
+
+  // 2af) C14 — 모든 공식 템플릿이 C14 통과 + count 일치 (세션 112).
+  // 사각형 완결 확인: C11(parts↔parameters) + C12(deformers↔parameters) +
+  // C13(deformers 내부) + C14(parts↔deformers).
+  {
+    const expected = {
+      "v1.0.0": { parts: 27, defparent: 27 },
+      "v1.1.0": { parts: 29, defparent: 29 },
+      "v1.2.0": { parts: 29, defparent: 29 },
+      "v1.3.0": { parts: 30, defparent: 30 },
+    };
+    for (const [v, exp] of Object.entries(expected)) {
+      const res = await lintPhysics(join(halfbody, v));
+      const c14 = res.errors.filter((e) => e.startsWith("C14"));
+      assert.equal(c14.length, 0, `halfbody ${v} C14 errors: ${res.errors.join(" / ")}`);
+      assert.equal(
+        res.summary.parts_checked,
+        exp.parts,
+        `${v} parts_checked`,
+      );
+      assert.equal(
+        res.summary.parts_deformation_parents_checked,
+        exp.defparent,
+        `${v} parts_deformation_parents_checked`,
+      );
+    }
+    const fb = await lintPhysics(join(repoRoot, "rig-templates", "base", "fullbody", "v1.0.0"));
+    const c14fb = fb.errors.filter((e) => e.startsWith("C14"));
+    assert.equal(c14fb.length, 0, `fullbody v1.0.0 C14 errors: ${fb.errors.join(" / ")}`);
+    assert.equal(fb.summary.parts_checked, 38);
+    assert.equal(fb.summary.parts_deformation_parents_checked, 38);
+    console.log("  ✓ C14 공식 halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 통과");
+  }
+
   // 3) diff v1.2.0 vs v1.3.0 — 3 신규 세팅
   {
     const lines = await diffPhysics(join(halfbody, "v1.2.0"), join(halfbody, "v1.3.0"));

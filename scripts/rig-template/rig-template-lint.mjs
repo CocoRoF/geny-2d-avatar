@@ -50,6 +50,11 @@
 //        - C13-cycle: root 에서 DFS 하면서 재방문 발생 시 사이클 (parent 포인터로 인한 고리).
 //        - C13-orphan: root 에서 도달 불가능한 노드 = 고아 (숨은 서브트리).
 //        `deformers.json` 이 없거나 nodes 가 0 건이면 no-op (C12 와 동일 베이스라인).
+//   C14. `parts/*.spec.json` 의 `deformation_parent` (docs/03 §4 필수 필드) 가
+//        `deformers.json` 의 `nodes[].id` 집합에 존재하는지 교차 검증 (세션 112). C11
+//        (parts↔parameters) + C12 (deformers↔parameters) + C13 (deformers 내부) 의 마지막
+//        사각형 — parts↔deformers 축. `deformers.json` 이 없으면 no-op (예: 스키마 이전
+//        템플릿). 파츠 spec 에 `deformation_parent` 가 string 이 아니면 skip (스키마 책임).
 //
 // --baseline 옵션:
 //   주어지면 타겟과 baseline physics.json 사이의 structural diff 리포트 (stdout 에 human-readable).
@@ -261,11 +266,27 @@ export async function lintPhysics(templateDir, options = {}) {
     }
   }
 
+  // deformers.json 선로드 — C14 (parts↔deformers) 에서 parts 루프보다 먼저 node id 집합이
+  // 필요하다. 기존 C12/C13 블록도 같은 파싱 결과를 재사용 (I/O 1 회로 유지).
+  const deformersPath = join(templateDir, "deformers.json");
+  let deformerJson = null;
+  let deformerNodeIds = null;
+  if (existsSync(deformersPath)) {
+    deformerJson = JSON.parse(await readFile(deformersPath, "utf8"));
+    deformerNodeIds = new Set();
+    for (const node of deformerJson.nodes ?? []) {
+      if (typeof node.id === "string") deformerNodeIds.add(node.id);
+    }
+  }
+
   // C11 — parts/*.spec.json 의 parameter_ids 교차 검증. parts 디렉토리가 없거나 필드를
   // 쓰는 spec 이 0 건이면 no-op. schema 단계에서는 id 존재 여부를 알 수 없어 (cross-ref
   // 불가능) 이 시점이 유일한 CI 차단 지점.
+  // C14 — 같은 루프에서 parts/*.spec.json.deformation_parent 를 deformers.nodes[].id 집합과
+  // 교차 검증 (세션 112). deformers.json 이 없으면 no-op — C12/C13 과 동일 베이스라인.
   let partsChecked = 0;
   let partsWithBindings = 0;
+  let partsDeformationParentsChecked = 0;
   const partsDir = join(templateDir, "parts");
   if (existsSync(partsDir)) {
     const entries = await readdir(partsDir);
@@ -274,12 +295,21 @@ export async function lintPhysics(templateDir, options = {}) {
       const specPath = join(partsDir, name);
       const spec = JSON.parse(await readFile(specPath, "utf8"));
       partsChecked += 1;
-      if (!Array.isArray(spec.parameter_ids)) continue;
-      partsWithBindings += 1;
-      for (const [i, id] of spec.parameter_ids.entries()) {
-        if (!paramById.has(id)) {
+      if (Array.isArray(spec.parameter_ids)) {
+        partsWithBindings += 1;
+        for (const [i, id] of spec.parameter_ids.entries()) {
+          if (!paramById.has(id)) {
+            errors.push(
+              `C11 parts/${name}.parameter_ids[${i}]=${id} 이 parameters.json 에 없음 (slot_id=${spec.slot_id ?? "?"})`,
+            );
+          }
+        }
+      }
+      if (deformerNodeIds && typeof spec.deformation_parent === "string") {
+        partsDeformationParentsChecked += 1;
+        if (!deformerNodeIds.has(spec.deformation_parent)) {
           errors.push(
-            `C11 parts/${name}.parameter_ids[${i}]=${id} 이 parameters.json 에 없음 (slot_id=${spec.slot_id ?? "?"})`,
+            `C14 parts/${name}.deformation_parent=${spec.deformation_parent} 이 deformers.nodes[].id 에 없음 (slot_id=${spec.slot_id ?? "?"})`,
           );
         }
       }
@@ -293,9 +323,8 @@ export async function lintPhysics(templateDir, options = {}) {
   let deformerNodesChecked = 0;
   let deformerParamsInChecked = 0;
   let deformerTreeChecked = false;
-  const deformersPath = join(templateDir, "deformers.json");
-  if (existsSync(deformersPath)) {
-    const deformers = JSON.parse(await readFile(deformersPath, "utf8"));
+  if (deformerJson) {
+    const deformers = deformerJson;
     const nodes = deformers.nodes ?? [];
     for (const node of nodes) {
       deformerNodesChecked += 1;
@@ -411,6 +440,7 @@ export async function lintPhysics(templateDir, options = {}) {
       ids: settingIds,
       parts_checked: partsChecked,
       parts_with_bindings: partsWithBindings,
+      parts_deformation_parents_checked: partsDeformationParentsChecked,
       deformer_nodes_checked: deformerNodesChecked,
       deformer_params_in_checked: deformerParamsInChecked,
       deformer_tree_checked: deformerTreeChecked,
@@ -501,7 +531,7 @@ async function main(argv) {
   const { errors, summary } = res;
 
   process.stdout.write(
-    `rig-template-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind deformers=${summary.deformer_nodes_checked}/${summary.deformer_params_in_checked}params tree=${summary.deformer_tree_checked ? "ok" : "skip"}\n`,
+    `rig-template-lint ${templateDir}: family=${summary.family} settings=${summary.setting_count} in=${summary.total_input_count} out=${summary.total_output_count} verts=${summary.vertex_count} parts=${summary.parts_checked}/${summary.parts_with_bindings}bind/${summary.parts_deformation_parents_checked}defparent deformers=${summary.deformer_nodes_checked}/${summary.deformer_params_in_checked}params tree=${summary.deformer_tree_checked ? "ok" : "skip"}\n`,
   );
   for (const e of errors) process.stderr.write(`  ✗ ${e}\n`);
   if (errors.length === 0) process.stdout.write("  ✓ all checks pass\n");

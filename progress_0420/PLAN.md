@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-20 기준, 세션 112+)
+# PLAN — 앞으로의 작업 (2026-04-20 기준, 세션 113+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -95,11 +95,12 @@
 [완료]
   세션 109 = 후보 A (C13 deformer 트리 무결성) ✅
   세션 110 = 후보 D (rig-template-lint 리브랜딩) ✅
-  세션 111 = 후보 B (migrator skeleton)  ✅ BL-MIGRATOR 해소
+  세션 111 = 후보 B (migrator skeleton)         ✅ BL-MIGRATOR 해소
+  세션 112 = 후보 G (C14 parts↔deformers)        ✅ 사각형 완결, L2 포화
 
-[즉시 착수 가능]
-  세션 112 = 후보 G (C14 parts↔deformers 사각형 완성)  ← self-contained
-  세션 ?   = v1.3.0→v1.4.0 migrator 자리 (리그 변경 합의 후)
+[즉시 착수 가능 — self-contained 여지 거의 소진]
+  세션 ? = v1.3.0→v1.4.0 migrator 자리 (리그 변경 합의 후)
+  세션 ? = ADR 0007 초안 (렌더러 기술 선택) — Runtime 진입 선행
 
 [외부 블록 해소 후]
   세션 ? = 후보 E (staging)      ← BL-STAGING 해소 시
@@ -107,23 +108,21 @@
   세션 ? = 후보 F (Runtime)      ← Foundation 종료 선언 + ADR 0007
 ```
 
-### 후보 G (신설, 세션 109 후속) — C14 `parts ↔ deformers` 사각형 완성
+### 후보 G — C14 `parts ↔ deformers` 사각형 완성 ✅ **완료 (세션 112)**
 
-- **범위**: `parts/*.spec.json.deformation_parent` 가 `deformers.nodes[].id` 중 하나를 가리키는지 교차 검증.
-- **진입 조건**: 없음 — self-contained. C11/C12/C13 과 동일 패턴.
-- **산출**: physics-lint rule 13→14, 테스트 30→34+.
-- **소요**: 1 세션.
-- **리스크**: 없음. 기존 5 템플릿의 deformation_parent 참조가 이미 정합.
-- **후속**: C11(parts↔parameters) + C12(deformers↔parameters) + C13(deformers 내부) + **C14(parts↔deformers)** 사각형 완결 — 리그 저작 게이트 L2 포화.
+- **실제 범위**: `parts/*.spec.json.deformation_parent` ↔ `deformers.nodes[].id` 교차 검증. parts 루프 재구성 (deformers.json 선로드, I/O 1 회 유지). `parts_deformation_parents_checked` 카운터 summary 노출.
+- **산출**: rig-template-lint rule 13→**14**, 테스트 30→**34** (4 신규 케이스 2ac~2af). 공식 5 템플릿 clean + `parts_checked == parts_deformation_parents_checked` 전 버전 성립 (파츠 전원 deformer 연결 불변식 확정).
+- **후속**: C11+C12+C13+C14 사각형 완결 → L2 저자 범위 포화. 세션 109 이후 self-contained lint 확장 여지 소진 — 다음 라운드는 Runtime(후보 F) 또는 외부 의존 해소.
 
 ### 3.1 추천 실행 순서 근거
 
 1. ~~**후보 A**~~ — 세션 109 완료 ✅.
 2. ~~**후보 D**~~ — 세션 110 완료 ✅.
 3. ~~**후보 B**~~ — 세션 111 완료 ✅. BL-MIGRATOR 해소.
-4. **후보 G (C14) 가 그 다음** (세션 112) — self-contained, 1 세션 규모. C11~C13 사각형 완결.
-5. **후보 C 는 (a) 외부 정책 해소 대기** — (b) 는 세션 111 에서 자체 풀림. (a)(c) 가 동시에 열릴 때 착수.
-6. **후보 E / F 는 외부 의존** — 들어올 때 연속 묶음으로 소화.
+4. ~~**후보 G (C14)**~~ — 세션 112 완료 ✅. L2 사각형 완결.
+5. **다음 self-contained 없음** — v1.3.0→v1.4.0 migrator 는 리그 변경 범위(외부 판단) 선행. ADR 0007 초안 작성은 self-contained 이지만 판단 축이 엔지니어링 + 라이선스 + UX 를 섞어야 해 사용자 의사 선행이 합리적.
+6. **후보 C 는 (a) 외부 정책 해소 대기** — (b) 는 세션 111 에서 자체 풀림. (a)(c) 가 동시에 열릴 때 착수.
+7. **후보 E / F 는 외부 의존** — 들어올 때 연속 묶음으로 소화.
 
 ### 3.2 비추 (하지 말 것)
 
@@ -170,21 +169,28 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 112)
+## 7. 다음 즉시 행동 (세션 113)
 
-**결정**: 후보 G — C14 `parts.deformation_parent` ↔ `deformers.nodes[].id` 교차 검증.
+세션 112 C14 완결로 self-contained lint 여지는 소진. 자율 모드에서 다음 단계는 **(α) 외부 판단이 적고 (β) 사용자 합의 전에도 유용한** 후보를 찾아야 한다.
 
-**이유**:
-- self-contained, 외부 의존 0. rig-template-lint 확장만.
-- C11(parts↔parameters) + C12(deformers↔parameters) + C13(deformers 내부) + C14(parts↔deformers) = **사각형 완결**. L2 저자 범위 포화.
-- 5 공식 템플릿 실측: halfbody 19 + fullbody 27 파츠의 `deformation_parent` 는 전부 deformers 존재 id. 변조 negative case 3~4 개만 추가하면 rule 규모 14 → 14+3~4 테스트.
-- 소요 1 세션.
+**1순위 후보 (자율 모드 권장)**: **ADR 0007 (렌더러 기술 선택) 초안 작성** — 후보 F (Runtime 전환) 의 선행 조건이자 self-contained.
+- **범위**: `progress/adr/0007-renderer-technology.md` 신규. Cubism SDK / PixiJS / Three.js / 자체 WebGL2 네 방향을 **context / options / trade-offs / consequences** 4 축으로 비교. **decision 은 비워두고 사용자 의사 대기** — ADR 은 결론 없이도 "선행 조사" 로 가치 있음 (ADR 0003/0004 의 초안 단계 참조).
+- **진입 조건**: 없음 — self-contained 조사 + 문서. 후보 F 진입 전에 읽혀야 하는 사전 연구.
+- **산출**: ADR 1 개 + INDEX.md ADR 테이블 업데이트. 사용자 리뷰 시 decision 채움.
+- **리스크**: decision 미완으로 끝내는 ADR 은 `Draft` 상태. 그러나 후보 F 진입 전 필수 자료이므로 가치 존재.
+
+**2순위 — 사용자 판단 필요 후보**:
+- **v1.3.0→v1.4.0 migrator 자리**: 세션 111 skeleton 의 첫 external 확장. 리그 변경 범위 결정(=어떤 파츠 / 파라미터 / deformer 가 바뀌는가) 이 사용자 입력 선행 필요 — 자율 모드에서 열 수 없음.
+- **후보 C (legacy opt-in 복제)**: BL-DEPRECATION-POLICY 외부 + 소비자(세션 97) 대기 — 두 축 모두 풀리기 전 착수 금지.
+- **후보 E (staging 배포)**: BL-STAGING 외부 클러스터 대기.
+
+**자율 모드 결정**: 세션 113 에서는 **ADR 0007 초안** 을 쓴다. Decision 은 비워두고 Options / Context / Consequences 3 축을 채운 Draft 상태로 커밋 — 사용자가 다음 프롬프트로 방향을 정하면 그 지점을 결정 지점으로 삼아 후보 F 착수.
 
 **선행 read**:
-- `scripts/rig-template/rig-template-lint.mjs` — C12 블록 (deformers↔parameters) 을 참고해 parent id resolve 패턴 재사용.
-- `scripts/rig-template/rig-template-lint.test.mjs` — 2t~2ab (C13 케이스 9 개) 패턴 미러.
-- `rig-templates/base/halfbody/v1.3.0/parts/ahoge.spec.json` 와 `.../deformers.json` — deformation_parent 참조 샘플.
+- `progress/adr/0003-rig-template-versioning.md` 와 `0005-rig-authoring-gate.md` — 템플릿(ADR 헤더/섹션/합의 경로) 참조.
+- `packages/web-avatar/src/*` — 현 `<geny-avatar>` 커스텀 엘리먼트의 happy-dom 모의 인터페이스. 실 렌더러가 replace 할 표면 범위 파악.
+- `docs/01`, `docs/14` §9 (Frontend) — Runtime 합류 시 기대 범위.
 
-**세션 113 예약 후보**:
-- v1.3.0→v1.4.0 migrator skeleton 의 첫 external 확장 (리그 변경 범위 사전 합의 후).
-- rig-template-lint 를 `scripts/rig-template/` 에서 `packages/rig-template-lint/` 로 promote 할지 판단 (세션 108 D1 유사 임계 재평가).
+**세션 114 예약 후보**:
+- Runtime 착수(후보 F) 본격 진입 — ADR 0007 decision 확정 후.
+- v1.3.0→v1.4.0 migrator — 리그 변경 범위 합의 후.

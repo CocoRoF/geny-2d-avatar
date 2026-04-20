@@ -1,6 +1,6 @@
 # progress_0420 — 진척 정리 (2026-04-20 스냅샷)
 
-이 폴더는 세션 1~111 누적 결과를 **읽을 수 있는 크기로** 재정리한 스냅샷이다. 기존 `progress/` 는 한 줄당 수천 토큰까지 부풀어 작업 진입에 부담이 됐다 — 본 폴더는 정밀도를 유지하면서 항해 가능성을 회복한다.
+이 폴더는 세션 1~112 누적 결과를 **읽을 수 있는 크기로** 재정리한 스냅샷이다. 기존 `progress/` 는 한 줄당 수천 토큰까지 부풀어 작업 진입에 부담이 됐다 — 본 폴더는 정밀도를 유지하면서 항해 가능성을 회복한다.
 
 ---
 
@@ -23,18 +23,18 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-20, 세션 111 직후)
+## 1. 현재 상태 (2026-04-20, 세션 112 직후)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
 | **단계** | Foundation (2026 Q2 초) | docs/14 §3 |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 111 (2026-04-17~04-20, 4일) | 자율 모드 |
+| **누적 세션** | 112 (2026-04-17~04-20, 4일) | 자율 모드 |
 | **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 111 `@geny/migrator` 신규 |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 29 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 29 step (validate-schemas checked=244 + 10 패키지 테스트 + 5 e2e) | Foundation lane + bullmq-integration lane |
-| **rig-template-lint rules** | **C1~C13** (meta/dict/params/vertex/cubism-map/family/parts/deformers/tree) | 30 테스트 케이스. 세션 110 리브랜딩(이전 physics-lint) |
+| **rig-template-lint rules** | **C1~C14** (meta/dict/params/vertex/cubism-map/family/parts↔params/deformers↔params/tree/parts↔deformers) | 34 테스트 케이스. 세션 112 C14 로 `parts↔parameters↔deformers` 사각형 완결 |
 | **migrator 인프라** | `@geny/migrator` (v1.0.0→v1.1.0→v1.2.0→v1.3.0 체인) | 세션 111 — BL-MIGRATOR 해소. 8 단위 테스트 + CLI shim |
 
 ---
@@ -47,7 +47,7 @@
 | **AI Generation** | nano-banana 어댑터 | 🟡 3 어댑터 (nano-banana 100 / sdxl 80 / flux-fill 70) + Mock + HTTP 클라이언트 + `routeWithFallback` + `MetricsHook` + `SafetyFilter` 계약. 실 벤더 키 분포 캡처는 Runtime. |
 | **Post-Processing** | Stage 1·3·6 | 🟡 Stage 1 (alpha 닫힘/feather/UV 클립) + Stage 3 RGB/Lab/palette + atlas-hook. 111 tests. Stage 6 pivot 미착수. |
 | **UX (web-editor)** | 에디터 뼈대 | 🟡 3-column 레이아웃 + halfbody/fullbody 템플릿 스위처 + 파츠 사이드바 + Inspector(parameters/motions/expressions 패널) + SVG 구조 렌더러 + 파츠↔하이라이트 양방향 + 파츠-파라미터 뷰 필터. Save/History 는 Runtime. |
-| **Platform / Infra** | K8s + CI/CD + 관측 | 🟢 CI 29 step + bullmq-integration lane + Prometheus/Grafana Helm chart + 4단 관측 방어망 (smoke/snapshot/e2e/fallback) + 보안스캔(gitleaks) + 성능 SLO 하네스 + 온콜 런북 + rig-template-lint 13 rules (C13 세션 109 / 세션 110 리브랜딩). 실 staging 배포만 외부 의존 대기. |
+| **Platform / Infra** | K8s + CI/CD + 관측 | 🟢 CI 29 step + bullmq-integration lane + Prometheus/Grafana Helm chart + 4단 관측 방어망 (smoke/snapshot/e2e/fallback) + 보안스캔(gitleaks) + 성능 SLO 하네스 + 온콜 런북 + rig-template-lint 14 rules (C14 세션 112 `parts↔deformers`). 실 staging 배포만 외부 의존 대기. |
 | **Data** | Postgres/S3/Redis + 스키마 | 🟡 JSON Schema 22종 + Ed25519 license 검증 + adapter/palette 카탈로그. DB/S3 미착수 (Runtime). |
 | **Pipeline** | 단일 아바타 DAG | 🟢 exporter-core v0.6.0 + exporter-pipeline + orchestrator-service + worker-generate + job-queue-bullmq + **@geny/migrator (세션 111)**. ADR 0005 L1~L4 게이트 활성. halfbody v1.2.0/v1.3.0 + fullbody v1.0.0 sha256 골든 고정. |
 | **Frontend** | 에디터 기본 레이아웃 | 🟢 `<geny-avatar>` 커스텀 엘리먼트 (ready/error/parameterchange/motionstart/expressionchange) + happy-dom 라이프사이클 회귀 + setParameter write-through. 실 Cubism/WebGL 렌더러는 Runtime. |
@@ -71,13 +71,14 @@
 
 ## 4. 다음 세션 진입점
 
-진입 우선순위는 [`PLAN.md §3`](./PLAN.md) 참조. 외부 의존이 없는 self-contained 후보 우선:
+진입 우선순위는 [`PLAN.md §3`](./PLAN.md) 참조. 세션 112 C14 완결로 self-contained lint 확장 여지는 소진 — 다음 라운드는 **외부 의존 후보** 또는 **Runtime 착수** 로 전환:
 
-1. **세션 112 후보 (C14)**: `parts/*.spec.json.deformation_parent` ↔ `deformers.nodes[].id` 교차 검증 (C11+C12+C13 의 마지막 사각형). self-contained, 1 세션 규모.
-2. **v1.3.0→v1.4.0 migrator**: 세션 111 skeleton 첫 external 확장. `src/migrations/v1-3-0-to-v1-4-0.ts` append + 대상 파츠 결정 필요. 리그 변경 범위가 사전 합의되면 진입.
+1. **세션 113 후보 — v1.3.0→v1.4.0 migrator**: 세션 111 skeleton 의 첫 external 확장. `src/migrations/v1-3-0-to-v1-4-0.ts` append + 대상 파츠 결정 필요. 리그 변경 범위가 사전 합의되면 진입. self-contained 폭이 좁고, 저작 스코프 결정(외부) 필요.
+2. **세션 97 (Runtime 본격 착수)**: Cubism/WebGL 렌더러 합류 — 큰 세션, 별도 워크스페이스 (`@geny/web-avatar-runtime` 또는 web-editor-renderer 확장). Foundation Exit 4/4 + 릴리스 게이트 3/3 + lint 14 + migrator 인프라가 모두 들어선 지금이 자연 진입점. ADR 0007 (렌더러 기술) 선행.
 3. **legacy v1.0.0~v1.2.0 opt-in 복제** — docs/03 §7.3 deprecation 정책(외부) + 세션 111 (b 해소 완료) + Runtime 소비자(세션 97).
 4. **세션 96 (staging 배포)**: cluster access 확보 시 — 외부 의존 블록.
-5. **세션 97 (Runtime 본격 착수)**: Cubism/WebGL 렌더러 합류 — 큰 세션, 별도 워크스페이스 (`@geny/web-avatar-runtime` 또는 web-editor-renderer 확장).
+
+자율 모드에선 외부 의존이 없는 범위에서 후보 1 (migrator v1.3.0→v1.4.0) 을 우선 탐색하되, 리그 변경 범위가 미정이면 후보 2 의 ADR 0007 초안을 먼저 쓰는 게 대안.
 
 ---
 

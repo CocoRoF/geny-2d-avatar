@@ -456,7 +456,7 @@ Live2D 공식 샘플 **`니지이로 마오 (Pro Version)`** 은 우리 `halfbod
 템플릿 변경을 커밋하기 전에 **반드시 다음 lint 들이 모두 pass 되어야 한다** (ADR 0005 L2 `rig-template-lint fatal` 계층). 실패는 경고 아닌 **차단** — warning 등급은 없다.
 
 - `pnpm run lint:rig-template -- <path>` (또는 `scripts/rig-template/rig-template-lint.mjs <path>`, 세션 110 이전 이름 `physics-lint.mjs`):
-  - §6.2 물리 파일 규약의 10 규칙(C1~C10) + `parts/*.spec.json.parameter_ids` ↔ `parameters.json` (C11, 세션 99) + `deformers.json.nodes[].params_in` ↔ `parameters.json` (C12, 세션 108) + deformer 트리 무결성(C13 = duplicate / root-missing / root-parent / parent-missing / non-root-null-parent / cycle / orphan, 세션 109) 을 검증. **C10 은 base family 별 분리** (세션 49 — C10-suffix regex `_(sway|phys|fuwa)(_[lr])?$` + halfbody 계열에 한해 C10-forbidden 하반신 접두사 4종 차단). `--family <name>` 로 override 가능.
+  - §6.2 물리 파일 규약의 10 규칙(C1~C10) + `parts/*.spec.json.parameter_ids` ↔ `parameters.json` (C11, 세션 99) + `deformers.json.nodes[].params_in` ↔ `parameters.json` (C12, 세션 108) + deformer 트리 무결성(C13 = duplicate / root-missing / root-parent / parent-missing / non-root-null-parent / cycle / orphan, 세션 109) + `parts/*.spec.json.deformation_parent` ↔ `deformers.json.nodes[].id` (C14, 세션 112 — C11+C12+C13 사각형 완결) 을 검증. **C10 은 base family 별 분리** (세션 49 — C10-suffix regex `_(sway|phys|fuwa)(_[lr])?$` + halfbody 계열에 한해 C10-forbidden 하반신 접두사 4종 차단). `--family <name>` 로 override 가능.
 - `pnpm run test:golden` 의 `rig-template migrate` step — 새 major 시 마이그레이터 chain 이 clean run.
 - 저작 판단이 들어가는 값(물리 weight/delay/mobility, 메쉬 vertex, 모션 커브 타이밍, 파츠 이미지) 은 lint 대상이 아니지만, 저작 결과물 자체가 **반드시 위 lint 를 통과한 상태**로 커밋돼야 한다.
 
