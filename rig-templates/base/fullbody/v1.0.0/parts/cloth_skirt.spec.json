@@ -28,6 +28,7 @@
     "max_iter": 3
   },
   "dependencies": ["hip"],
+  "parameter_ids": ["cloth_skirt_sway", "cloth_skirt_fuwa"],
   "validation": {
     "must_cover_anchor": true,
     "min_alpha_area_frac": 0.05,

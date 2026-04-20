@@ -32,6 +32,7 @@
     "max_iter": 3
   },
   "dependencies": ["face_base"],
+  "parameter_ids": ["hair_side_sway_r", "hair_side_fuwa_r"],
   "validation": {
     "must_cover_anchor": false,
     "min_alpha_area_frac": 0.08,

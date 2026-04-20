@@ -28,6 +28,7 @@
     "max_iter": 3
   },
   "dependencies": ["torso"],
+  "parameter_ids": ["body_angle_x", "body_angle_y", "body_angle_z", "body_breath", "body_breath_phys", "hip_phys"],
   "validation": {
     "must_cover_anchor": true,
     "min_alpha_area_frac": 0.05,

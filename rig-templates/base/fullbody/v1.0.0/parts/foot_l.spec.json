@@ -28,6 +28,7 @@
     "max_iter": 3
   },
   "dependencies": ["leg_l"],
+  "parameter_ids": ["foot_l_angle"],
   "validation": {
     "must_cover_anchor": true,
     "min_alpha_area_frac": 0.01,

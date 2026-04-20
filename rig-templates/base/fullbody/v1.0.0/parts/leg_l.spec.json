@@ -28,6 +28,7 @@
     "max_iter": 3
   },
   "dependencies": ["hip"],
+  "parameter_ids": ["leg_l_angle", "leg_sway_l"],
   "validation": {
     "must_cover_anchor": true,
     "min_alpha_area_frac": 0.04,
