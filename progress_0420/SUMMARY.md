@@ -1,6 +1,6 @@
-# SUMMARY — 세션 1~116 누적 결과 심층 정리
+# SUMMARY — 세션 1~117 누적 결과 심층 정리
 
-본 문서는 5 일간(2026-04-17~04-21) 116 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`.
+본 문서는 5 일간(2026-04-17~04-21) 117 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`.
 
 ---
 
@@ -387,3 +387,4 @@ DB/S3 미착수 (Runtime).
 | 렌더러 인터페이스 패키지 선행 분리 | ✅ 완료 (세션 114) | `@geny/web-avatar-renderer@0.1.0` + 10 tests + golden step 30. Option A/D/E 공통 계약 확보 |
 | Null/Logging 렌더러 구현체 | ✅ 완료 (세션 115) | `createNullRenderer` + `createLoggingRenderer` + 11 tests (6+5) → 패키지 총 21 tests. ADR 0007 Decision 불변 테스트 더블 |
 | `apps/web-editor` → LoggingRenderer wire-through | ✅ 완료 (세션 116) | `?debug=logger` URL 스위치 + dynamic import. e2e assertion (ready→parameterchange→destroy 스트림) halfbody+fullbody 양쪽 고정 |
+| `@geny/web-avatar-renderer` README | ✅ 완료 (세션 117) | package.json `files` 가 이미 참조하던 빈 자리를 채움 — 계약/가드/팩토리/consumer attachment pattern/ADR 0007 경로별 예상 귀결 정리. doc-only |

@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 117+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 118+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -101,12 +101,15 @@
   세션 114 = 렌더러 인터페이스 패키지 선행 분리  ✅ @geny/web-avatar-renderer@0.1.0
   세션 115 = Null/Logging renderer 구현체         ✅ 21 tests (계약 10 + null 6 + logging 5)
   세션 116 = 후보 H (apps/web-editor wire-through)  ✅ `?debug=logger` + e2e assertion
+  세션 117 = 후보 K (web-avatar-renderer README)    ✅ 계약/가드/팩토리/attachment pattern
 
 [자율 모드 후속 후보 — ADR 0007 Decision 불변 영역]
-  세션 117 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행
-  세션 117 = (후보) renderer-observer (가칭) — `createLoggingRenderer` 를 기반으로
+  세션 118 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행
+  세션 118 = (후보, 신중 판단) renderer-observer (가칭) — `createLoggingRenderer` 를 기반으로
             이벤트 집계(ready 회수, parameterchange p50/p99 간격, destroy 감지)를
             구조화한 통계 렌더러. `scripts/observability-*` 패턴의 소규모 적용.
+  세션 118 = (후보) web-editor-renderer / web-editor-logic / web-avatar README 추가 —
+            세션 117 과 동일 문서화 축. 소규모 self-contained.
 
 [사용자 의사 확정 후]
   세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
@@ -179,14 +182,14 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 117)
+## 7. 다음 즉시 행동 (세션 118)
 
-세션 116 에서 `apps/web-editor` 가 `@geny/web-avatar-renderer` 의 **첫 consumer** 경로를 확보. `?debug=logger` 가 켜지면 `createLoggingRenderer` dynamic import → `<geny-avatar>` 에 attach → `console.debug` 로 ready/parameterchange/destroy 스트림. 기본 경로는 dynamic import 안 함 → 네트워크/바이트 무영향. e2e 에 `runLoggingRendererDebug` 스텝 추가 (halfbody+fullbody 양쪽 ready→parameterchange→destroy 3-event 고정). golden 30 step all pass.
+세션 117 에서 `@geny/web-avatar-renderer` 의 README 를 착지 — `package.json::files` 가 이미 참조하던 빈 자리를 채움. 세션 114~116 의 계약/가드/팩토리/consumer attachment pattern + ADR 0007 경로별 예상 귀결 + 빌드/테스트 운용까지 단일 문서에 정리. 코드 변경 0, 테스트 영향 0 (doc-only). 후보 K 완결.
 
-**자율 모드 결정 (세션 117)**: 계약 패키지 소비 경로 1 개 확보됐지만 외부 의존(ADR 0007 Decision / cluster / vendor key) 블록은 여전. 남은 self-contained 여지:
+**자율 모드 결정 (세션 118)**: 문서화 축에서 남은 self-contained 여지와 ADR 0007 Decision 불변의 소규모 작업:
 
-- **후보 J (후보, 신중 판단)** — `renderer-observer` (가칭): `createLoggingRenderer` 를 감싸 **이벤트 집계** (ready 회수 / parameterchange intra-delay 히스토그램 / destroy 감지) 를 내보내는 얇은 구조화 렌더러. `scripts/observability-*` 의 exposition 포맷에 맞추면 perf-harness 가 구독 가능. 단, 실 렌더러 합류 전엔 시그널 노이즈일 수 있어 ROI 낮음 — **의견 필요**.
-- **후보 K (후보)** — `<geny-avatar>` 의 `ready` 이벤트 payload 에 `renderer-observer` attachment point 를 문서화 (ADR 0007 Option E 하이브리드 가정). 계약 수정은 없음, 내부 `README` 만 추가.
+- **후보 L (후보)** — `@geny/web-editor-renderer` / `@geny/web-editor-logic` / `@geny/web-avatar` README 점검 (이미 존재하는 경우 세션 116~117 맥락 추가 / 누락이면 신규). self-contained, doc-only.
+- **후보 J (후보, 신중 판단, 세션 117 이월)** — `renderer-observer` (가칭): `createLoggingRenderer` 를 감싸 **이벤트 집계** (ready 회수 / parameterchange intra-delay 히스토그램 / destroy 감지) 를 내보내는 얇은 구조화 렌더러. `scripts/observability-*` 의 exposition 포맷에 맞추면 perf-harness 가 구독 가능. 단, 실 렌더러 합류 전엔 시그널 노이즈일 수 있어 ROI 낮음 — **의견 필요**.
 - **후보 I (보류)** — Server Headless Renderer 별도 ADR. ADR 0007 Open Question #3 이 사용자 답변 없이 진입하면 위임이 뒤집힐 여지가 큼. **사용자 의사 선행**.
 
 **2순위 (사용자 합의 후에만)**:
@@ -194,11 +197,11 @@
 - **세션 97 Runtime 착수 Spike**: ADR 확정 후. 선택된 렌더러로 halfbody v1.3.0 번들 + 회전 slider → 픽셀 렌더.
 - **v1.3.0→v1.4.0 migrator**: 리그 변경 범위 합의 후.
 
-**선행 read** (세션 117 에서):
-- `apps/web-editor/index.html` `debugLoggerEnabled` 경로 — 세션 116 dynamic import.
-- `apps/web-editor/scripts/e2e-check.mjs::runLoggingRendererDebug` — 이벤트 stream 고정 패턴.
-- `scripts/observability-smoke.mjs` 의 exposition 포맷 — renderer-observer 가 흉내낼 대상.
+**선행 read** (세션 118 에서):
+- `packages/web-avatar-renderer/README.md` — 세션 117 착지한 README, 인접 패키지에도 동일 구조 적용 여부 판단 기준.
+- `packages/web-avatar/README.md` — 세션 18 stage 2 기준이라 세션 114~116 맥락 추가 여지.
+- `packages/web-editor-renderer/package.json` + `packages/web-editor-logic/package.json` — `files` 필드에 README 가 등재되어 있으면 누락 확인 필요.
 
-**세션 118+ 예약 후보**:
+**세션 119+ 예약 후보**:
 - Option E 하이브리드 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규, NullRenderer 계약 그대로 승계).
 - legacy opt-in 복제(후보 C)는 BL-DEPRECATION-POLICY 외부 대기 유지.
