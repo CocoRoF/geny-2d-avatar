@@ -328,10 +328,17 @@ async function runRendererMount(bundleUrl, expect) {
     const el = doc.createElement("geny-avatar");
     doc.body.appendChild(el);
 
-    const renderer = createStructureRenderer({ element: el, mount });
+    // 세션 92 — onSelectPart 콜백 호출 기록 (Preview → 사이드바 동기 훅 검증용).
+    const selectCalls = [];
+    const renderer = createStructureRenderer({
+      element: el,
+      mount,
+      onSelectPart: (part) => selectCalls.push(part),
+    });
     const ready = waitForEvent(el, "ready", 5000);
     el.setAttribute("src", bundleUrl);
-    await ready;
+    const readyEvt = await ready;
+    const meta = readyEvt.detail.bundle.meta;
 
     assert.equal(renderer.partCount, expect.partsTotal, `renderer.partCount = ${renderer.partCount}, expected ${expect.partsTotal}`);
     const svg = mount.querySelector('svg[data-testid="structure-preview"]');
@@ -340,6 +347,30 @@ async function runRendererMount(bundleUrl, expect) {
     assert.equal(rects.length, expect.partsTotal, `rect count = ${rects.length}, expected ${expect.partsTotal}`);
     const rootGroup = svg.querySelector('g[data-testid="structure-root"]');
     assert.ok(rootGroup, "structure-root group exists");
+
+    // 세션 92 — 프로그래매틱 setSelectedSlot 은 하이라이트만 갱신, onSelectPart 호출 금지.
+    const firstSlot = meta.parts[0].slot_id;
+    renderer.setSelectedSlot(firstSlot);
+    assert.equal(renderer.selectedSlotId, firstSlot, "programmatic select persists");
+    const highlightedRects = svg.querySelectorAll('rect[data-selected="true"]');
+    assert.equal(highlightedRects.length, 1, "one rect highlighted");
+    assert.equal(highlightedRects[0].dataset.slotId, firstSlot);
+    assert.equal(selectCalls.length, 0, "setSelectedSlot does not fire onSelectPart");
+
+    // 사용자 클릭 경로 — 두 번째 slot 의 rect 를 클릭 → onSelectPart 콜백 + 하이라이트 이동.
+    const secondSlot = meta.parts[1].slot_id;
+    const targetRect = svg.querySelector(`rect[data-slot-id="${secondSlot}"]`);
+    assert.ok(targetRect, `rect for slot=${secondSlot} exists`);
+    targetRect.dispatchEvent(new window.Event("click", { bubbles: true }));
+    assert.equal(renderer.selectedSlotId, secondSlot, "rect click updates selection");
+    assert.equal(selectCalls.length, 1, "onSelectPart fired once");
+    assert.equal(selectCalls[0]?.slot_id, secondSlot);
+
+    // 같은 rect 재클릭 → 선택 해제 + null 콜백.
+    targetRect.dispatchEvent(new window.Event("click", { bubbles: true }));
+    assert.equal(renderer.selectedSlotId, null, "re-click clears selection");
+    assert.equal(selectCalls.length, 2);
+    assert.equal(selectCalls[1], null, "onSelectPart receives null on deselect");
 
     // head_angle_x 로 rotation 이 작동해야 함.
     const angleParam = (await (async () => {
@@ -360,7 +391,10 @@ async function runRendererMount(bundleUrl, expect) {
     );
 
     renderer.destroy();
-    log(`  ✓ renderer mounted: parts=${renderer.partCount}, rotation via ${angleParam} OK`);
+    log(
+      `  ✓ renderer mounted: parts=${renderer.partCount}, rotation via ${angleParam}, ` +
+        `selection round-trip (${firstSlot} → ${secondSlot} → null)`,
+    );
   } finally {
     await window.happyDOM.close().catch(() => undefined);
     for (const k of KEYS) g[k] = saved[k];

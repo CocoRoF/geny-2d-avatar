@@ -1,5 +1,6 @@
 /**
- * `@geny/web-editor-renderer` 구조 프리뷰 — 세션 91 Stage 3 kick-off.
+ * `@geny/web-editor-renderer` 구조 프리뷰 — 세션 91 Stage 3 kick-off,
+ * 세션 92 에서 파츠 선택 ↔ Preview 하이라이트 양방향 바인딩 추가.
  *
  * `<geny-avatar>` 의 `ready` + `parameterchange` 이벤트를 구독해 파츠 메타를
  * SVG 그리드로 투영한다. Cubism/WebGL 실 렌더러는 후속 세션 — 지금은 setter
@@ -44,6 +45,12 @@ export interface StructureRendererOptions {
    * 미지정 시 자동 선택 (id 에 "angle" 포함된 첫 파라미터).
    */
   readonly rotationParameter?: string;
+  /**
+   * 사용자가 SVG `<rect>` 를 클릭해 선택이 바뀔 때 호출되는 콜백 (세션 92).
+   * 같은 슬롯을 두 번 클릭하면 선택이 해제되고 `null` 로 호출된다.
+   * 에디터 쪽 사이드바와 Preview 의 선택 상태를 동기하는 훅.
+   */
+  readonly onSelectPart?: (part: RendererPart | null) => void;
 }
 
 export interface StructureRenderer {
@@ -59,6 +66,17 @@ export interface StructureRenderer {
    * 현재 root group 에 적용된 rotation 각도 (degrees). 아직 parameterchange 없으면 0.
    */
   readonly rotationDeg: number;
+  /**
+   * 현재 선택된 파츠의 slot_id. 선택 없음이면 `null` (세션 92).
+   */
+  readonly selectedSlotId: string | null;
+  /**
+   * 프로그래매틱 선택 API (사이드바 → Preview 방향). 매칭되는 `<rect>` 가
+   * 하이라이트되고, 없는 slot_id 는 무시. `null` 은 선택 해제.
+   * `onSelectPart` 콜백은 **호출되지 않는다** — 외부 소스가 이미 상태를
+   * 알고 있으므로 echo-back 루프를 방지.
+   */
+  setSelectedSlot(slotId: string | null): void;
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -66,6 +84,13 @@ const VIEWBOX_W = 400;
 const VIEWBOX_H = 500;
 const COLUMN_COUNT = 5;
 const CELL_W = VIEWBOX_W / COLUMN_COUNT;
+
+const RECT_STROKE_DEFAULT = "#2b4a8b";
+const RECT_STROKE_WIDTH_DEFAULT = "0.5";
+const RECT_FILL_DEFAULT = "#eef4ff";
+const RECT_STROKE_SELECTED = "#ff7a00";
+const RECT_STROKE_WIDTH_SELECTED = "2";
+const RECT_FILL_SELECTED = "#fff1e0";
 
 export function createStructureRenderer(opts: StructureRendererOptions): StructureRenderer {
   const { element, mount } = opts;
@@ -78,6 +103,10 @@ export function createStructureRenderer(opts: StructureRendererOptions): Structu
   let rotationDeg = 0;
   let rotationParameterId: string | null = opts.rotationParameter ?? null;
   let rootGroup: SVGGElement | null = null;
+  let selectedSlotId: string | null = null;
+  let partsBySlot: Map<string, RendererPart> = new Map();
+  let rectsBySlot: Map<string, SVGRectElement> = new Map();
+  const onSelectPart = opts.onSelectPart;
 
   const svg = doc.createElementNS(SVG_NS, "svg") as SVGSVGElement;
   svg.setAttribute("viewBox", `0 0 ${VIEWBOX_W} ${VIEWBOX_H}`);
@@ -95,6 +124,10 @@ export function createStructureRenderer(opts: StructureRendererOptions): Structu
     svg.appendChild(g);
     rootGroup = g;
 
+    partsBySlot = new Map();
+    rectsBySlot = new Map();
+    selectedSlotId = null;
+
     partCount = meta.parts.length;
     meta.parts.forEach((p, i) => {
       const col = i % COLUMN_COUNT;
@@ -107,12 +140,16 @@ export function createStructureRenderer(opts: StructureRendererOptions): Structu
       rect.setAttribute("width", String(CELL_W - 8));
       rect.setAttribute("height", "22");
       rect.setAttribute("rx", "3");
-      rect.setAttribute("fill", "#eef4ff");
-      rect.setAttribute("stroke", "#2b4a8b");
-      rect.setAttribute("stroke-width", "0.5");
+      rect.setAttribute("fill", RECT_FILL_DEFAULT);
+      rect.setAttribute("stroke", RECT_STROKE_DEFAULT);
+      rect.setAttribute("stroke-width", RECT_STROKE_WIDTH_DEFAULT);
       rect.dataset.slotId = p.slot_id;
       rect.dataset.role = p.role;
+      rect.style.cursor = "pointer";
+      rect.addEventListener("click", () => onRectClick(p.slot_id));
       g.appendChild(rect);
+      partsBySlot.set(p.slot_id, p);
+      rectsBySlot.set(p.slot_id, rect);
 
       const text = doc.createElementNS(SVG_NS, "text");
       text.setAttribute("x", String(x + (CELL_W - 8) / 2));
@@ -121,6 +158,7 @@ export function createStructureRenderer(opts: StructureRendererOptions): Structu
       text.setAttribute("font-size", "8");
       text.setAttribute("font-family", "system-ui, sans-serif");
       text.setAttribute("fill", "#2b4a8b");
+      text.style.pointerEvents = "none";
       text.textContent = p.role;
       g.appendChild(text);
     });
@@ -132,6 +170,42 @@ export function createStructureRenderer(opts: StructureRendererOptions): Structu
     }
     rotationDeg = 0;
     applyRotation();
+  }
+
+  function applySelectionStyle(rect: SVGRectElement, selected: boolean): void {
+    if (selected) {
+      rect.setAttribute("fill", RECT_FILL_SELECTED);
+      rect.setAttribute("stroke", RECT_STROKE_SELECTED);
+      rect.setAttribute("stroke-width", RECT_STROKE_WIDTH_SELECTED);
+      rect.dataset.selected = "true";
+    } else {
+      rect.setAttribute("fill", RECT_FILL_DEFAULT);
+      rect.setAttribute("stroke", RECT_STROKE_DEFAULT);
+      rect.setAttribute("stroke-width", RECT_STROKE_WIDTH_DEFAULT);
+      delete rect.dataset.selected;
+    }
+  }
+
+  function updateSelection(nextSlotId: string | null): void {
+    if (selectedSlotId === nextSlotId) return;
+    if (selectedSlotId) {
+      const prevRect = rectsBySlot.get(selectedSlotId);
+      if (prevRect) applySelectionStyle(prevRect, false);
+    }
+    selectedSlotId = nextSlotId;
+    if (nextSlotId) {
+      const nextRect = rectsBySlot.get(nextSlotId);
+      if (nextRect) applySelectionStyle(nextRect, true);
+    }
+  }
+
+  function onRectClick(slotId: string): void {
+    // 같은 slot 재클릭 → 선택 해제.
+    const next = selectedSlotId === slotId ? null : slotId;
+    updateSelection(next);
+    if (onSelectPart) {
+      onSelectPart(next ? partsBySlot.get(next) ?? null : null);
+    }
   }
 
   function applyRotation(): void {
@@ -170,12 +244,22 @@ export function createStructureRenderer(opts: StructureRendererOptions): Structu
       while (svg.firstChild) svg.removeChild(svg.firstChild);
       if (svg.parentNode) svg.parentNode.removeChild(svg);
       rootGroup = null;
+      partsBySlot.clear();
+      rectsBySlot.clear();
+      selectedSlotId = null;
     },
     get partCount(): number {
       return partCount;
     },
     get rotationDeg(): number {
       return rotationDeg;
+    },
+    get selectedSlotId(): string | null {
+      return selectedSlotId;
+    },
+    setSelectedSlot(slotId: string | null): void {
+      if (slotId !== null && !rectsBySlot.has(slotId)) return;
+      updateSelection(slotId);
     },
   };
 }

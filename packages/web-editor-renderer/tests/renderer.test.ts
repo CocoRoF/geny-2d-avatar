@@ -14,6 +14,7 @@ import {
   createStructureRenderer,
   type RendererBundleMeta,
   type RendererHost,
+  type RendererPart,
 } from "../src/renderer.js";
 
 let window: Window;
@@ -172,6 +173,128 @@ test("createStructureRenderer: destroy removes listeners and DOM", () => {
   host.dispatchEvent(new CE("ready", { detail: { bundle: { meta: sampleMeta(10) } } }));
   assert.equal(renderer.partCount, 2, "listener detached — partCount frozen");
 
+  mount.remove();
+});
+
+test("createStructureRenderer: setSelectedSlot highlights matching rect (세션 92)", () => {
+  const doc = (window as unknown as { document: Document }).document;
+  const CE = (window as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent;
+  const mount = doc.createElement("div");
+  doc.body.appendChild(mount);
+
+  const host = makeHost();
+  const renderer = createStructureRenderer({ element: host, mount });
+  host.dispatchEvent(new CE("ready", { detail: { bundle: { meta: sampleMeta(4) } } }));
+
+  assert.equal(renderer.selectedSlotId, null, "initial selection is null");
+
+  renderer.setSelectedSlot("slot_2");
+  assert.equal(renderer.selectedSlotId, "slot_2");
+  const svg = mount.querySelector('svg[data-testid="structure-preview"]')!;
+  const selectedRects = svg.querySelectorAll('rect[data-selected="true"]');
+  assert.equal(selectedRects.length, 1, "exactly one rect marked selected");
+  assert.equal((selectedRects[0] as SVGRectElement).dataset.slotId, "slot_2");
+
+  // 다른 slot 으로 변경 — 이전 하이라이트 해제, 새 하이라이트 적용.
+  renderer.setSelectedSlot("slot_0");
+  assert.equal(renderer.selectedSlotId, "slot_0");
+  assert.equal(svg.querySelectorAll('rect[data-selected="true"]').length, 1);
+  assert.equal(
+    (svg.querySelector('rect[data-selected="true"]') as SVGRectElement).dataset.slotId,
+    "slot_0",
+  );
+
+  // null → 모든 선택 해제.
+  renderer.setSelectedSlot(null);
+  assert.equal(renderer.selectedSlotId, null);
+  assert.equal(svg.querySelectorAll('rect[data-selected="true"]').length, 0);
+
+  // 존재하지 않는 slot_id → 무시 (현재 상태 유지).
+  renderer.setSelectedSlot("slot_99");
+  assert.equal(renderer.selectedSlotId, null, "unknown slot_id ignored");
+
+  renderer.destroy();
+  mount.remove();
+});
+
+test("createStructureRenderer: rect click → onSelectPart callback (세션 92)", () => {
+  const doc = (window as unknown as { document: Document }).document;
+  const CE = (window as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent;
+  const mount = doc.createElement("div");
+  doc.body.appendChild(mount);
+
+  const calls: (RendererPart | null)[] = [];
+  const host = makeHost();
+  const renderer = createStructureRenderer({
+    element: host,
+    mount,
+    onSelectPart: (part) => calls.push(part),
+  });
+  host.dispatchEvent(new CE("ready", { detail: { bundle: { meta: sampleMeta(3) } } }));
+
+  const svg = mount.querySelector('svg[data-testid="structure-preview"]')!;
+  const rect1 = svg.querySelector('rect[data-slot-id="slot_1"]') as SVGRectElement;
+  assert.ok(rect1, "rect for slot_1 exists");
+
+  rect1.dispatchEvent(new (window as unknown as { Event: typeof Event }).Event("click", { bubbles: true }));
+  assert.equal(renderer.selectedSlotId, "slot_1");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.slot_id, "slot_1");
+  assert.equal(calls[0]?.role, "role_1");
+
+  // 같은 rect 재클릭 → 선택 해제 + null 콜백.
+  rect1.dispatchEvent(new (window as unknown as { Event: typeof Event }).Event("click", { bubbles: true }));
+  assert.equal(renderer.selectedSlotId, null);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1], null);
+
+  renderer.destroy();
+  mount.remove();
+});
+
+test("createStructureRenderer: setSelectedSlot does NOT fire onSelectPart (세션 92)", () => {
+  const doc = (window as unknown as { document: Document }).document;
+  const CE = (window as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent;
+  const mount = doc.createElement("div");
+  doc.body.appendChild(mount);
+
+  const calls: (RendererPart | null)[] = [];
+  const host = makeHost();
+  const renderer = createStructureRenderer({
+    element: host,
+    mount,
+    onSelectPart: (part) => calls.push(part),
+  });
+  host.dispatchEvent(new CE("ready", { detail: { bundle: { meta: sampleMeta(3) } } }));
+
+  renderer.setSelectedSlot("slot_1");
+  renderer.setSelectedSlot("slot_0");
+  renderer.setSelectedSlot(null);
+  assert.equal(calls.length, 0, "programmatic selection must not echo back via onSelectPart");
+
+  renderer.destroy();
+  mount.remove();
+});
+
+test("createStructureRenderer: rebuild on ready clears selection (세션 92)", () => {
+  const doc = (window as unknown as { document: Document }).document;
+  const CE = (window as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent;
+  const mount = doc.createElement("div");
+  doc.body.appendChild(mount);
+
+  const host = makeHost();
+  const renderer = createStructureRenderer({ element: host, mount });
+  host.dispatchEvent(new CE("ready", { detail: { bundle: { meta: sampleMeta(4) } } }));
+  renderer.setSelectedSlot("slot_2");
+  assert.equal(renderer.selectedSlotId, "slot_2");
+
+  // 두 번째 ready — 새 part 세트로 rebuild, 선택 리셋.
+  host.dispatchEvent(new CE("ready", { detail: { bundle: { meta: sampleMeta(2) } } }));
+  assert.equal(renderer.selectedSlotId, null, "selection cleared on rebuild");
+  const svg = mount.querySelector('svg[data-testid="structure-preview"]')!;
+  assert.equal(svg.querySelectorAll('rect[data-selected="true"]').length, 0);
+
+  renderer.destroy();
   mount.remove();
 });
 

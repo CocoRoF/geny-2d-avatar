@@ -284,10 +284,25 @@
 
       // 세션 91 — 구조 프리뷰 렌더러 장착. `<geny-avatar>` 의 ready + parameterchange
       // 이벤트를 구독해 SVG 로 파츠 그리드를 그린다. Cubism/WebGL 실 렌더러는 후속.
-      createStructureRenderer({ element: el, mount: stageEl });
+      // 세션 92 — onSelectPart 콜백으로 Preview 클릭 → 사이드바 선택 양방향 바인딩.
+      // partNodeBySlot 은 파츠 li DOM 을 slot_id → 노드로 역조회하는 맵.
+      const partNodeBySlot = new Map();
+      const renderer = createStructureRenderer({
+        element: el,
+        mount: stageEl,
+        onSelectPart: (part) => {
+          if (!part) {
+            clearSidebarSelection();
+            return;
+          }
+          const entry = partNodeBySlot.get(part.slot_id);
+          if (entry) selectSidebarEntry(entry.li, entry.part, entry.cat, { fromRenderer: true });
+        },
+      });
 
       function renderParts(groups) {
         groupsEl.replaceChildren();
+        partNodeBySlot.clear();
         for (const cat of [...CATEGORY_ORDER, ...[...groups.keys()].filter((c) => !CATEGORY_ORDER.includes(c))]) {
           const items = groups.get(cat);
           if (!items) continue;
@@ -310,18 +325,29 @@
             slot.className = "slot-id";
             slot.textContent = p.slot_id;
             li.append(role, slot);
-            li.addEventListener("click", () => selectPart(li, p, cat));
+            li.addEventListener("click", () => selectSidebarEntry(li, p, cat, { fromRenderer: false }));
             ul.appendChild(li);
+            partNodeBySlot.set(p.slot_id, { li, part: p, cat });
           }
           wrap.appendChild(ul);
           groupsEl.appendChild(wrap);
         }
       }
 
-      function selectPart(node, part, cat) {
-        document.querySelectorAll('.parts-list li[aria-selected="true"]').forEach((n) => n.setAttribute("aria-selected", "false"));
+      function clearSidebarSelection() {
+        document.querySelectorAll('.parts-list li[aria-selected="true"]').forEach((n) =>
+          n.setAttribute("aria-selected", "false"),
+        );
+      }
+
+      // 세션 92 — 단일 진입점. 사이드바 클릭은 fromRenderer=false 로 renderer 에게 선택을
+      // 밀어넣고, Preview 클릭 (onSelectPart) 은 fromRenderer=true 로 사이드바만 갱신해
+      // echo 루프를 차단. `renderer.setSelectedSlot` 은 콜백을 호출하지 않으므로 루프 없음.
+      function selectSidebarEntry(node, part, cat, { fromRenderer }) {
+        clearSidebarSelection();
         node.setAttribute("aria-selected", "true");
         renderInspector(part, cat);
+        if (!fromRenderer) renderer.setSelectedSlot(part.slot_id);
       }
 
       function renderInspector(part, cat) {
@@ -438,6 +464,7 @@
         inspectorEl.replaceChildren();
         paramSectionEl = null;
         readoutByIdRef.clear();
+        partNodeBySlot.clear();
         const hint = document.createElement("p");
         hint.className = "empty-hint";
         hint.textContent = "파츠를 선택하면 slot · role · 소속 그룹이 표시됩니다.";
