@@ -255,9 +255,36 @@ async function runDomLifecycle(bundleUrl, expect) {
     assert.ok(meta.motions.length > 0, "meta.motions >= 1");
     assert.equal(atlas.textures[0].path, "textures/base.png", "atlas textures[0].path");
 
+    // 세션 90 — setParameter write-through 계약 검증. parameter write 가
+    // parameterchange 이벤트 → getParameters 스냅샷 반영 → 범위 클램프 모두 작동하는지.
+    const params0 = el.getParameters();
+    assert.equal(
+      Object.keys(params0).length,
+      meta.parameters.length,
+      `getParameters() size = ${Object.keys(params0).length}, expected ${meta.parameters.length}`,
+    );
+    const firstParam = meta.parameters[0];
+    const [lo, hi] = firstParam.range;
+    const mid = (lo + hi) / 2;
+    const changePromise = waitForEvent(el, "parameterchange", 2000);
+    const returned = el.setParameter(firstParam.id, mid);
+    const changeEvt = await changePromise;
+    assert.equal(returned, mid, `setParameter returned = ${returned}, expected ${mid}`);
+    assert.equal(changeEvt.detail.id, firstParam.id);
+    assert.equal(changeEvt.detail.value, mid);
+    assert.equal(el.getParameters()[firstParam.id], mid, "getParameters reflects write");
+
+    // Out-of-range → 클램프.
+    const overReturned = el.setParameter(firstParam.id, hi + 999);
+    assert.equal(overReturned, hi, "out-of-range clamped to hi");
+
     log(
       `  ✓ ready payload: ${manifest.avatar_id} @ ${manifest.template_id}@${manifest.template_version}, ` +
-        `parts=${meta.parts.length}, motions=${meta.motions.length}`,
+        `parts=${meta.parts.length}, motions=${meta.motions.length}, parameters=${meta.parameters.length}`,
+    );
+    log(
+      `  ✓ parameter write-through: ${firstParam.id} ` +
+        `default=${firstParam.default} → mid=${mid} → clamped=${hi}`,
     );
   } finally {
     await window.happyDOM.close().catch(() => undefined);

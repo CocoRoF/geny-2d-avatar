@@ -3,6 +3,10 @@
  *
  * Stage 2 범위: src(bundle.json) 해석 → `ready` / `error` 이벤트. 렌더링은 Stage 3.
  *
+ * 세션 90 — Stage 3 setter contract 진입. `setParameter/getParameters` + `parameterchange`
+ * 이벤트로 에디터 ↔ 엘리먼트 write-through 상태 계약을 개방했다. 렌더러는 이 상태를
+ * 구독해 후속 세션에서 합류 (Cubism/WebGL draw 는 별도 `@geny/web-editor-renderer`).
+ *
  * 사용 예:
  * ```html
  * <geny-avatar src="/avatars/avt.demo/bundle.json"></geny-avatar>
@@ -10,16 +14,22 @@
  *   import "@geny/web-avatar";
  *   const el = document.querySelector("geny-avatar");
  *   el.addEventListener("ready", (e) => console.log(e.detail.bundle));
+ *   el.addEventListener("parameterchange", (e) => console.log(e.detail));
  * </script>
  * ```
  *
- * 제어 API(setParameter/playMotion/setExpression)는 스텁이며 Stage 3 에서 구현.
+ * 제어 API: `setParameter` (세션 90) 구현. `playMotion/setExpression` 은 여전히 스텁.
  */
 
 import { loadWebAvatarBundle, WebAvatarBundleError, type WebAvatarBundle } from "./loader.js";
 
 export type GenyAvatarReadyEvent = CustomEvent<{ bundle: WebAvatarBundle }>;
 export type GenyAvatarErrorEvent = CustomEvent<{ error: unknown }>;
+export type GenyAvatarParameterChangeEvent = CustomEvent<{
+  id: string;
+  value: number;
+  values: Readonly<Record<string, number>>;
+}>;
 
 /**
  * 환경 (브라우저/WebView) 에 HTMLElement 가 있을 때만 Custom Element 클래스를 만든다.
@@ -29,6 +39,10 @@ export function createGenyAvatarElementClass(): typeof HTMLElement {
   class GenyAvatarElement extends HTMLElement {
     #bundle: WebAvatarBundle | null = null;
     #loadToken = 0;
+    // 세션 90 — parameter write-through. 번들 meta.parameters[].default 로 시드되고
+    // setParameter 호출 시 range 로 클램프해서 갱신. getParameters 는 프리즈된 스냅샷.
+    #parameters: Map<string, number> = new Map();
+    #parameterRanges: Map<string, readonly [number, number]> = new Map();
 
     static get observedAttributes(): string[] {
       return ["src"];
@@ -57,6 +71,7 @@ export function createGenyAvatarElementClass(): typeof HTMLElement {
         const bundle = await loadWebAvatarBundle(url);
         if (token !== this.#loadToken) return; // superseded by newer src
         this.#bundle = bundle;
+        this.#seedParameters(bundle);
         this.dispatchEvent(
           new CustomEvent("ready", { detail: { bundle } }) satisfies GenyAvatarReadyEvent,
         );
@@ -68,11 +83,41 @@ export function createGenyAvatarElementClass(): typeof HTMLElement {
       }
     }
 
-    setParameter(_id: string, _value: number): void {
-      throw new WebAvatarBundleError(
-        "setParameter is not implemented in stage 2",
-        "INVALID_SCHEMA",
+    #seedParameters(bundle: WebAvatarBundle): void {
+      this.#parameters = new Map();
+      this.#parameterRanges = new Map();
+      for (const p of bundle.meta.parameters) {
+        this.#parameters.set(p.id, p.default);
+        this.#parameterRanges.set(p.id, p.range);
+      }
+    }
+
+    getParameters(): Readonly<Record<string, number>> {
+      return Object.freeze(Object.fromEntries(this.#parameters));
+    }
+
+    setParameter(id: string, value: number): number {
+      const range = this.#parameterRanges.get(id);
+      if (!range) {
+        throw new WebAvatarBundleError(
+          `unknown parameter id: ${id}`,
+          "INVALID_SCHEMA",
+        );
+      }
+      if (!Number.isFinite(value)) {
+        throw new WebAvatarBundleError(
+          `parameter value must be finite: ${id}=${value}`,
+          "INVALID_SCHEMA",
+        );
+      }
+      const clamped = Math.min(range[1], Math.max(range[0], value));
+      this.#parameters.set(id, clamped);
+      this.dispatchEvent(
+        new CustomEvent("parameterchange", {
+          detail: { id, value: clamped, values: this.getParameters() },
+        }) satisfies GenyAvatarParameterChangeEvent,
       );
+      return clamped;
     }
 
     playMotion(_packId: string): void {

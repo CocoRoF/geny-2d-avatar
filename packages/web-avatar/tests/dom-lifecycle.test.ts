@@ -197,6 +197,117 @@ test("<geny-avatar>: dispatches error with INVALID_KIND code on cubism-bundle ma
   }
 });
 
+test("<geny-avatar>: getParameters reflects meta defaults after ready (세션 90)", async () => {
+  const dir = materializeGoldenBundle();
+  try {
+    const doc = g.document as unknown as Document;
+    const el = doc.createElement("geny-avatar") as HTMLElement;
+    doc.body.appendChild(el);
+    const readyP = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dir, "bundle.json")).toString());
+    const evt = await readyP;
+    const bundle = (evt.detail as { bundle: WebAvatarBundle }).bundle;
+
+    const getParams = (el as unknown as { getParameters(): Record<string, number> }).getParameters;
+    const snapshot = getParams.call(el);
+    assert.equal(
+      Object.keys(snapshot).length,
+      bundle.meta.parameters.length,
+      "parameter count matches meta.parameters",
+    );
+    for (const p of bundle.meta.parameters) {
+      assert.equal(snapshot[p.id], p.default, `${p.id} seeded with default`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("<geny-avatar>: setParameter clamps to range and fires parameterchange (세션 90)", async () => {
+  const dir = materializeGoldenBundle();
+  try {
+    const doc = g.document as unknown as Document;
+    const el = doc.createElement("geny-avatar") as HTMLElement;
+    doc.body.appendChild(el);
+    const readyP = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dir, "bundle.json")).toString());
+    const readyEvt = await readyP;
+    const bundle = (readyEvt.detail as { bundle: WebAvatarBundle }).bundle;
+    const first = bundle.meta.parameters[0]!;
+    const [lo, hi] = first.range;
+
+    const setParam = (el as unknown as {
+      setParameter(id: string, value: number): number;
+    }).setParameter;
+    const getParams = (el as unknown as { getParameters(): Record<string, number> }).getParameters;
+
+    // range 중앙 값 — 클램프 없이 그대로.
+    const mid = (lo + hi) / 2;
+    const midPromise = new Promise<CustomEvent>((resolvePromise) => {
+      el.addEventListener("parameterchange", (e) => resolvePromise(e as CustomEvent), { once: true });
+    });
+    const midReturn = setParam.call(el, first.id, mid);
+    const midEvt = await midPromise;
+    const midDetail = midEvt.detail as { id: string; value: number; values: Record<string, number> };
+    assert.equal(midReturn, mid, "midpoint returned as-is");
+    assert.equal(midDetail.id, first.id);
+    assert.equal(midDetail.value, mid);
+    assert.equal(midDetail.values[first.id], mid);
+    assert.equal(getParams.call(el)[first.id], mid);
+
+    // range 초과 — 상단 클램프.
+    const overPromise = new Promise<CustomEvent>((resolvePromise) => {
+      el.addEventListener("parameterchange", (e) => resolvePromise(e as CustomEvent), { once: true });
+    });
+    const overReturn = setParam.call(el, first.id, hi + 999);
+    const overEvt = await overPromise;
+    assert.equal(overReturn, hi, "over-range clamped to hi");
+    assert.equal((overEvt.detail as { value: number }).value, hi);
+    assert.equal(getParams.call(el)[first.id], hi);
+
+    // 하단 클램프.
+    const underReturn = setParam.call(el, first.id, lo - 999);
+    assert.equal(underReturn, lo, "under-range clamped to lo");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("<geny-avatar>: setParameter throws on unknown id / non-finite value (세션 90)", async () => {
+  const dir = materializeGoldenBundle();
+  try {
+    const doc = g.document as unknown as Document;
+    const el = doc.createElement("geny-avatar") as HTMLElement;
+    doc.body.appendChild(el);
+    const readyP = waitFor(el, "ready");
+    el.setAttribute("src", pathToFileURL(join(dir, "bundle.json")).toString());
+    await readyP;
+
+    const setParam = (el as unknown as {
+      setParameter(id: string, value: number): number;
+    }).setParameter;
+
+    assert.throws(
+      () => setParam.call(el, "nonexistent.parameter", 0),
+      (err: Error & { code?: string }) => err.code === "INVALID_SCHEMA",
+      "unknown id must throw INVALID_SCHEMA",
+    );
+    const firstId = (el as unknown as { bundle: WebAvatarBundle }).bundle.meta.parameters[0]!.id;
+    assert.throws(
+      () => setParam.call(el, firstId, Number.NaN),
+      (err: Error & { code?: string }) => err.code === "INVALID_SCHEMA",
+      "NaN must throw INVALID_SCHEMA",
+    );
+    assert.throws(
+      () => setParam.call(el, firstId, Number.POSITIVE_INFINITY),
+      (err: Error & { code?: string }) => err.code === "INVALID_SCHEMA",
+      "Infinity must throw INVALID_SCHEMA",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("<geny-avatar>: superseding src cancels stale load (no ready from first src)", async () => {
   const dirGood = materializeGoldenBundle();
   const dirBad = mkdtempSync(join(tmpdir(), "geny-web-avatar-dom-super-"));
