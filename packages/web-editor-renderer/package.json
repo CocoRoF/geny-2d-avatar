@@ -1,0 +1,37 @@
+{
+  "name": "@geny/web-editor-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Geny 2D Avatar web-editor 구조 프리뷰 렌더러 — `<geny-avatar>` bundle + parameterchange 이벤트를 SVG 레이아웃으로 투영. docs/01 §8 `@geny/web-avatar` 런타임 계약에서 분리된 렌더러 레이어. 세션 91 Stage 3 kick-off 이후 합류.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer.d.ts",
+      "import": "./dist/renderer.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "happy-dom": "^14.12.3",
+    "typescript": "^5.6.3"
+  }
+}

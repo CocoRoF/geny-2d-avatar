@@ -48,6 +48,10 @@ step("build @geny/web-editor-logic", () => {
   runPnpm(["--filter", "@geny/web-editor-logic", "run", "build"]);
 });
 
+step("build @geny/web-editor-renderer", () => {
+  runPnpm(["--filter", "@geny/web-editor-renderer", "run", "build"]);
+});
+
 step("copy @geny/web-avatar dist → public/vendor", () => {
   const src = resolve(repoRoot, "packages/web-avatar/dist");
   cpSync(src, vendorDir, { recursive: true });
@@ -56,6 +60,12 @@ step("copy @geny/web-avatar dist → public/vendor", () => {
 step("copy @geny/web-editor-logic dist → public/vendor/web-editor-logic", () => {
   const src = resolve(repoRoot, "packages/web-editor-logic/dist");
   const dst = join(vendorDir, "web-editor-logic");
+  cpSync(src, dst, { recursive: true });
+});
+
+step("copy @geny/web-editor-renderer dist → public/vendor/web-editor-renderer", () => {
+  const src = resolve(repoRoot, "packages/web-editor-renderer/dist");
+  const dst = join(vendorDir, "web-editor-renderer");
   cpSync(src, dst, { recursive: true });
 });
 

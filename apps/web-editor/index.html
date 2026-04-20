@@ -142,7 +142,7 @@
       .stage-inner {
         width: min(480px, 100%);
         aspect-ratio: 3 / 4;
-        border: 1px dashed var(--border);
+        border: 1px solid var(--border);
         border-radius: 12px;
         display: flex;
         align-items: center;
@@ -151,7 +151,12 @@
         color: var(--muted);
         font-size: 0.85rem;
         text-align: center;
-        padding: 16px;
+        padding: 8px;
+        position: relative;
+      }
+      .stage-inner svg[data-testid="structure-preview"] {
+        width: 100%;
+        height: 100%;
       }
       .preview-controls {
         display: flex;
@@ -246,14 +251,13 @@
 
       <section class="preview" aria-label="preview player">
         <div class="stage">
-          <div class="stage-inner">
-            <div id="preview-hint">Stage 2 에선 번들 메타만 로드합니다. 실 렌더러는 Stage 3 이후 합류.</div>
+          <div class="stage-inner" id="stage-inner">
             <geny-avatar id="avatar"></geny-avatar>
           </div>
         </div>
         <div class="preview-controls">
-          <em>Pose Picker · Angle X/Y/Z · Blink · Mouth · Vowel · Idle</em>
-          <span style="margin-left:auto">Stage 3+ 추가 예정</span>
+          <em>Structure preview · rotation = head_angle_x</em>
+          <span style="margin-left:auto">세션 91 — Stage 3 kick-off</span>
         </div>
       </section>
 
@@ -268,6 +272,7 @@
     <script type="module" src="./public/vendor/index.js"></script>
     <script type="module">
       import { CATEGORY_ORDER, categorize } from "./public/vendor/web-editor-logic/index.js";
+      import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
       const statusEl = document.querySelector("#status");
       const groupsEl = document.querySelector("#parts-groups");
@@ -275,6 +280,11 @@
       const avatarNameEl = document.querySelector("#avatar-name");
       const pickerEl = document.querySelector("#template-picker");
       const el = document.querySelector("#avatar");
+      const stageEl = document.querySelector("#stage-inner");
+
+      // 세션 91 — 구조 프리뷰 렌더러 장착. `<geny-avatar>` 의 ready + parameterchange
+      // 이벤트를 구독해 SVG 로 파츠 그리드를 그린다. Cubism/WebGL 실 렌더러는 후속.
+      createStructureRenderer({ element: el, mount: stageEl });
 
       function renderParts(groups) {
         groupsEl.replaceChildren();

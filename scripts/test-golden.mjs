@@ -61,6 +61,10 @@
 // 24) apps/web-editor e2e — Foundation Exit #1 에디터 스캐폴드의 무인 E2E.
 //     prepare → serve(:port) → HTTP 200×6 + loader 체인(avatar_id=avt.editor.halfbody.demo) +
 //     categorize 4 카테고리 카디널리티 어서션 + `<geny-avatar>` happy-dom ready lifecycle (세션 81).
+//     세션 91 — `@geny/web-editor-renderer` mount 어서션 추가 (구조 프리뷰 SVG + rotation).
+// 25) @geny/web-editor-renderer tests — `<geny-avatar>` ready + parameterchange 구독으로
+//     SVG 구조 프리뷰 (grid) 를 생성하는 `createStructureRenderer` 회귀. duck-typed
+//     EventTarget 으로 실 element 없이 구동 (6 tests, 세션 91).
 // 25) mock-vendor-server tests — 세션 82. nano-banana/sdxl/flux-fill HTTP 계약 재현 서버의
 //     계약 회귀 (3 엔드포인트 결정론적 image_sha256 + 401/400/404 + latency/fail 주입 + argv 파서,
 //     13 tests). 실 벤더 키 없이 HTTP 경로 end-to-end 를 두드릴 수 있도록 하는 dev/CI 도구.
@@ -117,6 +121,7 @@ const STEPS = [
   { name: "observability-smoke parser tests", run: runObservabilitySmokeParserTests },
   { name: "observability-snapshot-diff parser tests", run: runObservabilitySnapshotDiffTests },
   { name: "web-editor-logic tests", run: runWebEditorLogicTests },
+  { name: "web-editor-renderer tests", run: runWebEditorRendererTests },
   { name: "web-editor e2e", run: runWebEditorE2E },
   { name: "mock-vendor-server tests", run: runMockVendorServerTests },
   { name: "observability Mock↔HTTP snapshot drift", run: runObservabilityMockHttpDriftCheck },
@@ -303,6 +308,13 @@ async function runWebEditorLogicTests() {
   // 세션 89 — categoryOf/categorize 단일 소스. index.html + e2e-check.mjs + (향후 editor-renderer)
   // 가 모두 이 dist 를 공유 → 규칙 drift 를 구조적으로 차단.
   await run("pnpm", ["-F", "@geny/web-editor-logic", "test"], { cwd: repoRoot });
+}
+
+async function runWebEditorRendererTests() {
+  // 세션 91 — `<geny-avatar>` ready + parameterchange 를 구독해 SVG 구조 프리뷰를
+  // 생성하는 `createStructureRenderer` 회귀. duck-typed EventTarget 으로 실 element
+  // 없이 구동 (happy-dom Window + CustomEvent dispatch, 6 tests).
+  await run("pnpm", ["-F", "@geny/web-editor-renderer", "test"], { cwd: repoRoot });
 }
 
 async function runWebEditorE2E() {

@@ -80,6 +80,7 @@ try {
     const bundle = await runLoaderChain(bundleUrl, expect);
     await runCategorize(bundle.meta.parts, t.id, expect);
     await runDomLifecycle(bundleUrl, expect);
+    await runRendererMount(bundleUrl, expect);
   }
 
   log("✅ web-editor e2e pass (halfbody + fullbody)");
@@ -286,6 +287,80 @@ async function runDomLifecycle(bundleUrl, expect) {
       `  ✓ parameter write-through: ${firstParam.id} ` +
         `default=${firstParam.default} → mid=${mid} → clamped=${hi}`,
     );
+  } finally {
+    await window.happyDOM.close().catch(() => undefined);
+    for (const k of KEYS) g[k] = saved[k];
+  }
+}
+
+/**
+ * 세션 91 — `@geny/web-editor-renderer` 구조 프리뷰 mount.
+ * `<geny-avatar>` 의 ready 이벤트에 맞춰 SVG 가 part 개수만큼 rect/text 를 만들고,
+ * parameterchange 가 root group 에 rotate() 를 반영하는지 검증한다.
+ */
+async function runRendererMount(bundleUrl, expect) {
+  log("web-editor-renderer SVG mount (happy-dom + HTTP)");
+  const { Window } = await import("happy-dom");
+  const elementUrl = pathToFileURL(
+    resolve(repoRoot, "packages/web-avatar/dist/element.js"),
+  ).toString();
+  const rendererUrl = pathToFileURL(
+    resolve(repoRoot, "packages/web-editor-renderer/dist/index.js"),
+  ).toString();
+  const { registerGenyAvatar } = await import(elementUrl);
+  const { createStructureRenderer } = await import(rendererUrl);
+
+  const window = new Window({ url: `${new URL(bundleUrl).origin}/` });
+  const g = globalThis;
+  const KEYS = ["HTMLElement", "customElements", "CustomEvent", "Event", "document", "window"];
+  const saved = {};
+  for (const k of KEYS) saved[k] = g[k];
+  try {
+    for (const k of ["HTMLElement", "customElements", "CustomEvent", "Event", "document"]) {
+      g[k] = window[k];
+    }
+    g.window = window;
+    registerGenyAvatar();
+
+    const doc = window.document;
+    const mount = doc.createElement("div");
+    doc.body.appendChild(mount);
+    const el = doc.createElement("geny-avatar");
+    doc.body.appendChild(el);
+
+    const renderer = createStructureRenderer({ element: el, mount });
+    const ready = waitForEvent(el, "ready", 5000);
+    el.setAttribute("src", bundleUrl);
+    await ready;
+
+    assert.equal(renderer.partCount, expect.partsTotal, `renderer.partCount = ${renderer.partCount}, expected ${expect.partsTotal}`);
+    const svg = mount.querySelector('svg[data-testid="structure-preview"]');
+    assert.ok(svg, "svg host exists");
+    const rects = svg.querySelectorAll("rect");
+    assert.equal(rects.length, expect.partsTotal, `rect count = ${rects.length}, expected ${expect.partsTotal}`);
+    const rootGroup = svg.querySelector('g[data-testid="structure-root"]');
+    assert.ok(rootGroup, "structure-root group exists");
+
+    // head_angle_x 로 rotation 이 작동해야 함.
+    const angleParam = (await (async () => {
+      // parameterchange 기다리기 전에 파라미터 존재 확인.
+      const params = el.getParameters();
+      const ids = Object.keys(params);
+      const angleId = ids.find((id) => id.includes("angle")) ?? ids[0];
+      return angleId;
+    })());
+    const rotPromise = waitForEvent(el, "parameterchange", 2000);
+    el.setParameter(angleParam, 10);
+    await rotPromise;
+    assert.equal(renderer.rotationDeg, 10, `rotationDeg = ${renderer.rotationDeg}, expected 10`);
+    assert.match(
+      rootGroup.getAttribute("transform") ?? "",
+      /rotate\(10 200 250\)/,
+      "rotate() transform applied with viewBox center",
+    );
+
+    renderer.destroy();
+    log(`  ✓ renderer mounted: parts=${renderer.partCount}, rotation via ${angleParam} OK`);
   } finally {
     await window.happyDOM.close().catch(() => undefined);
     for (const k of KEYS) g[k] = saved[k];
