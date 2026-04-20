@@ -1,0 +1,268 @@
+#!/usr/bin/env node
+// scripts/observability-e2e.mjs
+// 세션 77 — Observability end-to-end 오케스트레이션.
+//
+// 세션 75 `observability-smoke.mjs` 를 "실 Redis + producer + consumer 기동 + 스모크
+// 부하 투하" 까지 한 번에 돌리는 상위 스크립트. 로컬 개발 루프에서 한 커맨드로 검증
+// 하고, 장기적으로 `bullmq-integration` CI lane 에 승격할 때 체크리스트 역할도.
+//
+// 파이프라인:
+//   1. `docker run --rm -d redis:7.2-alpine --maxmemory-policy noeviction` (기본)
+//      또는 `--reuse-redis` 로 이미 떠있는 `--redis-url` 재사용.
+//   2. producer (port 9091) + consumer (port 9092, concurrency 4) spawn.
+//   3. perf-harness smoke (N=20, harness_C=4, --target-url producer).
+//   4. observability-smoke validation (`--expect-enqueued N --expect-ai-calls N`).
+//   5. 정리 — consumer/producer SIGTERM, Redis 컨테이너 제거 (reuse 가 아니면).
+//
+// 실패 시 exit 1 + 마지막 100 줄 프로세스 로그 stderr dump.
+//
+// Usage:
+//   node scripts/observability-e2e.mjs                    # 기본값 (docker 필수)
+//   node scripts/observability-e2e.mjs --reuse-redis \
+//     --redis-url redis://127.0.0.1:6379                  # 이미 떠있는 Redis 재사용
+
+import { spawn, spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, "..");
+
+function parseArgv(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a.startsWith("--")) continue;
+    const key = a.slice(2);
+    const next = argv[i + 1];
+    if (!next || next.startsWith("--")) {
+      out[key] = true;
+    } else {
+      out[key] = next;
+      i++;
+    }
+  }
+  return out;
+}
+
+const ARGS = parseArgv(process.argv.slice(2));
+const REUSE_REDIS = ARGS["reuse-redis"] === true;
+const REDIS_URL = String(ARGS["redis-url"] ?? "redis://127.0.0.1:6382");
+const REDIS_PORT = Number(new URL(REDIS_URL).port || "6379");
+const CONTAINER_NAME = String(ARGS["container-name"] ?? "geny-obs-e2e");
+const PRODUCER_PORT = Number(ARGS["producer-port"] ?? 9091);
+const CONSUMER_PORT = Number(ARGS["consumer-port"] ?? 9092);
+const QUEUE_NAME = String(ARGS["queue-name"] ?? "geny-obs-e2e");
+const JOBS = Number(ARGS["jobs"] ?? 20);
+const HARNESS_CONCURRENCY = Number(ARGS["harness-concurrency"] ?? 4);
+const CONSUMER_CONCURRENCY = Number(ARGS["consumer-concurrency"] ?? 4);
+const SNAPSHOT_PATH = ARGS["snapshot"] ? String(ARGS["snapshot"]) : null;
+
+const cleanupTasks = [];
+
+async function runCleanup() {
+  for (const task of cleanupTasks.reverse()) {
+    try {
+      await task();
+    } catch (err) {
+      console.error("[e2e] cleanup error:", err.message ?? err);
+    }
+  }
+}
+
+function sleep(ms) {
+  return new Promise((ok) => setTimeout(ok, ms));
+}
+
+async function httpPing(url, tries = 60) {
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return true;
+    } catch {}
+    await sleep(200);
+  }
+  return false;
+}
+
+function startRedisContainer() {
+  // 이미 같은 이름 컨테이너가 남아있으면 재사용이 아닌 한 제거.
+  spawnSync("docker", ["rm", "-f", CONTAINER_NAME], { stdio: "ignore" });
+  const res = spawnSync(
+    "docker",
+    [
+      "run",
+      "-d",
+      "--rm",
+      "--name",
+      CONTAINER_NAME,
+      "-p",
+      `${REDIS_PORT}:6379`,
+      "redis:7.2-alpine",
+      "redis-server",
+      "--maxmemory-policy",
+      "noeviction",
+    ],
+    { encoding: "utf8" },
+  );
+  if (res.status !== 0) {
+    throw new Error(`docker run failed: ${res.stderr || res.stdout}`);
+  }
+  console.log(`[e2e] redis container started ${CONTAINER_NAME} (${REDIS_URL})`);
+  cleanupTasks.push(async () => {
+    spawnSync("docker", ["rm", "-f", CONTAINER_NAME], { stdio: "ignore" });
+    console.log(`[e2e] redis container removed`);
+  });
+}
+
+function startWorker(role, port, extra = []) {
+  const env = { ...process.env, REDIS_URL };
+  const args = [
+    "apps/worker-generate/dist/main.js",
+    "--port",
+    String(port),
+    "--host",
+    "127.0.0.1",
+    "--driver",
+    "bullmq",
+    "--role",
+    role,
+    "--queue-name",
+    QUEUE_NAME,
+    ...extra,
+  ];
+  const proc = spawn("node", args, { cwd: repoRoot, env, stdio: ["ignore", "pipe", "pipe"] });
+  const logs = [];
+  proc.stdout?.on("data", (c) => logs.push(c.toString()));
+  proc.stderr?.on("data", (c) => logs.push(c.toString()));
+  cleanupTasks.push(async () => {
+    try {
+      proc.kill("SIGTERM");
+    } catch {}
+    await new Promise((ok) => {
+      const t = setTimeout(() => {
+        try {
+          proc.kill("SIGKILL");
+        } catch {}
+        ok();
+      }, 5000);
+      proc.once("exit", () => {
+        clearTimeout(t);
+        ok();
+      });
+    });
+  });
+  return { proc, logs };
+}
+
+async function waitForHealth(role, url, logs) {
+  const ok = await httpPing(url, 60);
+  if (!ok) {
+    throw new Error(`${role} not healthy at ${url} — tail:\n${logs.join("").slice(-800)}`);
+  }
+  console.log(`[e2e] ${role} OK — ${url}`);
+}
+
+function runSubprocess(cmd, args) {
+  return new Promise((ok, fail) => {
+    const proc = spawn(cmd, args, { cwd: repoRoot, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+    const logs = [];
+    proc.stdout?.on("data", (c) => {
+      process.stdout.write(c);
+      logs.push(c.toString());
+    });
+    proc.stderr?.on("data", (c) => {
+      process.stderr.write(c);
+      logs.push(c.toString());
+    });
+    proc.on("exit", (code) => {
+      if (code === 0) ok(logs.join(""));
+      else fail(new Error(`${cmd} ${args.join(" ")} → exit ${code}`));
+    });
+  });
+}
+
+async function main() {
+  console.log(`[e2e] reuse-redis=${REUSE_REDIS} redis=${REDIS_URL} queue=${QUEUE_NAME} jobs=${JOBS}`);
+
+  if (!REUSE_REDIS) {
+    startRedisContainer();
+  } else {
+    console.log(`[e2e] reusing existing redis at ${REDIS_URL}`);
+  }
+
+  // Redis ready-check via ioredis ping — docker run 은 -d 후 서비스 준비까지 수백ms 지연 가능.
+  const { Redis } = await import("ioredis");
+  {
+    const client = new Redis(REDIS_URL, { maxRetriesPerRequest: null, lazyConnect: true });
+    let ready = false;
+    for (let i = 0; i < 30; i++) {
+      try {
+        await client.connect();
+        const pong = await client.ping();
+        if (pong === "PONG") {
+          ready = true;
+          break;
+        }
+      } catch {}
+      await sleep(200);
+    }
+    await client.quit().catch(() => {});
+    if (!ready) throw new Error("redis not ready after 6s");
+    console.log("[e2e] redis PING OK");
+  }
+
+  const producer = startWorker("producer", PRODUCER_PORT);
+  await waitForHealth("producer", `http://127.0.0.1:${PRODUCER_PORT}/healthz`, producer.logs);
+
+  const consumer = startWorker("consumer", CONSUMER_PORT, [
+    "--concurrency",
+    String(CONSUMER_CONCURRENCY),
+  ]);
+  await waitForHealth("consumer", `http://127.0.0.1:${CONSUMER_PORT}/healthz`, consumer.logs);
+
+  // 스모크 부하
+  console.log("[e2e] ── perf-harness smoke ──");
+  await runSubprocess("node", [
+    "scripts/perf-harness.mjs",
+    "--jobs",
+    String(JOBS),
+    "--concurrency",
+    String(HARNESS_CONCURRENCY),
+    "--queue-name",
+    QUEUE_NAME,
+    "--target-url",
+    `http://127.0.0.1:${PRODUCER_PORT}`,
+    "--report",
+    "/tmp/obs-e2e-harness.json",
+  ]);
+
+  // 메트릭 검증
+  console.log("[e2e] ── observability-smoke ──");
+  const smokeArgs = [
+    "scripts/observability-smoke.mjs",
+    "--producer-url",
+    `http://127.0.0.1:${PRODUCER_PORT}`,
+    "--consumer-url",
+    `http://127.0.0.1:${CONSUMER_PORT}`,
+    "--expect-enqueued",
+    String(JOBS),
+    "--expect-ai-calls",
+    String(JOBS),
+  ];
+  if (SNAPSHOT_PATH) smokeArgs.push("--snapshot", SNAPSHOT_PATH);
+  await runSubprocess("node", smokeArgs);
+
+  console.log("[e2e] ✅ observability e2e pass");
+}
+
+let exitCode = 0;
+try {
+  await main();
+} catch (err) {
+  console.error("[e2e] ❌", err.message ?? err);
+  exitCode = 1;
+} finally {
+  await runCleanup();
+  process.exit(exitCode);
+}
