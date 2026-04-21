@@ -11,6 +11,7 @@ Geny 2D Avatar 플랫폼의 인시던트 대응 / 롤백 절차 모음.
 |---|---|---|
 | [01](./01-incident-p1.md) | P1 인시던트 대응 | 완전 장애 · 데이터 손실 위험 · 보안 침해 징후 |
 | [02](./02-golden-step-catalog.md) | Golden Step 카탈로그 | `pnpm run test:golden` 30 단계의 보장·의존성·도입 색인 — 정상 CI 경로 |
+| [03](./03-rig-template-lint-rules.md) | rig-template-lint C1~C14 규칙 카탈로그 | 리그 템플릿 저작 게이트(ADR 0005 L2) 14 규칙 × 34 테스트 × 4-라인 색인 — 저자 개입 경로 |
 
 > MVP 이후 추가 예정: P2 (`docs/02 §9.3` 부분 장애) / 배포 롤백 / DB 마이그레이션 롤백 / 어댑터 키 회전.
 

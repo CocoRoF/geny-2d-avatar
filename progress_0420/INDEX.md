@@ -23,14 +23,14 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, 세션 123 직후)
+## 1. 현재 상태 (2026-04-21, 세션 124 직후)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 + golden step 카탈로그 + schema/README 22 스키마 실측 카탈로그 |
+| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 + golden step 카탈로그 + schema/README 22 스키마 실측 카탈로그 + rig-template-lint C1~C14 규칙 카탈로그 |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 123 (2026-04-17~04-21, 5일) | 자율 모드 |
+| **누적 세션** | 124 (2026-04-17~04-21, 5일) | 자율 모드 |
 | **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 에서 14 패키지 README 문서 축 완결 (프론트엔드 4 + 백엔드/인프라 10). 세션 120 은 코드 변경 없음 (ADR 0007 Option 별 diff 노트 — `progress/notes/adr-0007-option-diffs.md`). 세션 121 에서 "15" 드리프트 해소 — 세션 111/114 doc 의 "13→14" / "14→15" 표기가 실제 +1 변화량은 맞았으나 베이스가 12/13 이었음 (세션 89 에 들어온 `web-editor-logic` 을 당시 누적 카운트에서 빠뜨려 1 밀림) |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (schema 1 + CLI 번들 3 + 패키지 16 + 스크립트·infra 8 + 앱 e2e 2) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가. 세션 122 `progress/runbooks/02-golden-step-catalog.md` 로 30 step 의 보장·의존성·도입 색인 고정 |
@@ -48,7 +48,7 @@
 | **AI Generation** | nano-banana 어댑터 | 🟡 3 어댑터 (nano-banana 100 / sdxl 80 / flux-fill 70) + Mock + HTTP 클라이언트 + `routeWithFallback` + `MetricsHook` + `SafetyFilter` 계약. 실 벤더 키 분포 캡처는 Runtime. |
 | **Post-Processing** | Stage 1·3·6 | 🟡 Stage 1 (alpha 닫힘/feather/UV 클립) + Stage 3 RGB/Lab/palette + atlas-hook. 111 tests. Stage 6 pivot 미착수. |
 | **UX (web-editor)** | 에디터 뼈대 | 🟡 3-column 레이아웃 + halfbody/fullbody 템플릿 스위처 + 파츠 사이드바 + Inspector(parameters/motions/expressions 패널) + SVG 구조 렌더러 + 파츠↔하이라이트 양방향 + 파츠-파라미터 뷰 필터. Save/History 는 Runtime. |
-| **Platform / Infra** | K8s + CI/CD + 관측 | 🟢 CI 30 step + bullmq-integration lane + Prometheus/Grafana Helm chart + 4단 관측 방어망 (smoke/snapshot/e2e/fallback) + 보안스캔(gitleaks) + 성능 SLO 하네스 + 온콜 런북 2 종 (P1 인시던트 + golden step 카탈로그) + rig-template-lint 14 rules (C14 세션 112 `parts↔deformers`). 실 staging 배포만 외부 의존 대기. |
+| **Platform / Infra** | K8s + CI/CD + 관측 | 🟢 CI 30 step + bullmq-integration lane + Prometheus/Grafana Helm chart + 4단 관측 방어망 (smoke/snapshot/e2e/fallback) + 보안스캔(gitleaks) + 성능 SLO 하네스 + 온콜 런북 **3 종** (01 P1 인시던트 + 02 golden step 카탈로그 + 03 rig-template-lint 규칙) + rig-template-lint 14 rules (C14 세션 112 `parts↔deformers`, 색인 세션 124). 실 staging 배포만 외부 의존 대기. |
 | **Data** | Postgres/S3/Redis + 스키마 | 🟡 JSON Schema 22종 + Ed25519 license 검증 + adapter/palette 카탈로그. DB/S3 미착수 (Runtime). |
 | **Pipeline** | 단일 아바타 DAG | 🟢 exporter-core v0.6.0 + exporter-pipeline + orchestrator-service + worker-generate + job-queue-bullmq + **@geny/migrator (세션 111)**. ADR 0005 L1~L4 게이트 활성. halfbody v1.2.0/v1.3.0 + fullbody v1.0.0 sha256 골든 고정. 세션 119 `job-queue-bullmq` README 신규 + `post-processing` README 재작성 (Stage 1 세션 35 + §6.4/§6.5 세션 32 반영). |
 | **Frontend** | 에디터 기본 레이아웃 | 🟢 `<geny-avatar>` 커스텀 엘리먼트 (ready/error/parameterchange/motionstart/expressionchange) + happy-dom 라이프사이클 회귀 + setParameter write-through. 세션 114 `@geny/web-avatar-renderer` 계약 패키지 선행 분리 + 세션 115 Null/Logging 구현체 (테스트 더블, dev/debug) + 세션 116 web-editor `?debug=logger` wire-through (첫 consumer 경로) + 세션 117 계약 패키지 README + 세션 118 인접 3 패키지 README (`@geny/web-editor-logic` · `-editor-renderer` · `web-avatar`). 실 Cubism/WebGL 렌더러는 Runtime. |
@@ -71,9 +71,9 @@
 
 ---
 
-## 4. 다음 세션 진입점 (세션 124 후보)
+## 4. 다음 세션 진입점 (세션 125 후보)
 
-진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 세션 120 ADR 0007 Option diff 노트 + 세션 121 메타 정합성 점검 + 세션 122 golden step 카탈로그 + 세션 123 schema/README 카탈로그 로 **문서·분석·검증·색인·카탈로그 축 거의 전부 소진**. 세션 124 자율 후보: 후보 J renderer-observer (ROI 낮음, 이월) / 후보 I 보류 (사용자 의사 선행) / (γ) rig-template-lint C1~C14 rule 카탈로그 runbook 03 (극저 ROI). ADR 0007 Accept 까지 자율로 더 얇게 짤 의미가 약함.
+진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 세션 120 ADR 0007 Option diff 노트 + 세션 121 메타 정합성 점검 + 세션 122 golden step 카탈로그 + 세션 123 schema/README 카탈로그 + 세션 124 rig-template-lint 규칙 카탈로그로 **문서·분석·검증·색인·카탈로그 축 완전 소진**. 세션 125 자율 후보: 후보 J renderer-observer (ROI 낮음, 8 세션 이월) / 후보 I 보류 (ADR 0007 Open Question #3 사용자 답변 선행) / docs 상호 참조 색인 등 잔여 (기존 문서 대비 중복 위험). ADR 0007 리뷰 또는 명시적 지시 대기 권장.
 
 **보존 루트 진입점 (ADR 0007 리뷰 대기 중)**:
 
