@@ -67,8 +67,13 @@ export interface PixiRenderer extends Renderer {
    * 현재 meta 는 유지한 채 atlas/textureUrl 만 교체해 재-rebuild (β P2-S1 live swap).
    * Prompt → Mock texture 경로가 새 blob URL 을 넘겨줄 때 사용. host 에 ready 를 재-디스패치
    * 하지 않으므로 parameter 상태는 초기화되지 않는다.
+   *
+   * β P2-S3 — 반환 Promise 는 scene rebuild + 비동기 텍스처 로드 + sprite 합성이
+   * 모두 끝나 실제 canvas 에 새 이미지가 올라간 시점에 resolve 된다. 타임라인 측정
+   * (prompt → 실제 swap latency) 을 위해 도입. 호출측이 await 하지 않으면 기존
+   * fire-and-forget 동작과 동일.
    */
-  readonly regenerate: (input: RegenerateInput) => void;
+  readonly regenerate: (input: RegenerateInput) => Promise<void>;
 }
 
 export interface RegenerateInput {
@@ -93,7 +98,11 @@ export type CreatePixiApp = (options: CreatePixiAppOptions) => Promise<PixiAppHa
  * 없으면 fallback 색상 사각형 grid.
  */
 export interface PixiAppHandle {
-  readonly rebuild: (scene: PixiSceneInput) => void;
+  /**
+   * scene 을 container 에 반영. β P2-S3 이후 Promise 를 반환해 비동기 texture 로드
+   * 를 기다릴 수 있음 — resolve 시점은 sprite 합성(또는 fallback grid) 완료 시.
+   */
+  readonly rebuild: (scene: PixiSceneInput) => Promise<void>;
   readonly setRotation: (radians: number) => void;
   /**
    * motion pack 이 시작되면 호출 (β P1-S3). `null` 은 현재 motion 해제 의미.
@@ -253,15 +262,14 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
     if (app) app.setExpression(lastExpression);
   }
 
-  function applyMeta(): void {
-    if (destroyed || !lastMeta) return;
+  function applyMeta(): Promise<void> {
+    if (destroyed || !lastMeta) return Promise.resolve();
     if (app) {
-      app.rebuild(currentScene(lastMeta));
-      return;
+      return app.rebuild(currentScene(lastMeta));
     }
-    if (stage === "initializing") return;
+    if (stage === "initializing") return Promise.resolve();
     stage = "initializing";
-    createApp({ mount, backgroundColor }).then(
+    return createApp({ mount, backgroundColor }).then(
       (handle) => {
         if (destroyed) {
           handle.destroy();
@@ -269,11 +277,12 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
         }
         app = handle;
         stage = "ready";
-        if (lastMeta) handle.rebuild(currentScene(lastMeta));
+        const rebuildPromise = lastMeta ? handle.rebuild(currentScene(lastMeta)) : Promise.resolve();
         // app 이 createApp 완료 전에 발생한 motion/expression 을 놓치지 않도록
         // 마지막 상태를 재생.
         if (lastMotion) handle.setMotion(lastMotion);
         if (lastExpression) handle.setExpression(lastExpression);
+        return rebuildPromise;
       },
       (err: unknown) => {
         stage = "idle";
@@ -351,12 +360,12 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
     get stage(): PixiRendererStage {
       return stage;
     },
-    regenerate(input: RegenerateInput): void {
-      if (destroyed) return;
+    regenerate(input: RegenerateInput): Promise<void> {
+      if (destroyed) return Promise.resolve();
       if (input.atlas !== undefined) lastAtlas = input.atlas ?? null;
       if (input.textureUrl !== undefined) lastTextureUrl = input.textureUrl ?? null;
-      if (!lastMeta) return;
-      applyMeta();
+      if (!lastMeta) return Promise.resolve();
+      return applyMeta();
     },
   };
 }
@@ -612,7 +621,7 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
   };
 
   return {
-    rebuild(scene) {
+    rebuild(scene): Promise<void> {
       root.removeChildren();
       partEntries.clear();
       const stageW = app.renderer.width;
@@ -622,8 +631,9 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
       root.position.set(stageW / 2, stageH / 2);
       if (scene.textureUrl && scene.atlas && scene.atlas.slots.length > 0) {
         const url = scene.textureUrl;
-        // 비동기 — fire-and-forget. 로드 실패 시 fallback grid 로 교체.
-        loadTexture(url).then((texture) => {
+        // β P2-S3 — Promise 반환해 caller 가 actual swap 시점을 await 할 수 있게.
+        // 로드 실패 시 fallback grid 로 교체.
+        return loadTexture(url).then((texture) => {
           if (!texture) {
             buildFallbackScene(scene.meta, stageW, stageH);
             return;
@@ -631,9 +641,9 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
           const ok = buildSpriteScene(scene, texture, stageW, stageH);
           if (!ok) buildFallbackScene(scene.meta, stageW, stageH);
         });
-        return;
       }
       buildFallbackScene(scene.meta, stageW, stageH);
+      return Promise.resolve();
     },
     setRotation(radians) {
       root.rotation = radians;

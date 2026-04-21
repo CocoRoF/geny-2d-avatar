@@ -90,6 +90,21 @@
       .generate-bar .gen-pill[data-phase="active"] { background: var(--accent); }
       .generate-bar .gen-pill[data-phase="done"] { background: #4aa56e; }
       .generate-bar .gen-pill[data-phase="err"] { background: #c94a4a; }
+      /* β P2-S3 — timing breakdown: 프롬프트→스왑 각 phase 의 ms + 총합 + β §7 예산 표시. */
+      .generate-bar .gen-timing {
+        display: flex;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .generate-bar .gen-timing .phase {
+        padding: 1px 4px;
+        border-radius: 3px;
+        background: var(--border-soft);
+      }
+      .generate-bar .gen-timing .total[data-budget="ok"] { background: #2b4a39; color: #b7e4c5; }
+      .generate-bar .gen-timing .total[data-budget="over"] { background: #5a2a2a; color: #f0b0b0; }
 
       /* TopBar */
       header.topbar {
@@ -365,6 +380,7 @@
       </div>
       <button id="generate-btn" class="generate" type="button">Generate</button>
       <span id="gen-status" class="gen-status">준비</span>
+      <div id="gen-timing" class="gen-timing" aria-label="phase timings" hidden></div>
     </div>
 
     <main class="editor">
@@ -1108,12 +1124,17 @@
         return { textureUrl: url, width: MOCK_CANVAS_SIZE, height: MOCK_CANVAS_SIZE };
       }
 
-      // β P2-S1 — Generate 버튼 wiring.
+      // β P2-S1+S3 — Generate 버튼 wiring + phase timing 측정.
       const promptInput = document.querySelector("#prompt-input");
       const generateBtn = document.querySelector("#generate-btn");
       const genStatusEl = document.querySelector("#gen-status");
+      const genTimingEl = document.querySelector("#gen-timing");
       const pillEls = Array.from(document.querySelectorAll(".gen-pill"));
       let lastBlobUrl = null;
+
+      // β §7 "≤5000ms prompt→preview" 예산. P2-S3 에서 도입 — 넘으면 UI 에 빨갛게.
+      const BETA_BUDGET_MS = 5000;
+      const PHASE_LABELS = ["ingest", "synth", "atlas", "swap", "paint"];
 
       function setPillPhase(index, phase) {
         const el = pillEls[index - 1];
@@ -1124,6 +1145,25 @@
 
       function resetPills() {
         for (const p of pillEls) p.removeAttribute("data-phase");
+      }
+
+      function renderTimings(phaseMs, totalMs) {
+        if (!genTimingEl) return;
+        genTimingEl.hidden = false;
+        const budget = totalMs <= BETA_BUDGET_MS ? "ok" : "over";
+        const phases = phaseMs
+          .map((ms, i) => `<span class="phase" title="${PHASE_LABELS[i]}">${PHASE_LABELS[i]} ${Math.round(ms)}ms</span>`)
+          .join("");
+        genTimingEl.innerHTML = `${phases}<span class="phase total" data-budget="${budget}" title="β §7 budget ≤${BETA_BUDGET_MS}ms">총 ${Math.round(totalMs)}ms</span>`;
+      }
+
+      function renderTimingError(phaseMs, totalMs) {
+        if (!genTimingEl) return;
+        genTimingEl.hidden = false;
+        const phases = phaseMs
+          .map((ms, i) => `<span class="phase" title="${PHASE_LABELS[i]}">${PHASE_LABELS[i]} ${Math.round(ms)}ms</span>`)
+          .join("");
+        genTimingEl.innerHTML = `${phases}<span class="phase" style="color:#f0b0b0;">✗ ${Math.round(totalMs)}ms</span>`;
       }
 
       async function runGenerate() {
@@ -1144,17 +1184,25 @@
 
         generateBtn.disabled = true;
         resetPills();
+        const phaseMs = [0, 0, 0, 0, 0];
         const t0 = performance.now();
+        let tPhase = t0;
+        const markPhaseDone = (idx) => {
+          const now = performance.now();
+          phaseMs[idx - 1] = now - tPhase;
+          tPhase = now;
+          setPillPhase(idx, "done");
+        };
         try {
           setPillPhase(1, "active");
           genStatusEl.textContent = "프롬프트 해석";
           await new Promise((r) => setTimeout(r, 30));
-          setPillPhase(1, "done");
+          markPhaseDone(1);
 
           setPillPhase(2, "active");
           genStatusEl.textContent = "텍스처 합성";
           const mock = await mockGenerateTexture(prompt, atlas);
-          setPillPhase(2, "done");
+          markPhaseDone(2);
 
           setPillPhase(3, "active");
           genStatusEl.textContent = "atlas 재구성";
@@ -1162,23 +1210,31 @@
             textures: [{ path: atlas.textures[0]?.path ?? "textures/base.png", width: mock.width, height: mock.height }],
             slots: atlas.slots,
           };
-          setPillPhase(3, "done");
+          markPhaseDone(3);
 
           setPillPhase(4, "active");
           genStatusEl.textContent = "번들 교체";
           if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
           lastBlobUrl = mock.textureUrl;
-          pixiRenderer.regenerate({ atlas: newAtlas, textureUrl: mock.textureUrl });
-          setPillPhase(4, "done");
+          // β P2-S3 — regenerate 는 Promise. actual canvas swap 이 끝난 시점에 resolve.
+          const regenPromise = pixiRenderer.regenerate({
+            atlas: newAtlas,
+            textureUrl: mock.textureUrl,
+          });
+          markPhaseDone(4);
 
           setPillPhase(5, "active");
           genStatusEl.textContent = "렌더 트리거";
-          // 렌더러 내부 loadTexture 는 async — microtask 1 개 양보해 상태만 확정.
-          await Promise.resolve();
-          setPillPhase(5, "done");
-          const dt = Math.round(performance.now() - t0);
-          genStatusEl.textContent = `✓ ${dt}ms`;
+          // 실 스프라이트 교체 (비동기 텍스처 디코드 + buildSpriteScene) 완료 대기.
+          await (regenPromise ?? Promise.resolve());
+          markPhaseDone(5);
+
+          const total = performance.now() - t0;
+          const budget = total <= BETA_BUDGET_MS ? "ok" : "over";
+          genStatusEl.textContent = budget === "ok" ? `✓ ${Math.round(total)}ms` : `⚠ ${Math.round(total)}ms (>${BETA_BUDGET_MS})`;
+          renderTimings(phaseMs, total);
         } catch (err) {
+          const total = performance.now() - t0;
           console.error("[generate] failed", err);
           genStatusEl.textContent = `error: ${err?.message ?? err}`;
           for (let i = 1; i <= 5; i += 1) {
@@ -1186,6 +1242,7 @@
               setPillPhase(i, "err");
             }
           }
+          renderTimingError(phaseMs, total);
         } finally {
           generateBtn.disabled = false;
         }

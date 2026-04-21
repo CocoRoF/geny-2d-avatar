@@ -76,6 +76,7 @@ function makeMockFactory(opts: { failFirst?: boolean; defer?: boolean } = {}): M
           },
           rebuild(scene) {
             state.rebuildCalls.push(scene);
+            return Promise.resolve();
           },
           setRotation(rad) {
             state.rotationCalls.push(rad);
@@ -810,4 +811,50 @@ test("createPixiRenderer: 바인드된 파라미터는 rotationParameter 와 동
   assert.equal(calls[0]?.transform.offsetY, 6, "angle_x 15deg → offsetY 6px");
   assert.equal(mf.apps[0]?.rotationCalls.length, 0, "per-part 로 처리됐으므로 root 는 skip");
   r.destroy();
+});
+
+test("createPixiRenderer: regenerate() 는 Promise 를 반환하며 rebuild 완료 후 resolve (P2-S3)", async () => {
+  // MockApp.rebuild 는 Promise.resolve() 를 즉시 반환. regenerate 반환이 실제
+  // promise 를 노출하는지 + await 로 동기적 추적 가능한지 검증. timing 측정의 기반.
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: sampleMeta(2) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  const atlas: RendererAtlas = {
+    textures: [{ path: "t.png", width: 16, height: 16 }],
+    slots: [{ slot_id: "slot_0", texture_path: "t.png", uv: [0, 0, 0.5, 1] }],
+  };
+  const initialRebuilds = mf.apps[0]?.rebuildCalls.length ?? 0;
+  const promise = r.regenerate({ atlas, textureUrl: "blob://new" });
+  assert.ok(promise && typeof promise.then === "function", "regenerate 가 Promise 를 반환");
+  await promise;
+  assert.equal(
+    mf.apps[0]?.rebuildCalls.length,
+    initialRebuilds + 1,
+    "await 완료 시점에 rebuild 가 한 번 더 호출됐음",
+  );
+  const lastRebuild = mf.apps[0]?.rebuildCalls[mf.apps[0]!.rebuildCalls.length - 1];
+  assert.equal(lastRebuild?.textureUrl, "blob://new", "새 textureUrl 반영");
+  assert.equal(lastRebuild?.atlas, atlas, "새 atlas 반영");
+  r.destroy();
+});
+
+test("createPixiRenderer: regenerate() Promise 는 destroy 후에도 안전하게 resolve (P2-S3)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: sampleMeta(2) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+  r.destroy();
+  const promise = r.regenerate({ textureUrl: "blob://after-destroy" });
+  assert.ok(promise && typeof promise.then === "function");
+  await promise; // throw 하지 않아야
 });
