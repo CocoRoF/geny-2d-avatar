@@ -23,11 +23,11 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, 세션 128 직후 — **β 로드맵 모드 전환**)
+## 1. 현재 상태 (2026-04-21, P0-S1 직후 — **β 로드맵 Phase P0 산출물 완료**)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | **β 로드맵 모드 진입 대기** (Foundation ✅ 종료) | 세션 128 에서 사용자 지시로 β 모드 전환 — 권위 문서 `docs/PRODUCT-BETA.md` + `docs/ROADMAP-BETA.md` 신설, `PLAN.md` 재작성. 다음 진입은 P0-S1 (UX wireframe) 사용자 지시 대기. 자율 모드 OFF. |
+| **단계** | **β Phase P0 🟡 (산출물 완료 · 사용자 승인 대기)** (Foundation ✅ 종료) | 세션 128 β 모드 전환 → **P0-S1 자율 세션** 에서 `docs/UX-BETA-WIREFRAME.md` (12 섹션, Generate bar / 5 pill 진행 / 에러 5 카테고리 × KO·EN / 상태 기계 / 09 UX diff) 생산. 사용자 §9 Q1~Q6 답변 후 P0 ✅. 자율 모드 β 범위 재활성화(세션 128, `<<autonomous-loop-dynamic>>` sentinel) — P1·P3·P5·P6 는 외부 블로커 차단. |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
 | **누적 세션** | 128 (2026-04-17~04-21, 5일) | Foundation 연대기 1~127 동결. 128 에서 β 모드 전환. 이후 세션은 phase+step ID (`P0-S1` / `P1-S1`...) |
@@ -79,7 +79,7 @@
 
 | Phase | 착수 조건 | 내용 |
 |---|---|---|
-| **P0** UX wireframe (1 세션) | 사용자 "P0 진행" 지시 | web-editor 에 프롬프트 입력 + Generate 버튼 + 진행 UI 와이어프레임 md |
+| **P0** UX wireframe | ✅ 자율 세션 P0-S1 완료 · 🟡 사용자 Q1~Q6 승인 대기 | `docs/UX-BETA-WIREFRAME.md` 산출. 12 섹션 × Generate bar / 5 pill 진행 / 에러 5 카테고리 KO·EN / 09 UX diff |
 | **P1** 실 픽셀 렌더 (3~5 세션) | ADR 0007 Accepted | `@geny/web-avatar-renderer-pixi` + 실제 `<canvas>` 픽셀 |
 | **P2** 프롬프트 UI + Mock e2e | P1 완료 | Generate 패널 + orchestrator HTTP + Mock 벤더 end-to-end |
 | **P3** 실 nano-banana | P2 + BL-VENDOR-KEY | 실 HTTPS POST + 비용/지연 실측 + 1-hop fallback |

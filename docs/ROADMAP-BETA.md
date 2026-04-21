@@ -298,13 +298,13 @@ P6 ─ β 오픈 (open-ended)
 | 축 | Foundation 기간 (세션 1~127) | β 기간 (P0~P6) |
 |---|---|---|
 | 세션 단위 | 1 세션 = 한 축 (lint 규칙 1 개, 패키지 1 개 README 등) | 1 세션 = phase 내 1 단계 (P1-S1, P1-S2 등 명시적 id) |
-| 자율 모드 | 활성 (지시 전까지 loop) | **비활성** — 모든 세션은 사용자가 "P?-S? 진행" 으로 **명시 지시** 후 착수 |
+| 자율 모드 | 활성 (지시 전까지 loop) | **β 범위에서 활성** (세션 128 에서 사용자 `<<autonomous-loop-dynamic>>` 재활성화) — 단 외부 블로커 phase (P1 ADR 0007 / P3 BL-VENDOR-KEY / P5 BL-STAGING / P6 β 오픈) 는 자율 진입 금지, 해당 phase 는 사용자 명시 지시 또는 블로커 해제 후에만 |
 | 커밋 메시지 | `docs(...)` 중심, 카탈로그 위주 | `feat(P<phase>): <deliverable>` 중심, 실 기능 위주 |
 | 검수 | golden step CI 통과 | **위 각 phase 의 검수 기준** 전부 green |
 | 문서 업데이트 | 매 세션 INDEX/PLAN/SUMMARY 3 파일 | 해당 phase 의 detail doc (`docs/PHASES/P<n>.md` 생성 시) 만. progress_0420 은 **phase 완료 시에만** bump |
 | 브랜치 | main 직접 commit | phase 단위 feature branch 권장 (`feat/p1-renderer-pixi` 등) |
 
-자율 loop 는 Foundation 까지의 역할로 **역할을 다했다**. β 기간은 사용자 지시 + 명시적 phase 진입이 원칙.
+자율 loop 는 세션 128 에서 **β 범위에서 재활성화** — 사용자가 `<<autonomous-loop-dynamic>>` sentinel 로 명시 재승인. 자율 대상은 외부 블로커가 없는 phase (P0 UX wireframe / P2 Mock e2e / P4 조립 로직) 에 한정되며, 외부 입력이 필요한 phase (P1·P3·P5·P6) 은 블로커 해제 후에만 자율 진입.
 
 ## 7. "다음 액션 한 줄"
 
