@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 126+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 127+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -110,11 +110,10 @@
   세션 123 = (대안 schema 카탈로그) schema/README.md 재작성                   ✅ v1 22 스키마 실측 카탈로그 — 7 그룹 × 4-라인 (보장/소비자/Docs/도입). placeholder 2 제거(style-profile/export-job) + examples/ 언급 제거 + 누락 8 추가 (adapter-catalog/deformers/motion-pack/palette/parameters/physics/pose/test-poses). `validate-schemas.mjs` → `checked=244 failed=0` 무변동
   세션 124 = (γ lint 규칙 카탈로그) progress/runbooks/03-rig-template-lint-rules.md 신규   ✅ 14 규칙 × 34 테스트 × 4-라인(보장/실행/의존성/도입) 색인. §0 분류 + §1~§6 규칙 블록 (C1~C14 + C10/C13 sub-rule 전개) + §7 FAMILY_OUTPUT_RULES 6 family 테이블 + §8 CLI 옵션 + §9 테스트 34 매핑 + §10 참고. runbook README 에 03 entry 추가. doc-only
   세션 125 = (rig-templates 카탈로그) rig-templates/README.md 재작성                       ✅ 5 공식 템플릿(halfbody v1.0.0~v1.3.0 + fullbody v1.0.0) × 8 실측(parts/params/deformers/physics/expressions/motions/test_poses/도입) 카탈로그. 스테일 제거: `v1.0.1/` 예시 / "parts 24개" / `v1.0.0` 구조만 전제한 트리. 진화 축(pose.json v1.1.0+, expressions/ textures/ v1.2.0+) 명시. 인접 드리프트 해소: INDEX §2 "49+10 parameters → 50+10 (JSON 실측)" + parts 분모 명시(19/30 · 27/38). doc-only, 코드 변경 0
+  세션 126 = (소진 선언 minimal) 자율 후보 완전 소진 공식 기록                               ✅ PLAN §7 재작성(127+ 진입 조건 6 축 정리) + INDEX §1 헤더 "125 직후→126 직후" + 단계 cell 소진 선언 덧붙임. 저장소 상태 재검토: 내부 문서/코드/검증 축 모두 green, 자율 진입 가능 후보 0. 외부 입력 대기 후보 6 축(ADR 0007 / BL-STAGING / BL-VENDOR-KEY / BL-DEPRECATION-POLICY / Runtime / migrator v1.4.0) 나열. doc-only
 
-[자율 모드 후속 후보 — 완전 소진 (ADR 0007 리뷰 / 사용자 지시 대기 권장)]
-  세션 126 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행 (변동 없음).
-  세션 126 = (후보, 세션 117~125 이월, ROI 여전히 낮음) renderer-observer (가칭) — 의견 필요.
-  세션 126 = (소진 선언 minimal 세션 권장) 자율 모드 재진입 후보 없음. 사용자 입력 대기.
+[자율 모드 후속 후보 — 완전 소진 공식 기록 (세션 126). ADR 0007 리뷰 / 사용자 지시 대기]
+  세션 127 = (진입 조건) 외부 블로커 해제 여부 재확인 → 해제 있으면 해당 후보 진입 / 없으면 "소진 재확인" 초단 세션 + ScheduleWakeup 3600s
 
 [사용자 의사 확정 후]
   세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
@@ -187,11 +186,24 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 126)
+## 7. 다음 즉시 행동 (세션 127+)
 
-세션 125 에서 **rig-templates/README.md 재작성** — 기존 43 줄 스테일 문서(v1.0.1 예시 / parts 24개 / v1.0.0 구조만 전제 / fullbody 미언급) 를 5 공식 템플릿 × 8 실측 카탈로그로 교체. 실측 권위 원칙(세션 123·124 일관) 적용 — 각 버전별 README narrative 의 -1 차이는 `overall_*` 구조 파라미터 제외에서 기인하며 역사 보존. 인접 드리프트 1 건 해소: INDEX §2 "49+10 parameters → 50+10 (JSON 실측)" + parts 분모 명시. 진화 축(pose.json v1.1.0+, expressions/ textures/ v1.2.0+) 명시.
+**세션 126 — 소진 선언 minimal 세션 완료**. 문서·색인 축 6 연속 (120 옵션 → 121 메타 → 122 golden → 123 schema → 124 lint → 125 rig-templates) 종료 후 세션 126 에서 자율 후보 완전 소진을 공식 기록. 현재 저장소 상태 재검토 결과 (2026-04-21):
 
-**세션 126 자율 후보 완전 소진**. 문서·색인 축 6 연속 (120 옵션 → 121 메타 → 122 golden → 123 schema → 124 lint → 125 rig-templates) 종료. 남은 자기완결 후보 없음 — I/J 는 외부 의존, 잔여 후보는 중복 위험. **세션 126 자율 iteration 발동 시 "소진 선언" minimal 세션 + commit + push + 사용자 지시 대기** 가 권장 대응.
+**자율 mode 로 진입 가능한 후보 — 없음**.
+- **내부 문서 축**: 20+ README / runbook 3 종 / schema 카탈로그 / rig-templates 카탈로그 / ADR 7 건 / 탐색 노트 1 건 / 세션 로그 125 건 — 모두 실측 권위 상태. 추가 카탈로그는 중복 / 파편화 위험.
+- **내부 코드 축**: lint C1~C14 포화 · migrator 3 체인 완결 · 렌더러 계약 패키지 + 2 구현체 · web-editor wire-through 확보. 추가 self-contained 확장은 **가짜 진전** (consumer 부재).
+- **내부 검증 축**: golden 30 step · bullmq-integration lane · 22 schema validate · perf-harness SLO · gitleaks 보안 — 모두 green.
+
+**사용자 입력 또는 외부 블로커 해제가 선행되어야 하는 후보만 남음**:
+1. **ADR 0007 (렌더러 기술) Decision 확정** — 사용자 pick 한 줄 → `progress/notes/adr-0007-option-diffs.md` §6~§7 에 따라 Critical path 즉시 진입.
+2. **BL-STAGING 해제** → 세션 96 실 staging 배포.
+3. **BL-VENDOR-KEY 해제** → 실 벤더 분포 캡처 (세션 88 D 후속) + BullMQ `attempts>1` 베이스라인 재캡처.
+4. **BL-DEPRECATION-POLICY 결정** → legacy v1.0.0~v1.2.0 `parameter_ids` 복제 (후보 C).
+5. **Runtime 전환 착수 승인** → 세션 97 Runtime Spike (ADR 0007 Accept + 리그 변경 범위 합의 선행).
+6. **v1.3.0→v1.4.0 리그 변경 범위 합의** → migrator 첫 external 확장.
+
+**세션 127 자율 iteration 발동 시**: 저장소 상태 점검 → 외부 의존 블로커 해제 여부 재확인 → 해제된 것 있으면 해당 후보 진입, 없으면 **"소진 재확인" 초단 세션** (session doc 5~10 줄, header bump, push) + ScheduleWakeup 3600s (최대 대기). 반복 시마다 간격 상향 조정.
 
 ---
 
