@@ -1,6 +1,6 @@
-# SUMMARY — 세션 1~121 누적 결과 심층 정리
+# SUMMARY — 세션 1~122 누적 결과 심층 정리
 
-본 문서는 5 일간(2026-04-17~04-21) 121 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`, 탐색 노트는 `progress/notes/`. 주장(claims) 축과 세션 로그 축은 분리 — 세션 121 (메타 정합성 점검) 이후 claims 에서 발견된 드리프트는 본 문서/INDEX/memory 에서만 수정, 세션 로그(`progress/sessions/*`) 는 역사 그대로 보존.
+본 문서는 5 일간(2026-04-17~04-21) 122 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`, 탐색 노트는 `progress/notes/`, 운영 런북은 `progress/runbooks/`. 주장(claims) 축과 세션 로그 축은 분리 — 세션 121 (메타 정합성 점검) + 세션 122 (golden step 카탈로그 작성 중 발견) 이후 claims 에서 발견된 드리프트는 본 문서/INDEX/memory 에서만 수정, 세션 로그(`progress/sessions/*`) 는 역사 그대로 보존.
 
 ---
 
@@ -392,3 +392,4 @@ DB/S3 미착수 (Runtime).
 | 나머지 10 패키지 README triage | ✅ 완료 (세션 119) | `@geny/job-queue-bullmq` (신규, 8 함수 + `bullmq`/`ioredis` 경계 규약 표) + `@geny/post-processing` (재작성, §6.4 Palette + §6.5 Atlas Hook 누락 해소). 8 패키지 FRESH 판정 skip. **Foundation 14 패키지 문서 축 완결** (세션 121 재검증 — 최초 "15" 표기는 세션 89 `web-editor-logic` 누적 미반영에서 파생된 off-by-one) |
 | ADR 0007 Option 별 diff 노트 | ✅ 완료 (세션 120) | `progress/notes/adr-0007-option-diffs.md` 신규 (278 줄). 5 옵션(A/B/C/D/E) 각각 (1) 신규 패키지, (2) 기존 파일 touch, (3) golden step 변경, (4) 타입 계약 BC, (5) 리스크, (6) Critical path sequence. 공통 기반(§1) + 옵션 간 공통 touch 8 항목(§7) + Open Questions 영향(§8) 분리. 사용자 pick 후 즉시 Spike 진입 가능한 pre-decision prep. doc-only, 코드 변경 0 |
 | progress_0420 메타 정합성 점검 | ✅ 완료 (세션 121) | 6 건 드리프트 해소 — (1) INDEX 패키지 카운트 `15→14` (세션 89 `web-editor-logic` 누적 미반영에서 파생된 off-by-one, 세션 111/114 도 동일 베이스 밀림 — Delta 는 매번 정확) / (2) backend 카운트 `11→10` (세션 119 doc 자체 모순이 memory 로 전파) / (3~6) CI §7.1 테스트 수 `ai-adapter-core 68→70` · `web-editor-logic 57→39` · `job-queue-bullmq 25→28` · `worker-generate 21→45` (실측 기반 재캡처). 정책: 현재 상태 claims 만 수정, 세션 로그 역사 보존. doc-only, 코드 변경 0 |
+| Golden step 카탈로그 | ✅ 완료 (세션 122) | `progress/runbooks/02-golden-step-catalog.md` 신규 (~240 줄). `scripts/test-golden.mjs` STEPS 배열 30 step 을 5 분류(schema 1 / CLI 번들 3 / 패키지 16 / 스크립트·infra 8 / 앱 e2e 2) × 각 step 4-라인 고정(보장·실행·의존성·도입) 으로 색인. §6 운영 팁 (골든 드리프트 대응 / build 필수 패키지 6 곳 / bullmq-integration lane / step 추가 규약) 포함. 인접 드리프트 해소: INDEX §2 Platform "29 step→30", INDEX §1 CI 게이트 "11+5→16+2" 로 실측 분류 교체, scripts/README.md `checked=131→244` + "5-step→30 step" 갱신. runbook README 에 02 entry 추가. doc-only, 코드 변경 0 |
