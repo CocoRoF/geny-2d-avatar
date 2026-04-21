@@ -422,7 +422,7 @@
     </script>
     <script type="module" src="./public/vendor/index.js"></script>
     <script type="module">
-      import { CATEGORY_ORDER, categorize, parametersForPart } from "./public/vendor/web-editor-logic/index.js";
+      import { CATEGORY_ORDER, categorize, parametersForPart, buildGenerateMetricEvents } from "./public/vendor/web-editor-logic/index.js";
       import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
       // 세션 116 — `?debug=logger` URL 파라미터가 있으면 `@geny/web-avatar-renderer`
@@ -1143,8 +1143,8 @@
       // β P2-S4 — 텔레메트리 훅. phase ms 를 구조화된 console.info("geny.metric", ...)
       // 로 emit. P5 staging 에서 log scraper 가 Prometheus pushgateway 로 변환.
       // window.__genyMetricsSink 가 있으면 그 함수에도 fan-out (테스트·dev 패널용).
-      // 지표 이름은 β §7 "geny_ai_call_duration_seconds" 축과 호환되도록
-      // kind="generate.phase" + labels.phase 로 구성.
+      // β P2-S5 — 이벤트 스키마는 `@geny/web-editor-logic` 의 순수 함수
+      // `buildGenerateMetricEvents` 로 분리 (node:test 회귀 71 개). 여기선 emit 경로만 얇게.
       function emitMetric(event) {
         try {
           console.info("geny.metric", event);
@@ -1156,30 +1156,17 @@
       }
 
       function emitGenerateMetrics({ trigger, prompt, phaseMs, totalMs, budgetMs, ok }) {
-        const ts = Date.now();
-        const labels = {
-          trigger, // "user" | "auto"
+        const events = buildGenerateMetricEvents({
+          ts: Date.now(),
+          trigger,
           template: document.querySelector("#template-picker")?.value ?? "unknown",
-          ok: ok ? "true" : "false",
-        };
-        // 각 phase ms + total 로 카운터·히스토그램 레코드 분해.
-        for (let i = 0; i < PHASE_LABELS.length; i += 1) {
-          emitMetric({
-            ts,
-            kind: "generate.phase",
-            name: "geny_generate_phase_duration_ms",
-            value: Math.round(phaseMs[i] ?? 0),
-            labels: { ...labels, phase: PHASE_LABELS[i] },
-          });
-        }
-        emitMetric({
-          ts,
-          kind: "generate.total",
-          name: "geny_generate_total_duration_ms",
-          value: Math.round(totalMs),
-          labels: { ...labels, budget_ms: String(budgetMs), budget_ok: totalMs <= budgetMs ? "true" : "false" },
-          prompt_len: prompt.length,
+          prompt,
+          phaseMs,
+          totalMs,
+          budgetMs,
+          ok,
         });
+        for (const e of events) emitMetric(e);
       }
 
       function setPillPhase(index, phase) {
