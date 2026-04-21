@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 125+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 126+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -109,11 +109,12 @@
   세션 122 = 대안 (a) (golden step 카탈로그)                                ✅ progress/runbooks/02-golden-step-catalog.md 신규 — 30 step × (보장/실행/의존성/도입) 4-라인 색인 (1 schema + 3 CLI + 16 pkg + 8 script + 2 e2e). 인접 드리프트 해소 — INDEX §2 "29 step→30", INDEX §1 "11 패키지+5 e2e→16+2", scripts/README.md stale entries 갱신
   세션 123 = (대안 schema 카탈로그) schema/README.md 재작성                   ✅ v1 22 스키마 실측 카탈로그 — 7 그룹 × 4-라인 (보장/소비자/Docs/도입). placeholder 2 제거(style-profile/export-job) + examples/ 언급 제거 + 누락 8 추가 (adapter-catalog/deformers/motion-pack/palette/parameters/physics/pose/test-poses). `validate-schemas.mjs` → `checked=244 failed=0` 무변동
   세션 124 = (γ lint 규칙 카탈로그) progress/runbooks/03-rig-template-lint-rules.md 신규   ✅ 14 규칙 × 34 테스트 × 4-라인(보장/실행/의존성/도입) 색인. §0 분류 + §1~§6 규칙 블록 (C1~C14 + C10/C13 sub-rule 전개) + §7 FAMILY_OUTPUT_RULES 6 family 테이블 + §8 CLI 옵션 + §9 테스트 34 매핑 + §10 참고. runbook README 에 03 entry 추가. doc-only
+  세션 125 = (rig-templates 카탈로그) rig-templates/README.md 재작성                       ✅ 5 공식 템플릿(halfbody v1.0.0~v1.3.0 + fullbody v1.0.0) × 8 실측(parts/params/deformers/physics/expressions/motions/test_poses/도입) 카탈로그. 스테일 제거: `v1.0.1/` 예시 / "parts 24개" / `v1.0.0` 구조만 전제한 트리. 진화 축(pose.json v1.1.0+, expressions/ textures/ v1.2.0+) 명시. 인접 드리프트 해소: INDEX §2 "49+10 parameters → 50+10 (JSON 실측)" + parts 분모 명시(19/30 · 27/38). doc-only, 코드 변경 0
 
-[자율 모드 후속 후보 — 실질 소진 (ADR 0007 리뷰 / 사용자 지시 대기 권장)]
-  세션 125 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행 (변동 없음).
-  세션 125 = (후보, 세션 117~124 이월, ROI 여전히 낮음) renderer-observer (가칭) — 의견 필요.
-  세션 125 = (극저 ROI · 의미 약함) docs 14 챕터 상호 참조 색인 / ADR 요약 카탈로그 / 세션 로그 재정비 — 중복 위험.
+[자율 모드 후속 후보 — 완전 소진 (ADR 0007 리뷰 / 사용자 지시 대기 권장)]
+  세션 126 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행 (변동 없음).
+  세션 126 = (후보, 세션 117~125 이월, ROI 여전히 낮음) renderer-observer (가칭) — 의견 필요.
+  세션 126 = (소진 선언 minimal 세션 권장) 자율 모드 재진입 후보 없음. 사용자 입력 대기.
 
 [사용자 의사 확정 후]
   세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
@@ -186,11 +187,17 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 125)
+## 7. 다음 즉시 행동 (세션 126)
 
-세션 124 에서 **rig-template-lint 규칙 카탈로그 runbook 03** 수행 — `progress/runbooks/03-rig-template-lint-rules.md` (신규, ~240 줄). `scripts/rig-template/rig-template-lint.mjs` 의 14 규칙 × 34 테스트를 세션 122/123 의 4-라인 패턴으로 색인(보장/실행/의존성/도입). §1 meta 카운트(C1~C5) / §2 input·output(C6~C9) / §3 네이밍(C10 2-sub) / §4 cross-file 파라미터(C11·C12) / §5 deformer 트리(C13 7-sub) / §6 parts↔deformers(C14) / §7 FAMILY_OUTPUT_RULES 6 family 테이블 / §8 CLI 옵션 / §9 테스트 매핑 / §10 참고. runbook README 에 03 entry. 세션 122 D1 (runbook vs scripts/README 선택), 세션 123 D1 (in-place 갱신 원칙), 세션 119 D4 (slug 실측) 일관 적용.
+세션 125 에서 **rig-templates/README.md 재작성** — 기존 43 줄 스테일 문서(v1.0.1 예시 / parts 24개 / v1.0.0 구조만 전제 / fullbody 미언급) 를 5 공식 템플릿 × 8 실측 카탈로그로 교체. 실측 권위 원칙(세션 123·124 일관) 적용 — 각 버전별 README narrative 의 -1 차이는 `overall_*` 구조 파라미터 제외에서 기인하며 역사 보존. 인접 드리프트 1 건 해소: INDEX §2 "49+10 parameters → 50+10 (JSON 실측)" + parts 분모 명시. 진화 축(pose.json v1.1.0+, expressions/ textures/ v1.2.0+) 명시.
 
-**세션 125 자율 후보는 실질 소진**. 문서·색인 축 5 연속 (120 옵션 → 121 메타 → 122 golden → 123 schema → 124 lint) 종료. 남은 후보 셋 (I / J / 잔여 색인) 은 모두 외부 의존 또는 저 ROI/중복 위험. **ADR 0007 리뷰 대기 또는 명시적 지시 대기 구간**. 자율 모드 한 iteration 더 발동 시 (α) "소진" 선언 minimal 세션 으로 대응하거나 (β) 사용자에게 재진입점 문의.
+**세션 126 자율 후보 완전 소진**. 문서·색인 축 6 연속 (120 옵션 → 121 메타 → 122 golden → 123 schema → 124 lint → 125 rig-templates) 종료. 남은 자기완결 후보 없음 — I/J 는 외부 의존, 잔여 후보는 중복 위험. **세션 126 자율 iteration 발동 시 "소진 선언" minimal 세션 + commit + push + 사용자 지시 대기** 가 권장 대응.
+
+---
+
+### 과거: 세션 124 — rig-template-lint 규칙 카탈로그 runbook 03
+
+`progress/runbooks/03-rig-template-lint-rules.md` (신규, ~240 줄). `scripts/rig-template/rig-template-lint.mjs` 의 14 규칙 × 34 테스트를 세션 122/123 의 4-라인 패턴으로 색인(보장/실행/의존성/도입). 14 규칙 + sub-rule (C10×2, C13×7) = 23 블록 + FAMILY_OUTPUT_RULES 6 family 테이블 + CLI 옵션 + 테스트 매핑.
 
 ---
 

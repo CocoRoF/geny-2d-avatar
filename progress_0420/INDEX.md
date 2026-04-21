@@ -23,14 +23,14 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, 세션 124 직후)
+## 1. 현재 상태 (2026-04-21, 세션 125 직후)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 + golden step 카탈로그 + schema/README 22 스키마 실측 카탈로그 + rig-template-lint C1~C14 규칙 카탈로그 |
+| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 + golden step 카탈로그 + schema/README 22 스키마 실측 카탈로그 + rig-template-lint C1~C14 규칙 카탈로그 + rig-templates/README 5 템플릿 실측 카탈로그 |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 124 (2026-04-17~04-21, 5일) | 자율 모드 |
+| **누적 세션** | 125 (2026-04-17~04-21, 5일) | 자율 모드 |
 | **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 에서 14 패키지 README 문서 축 완결 (프론트엔드 4 + 백엔드/인프라 10). 세션 120 은 코드 변경 없음 (ADR 0007 Option 별 diff 노트 — `progress/notes/adr-0007-option-diffs.md`). 세션 121 에서 "15" 드리프트 해소 — 세션 111/114 doc 의 "13→14" / "14→15" 표기가 실제 +1 변화량은 맞았으나 베이스가 12/13 이었음 (세션 89 에 들어온 `web-editor-logic` 을 당시 누적 카운트에서 빠뜨려 1 밀림) |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (schema 1 + CLI 번들 3 + 패키지 16 + 스크립트·infra 8 + 앱 e2e 2) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가. 세션 122 `progress/runbooks/02-golden-step-catalog.md` 로 30 step 의 보장·의존성·도입 색인 고정 |
@@ -44,7 +44,7 @@
 
 | 스트림 | Foundation 목표 | 한 줄 요약 |
 |---|---|---|
-| **Rig & Parts** | halfbody v1 손 리깅 | 🟢 halfbody v1.0.0~v1.3.0 + fullbody v1.0.0 저작 완성. 49+10 파라미터, 12+17 PhysicsSetting. 세션 107 에서 `parameter_ids` opt-in 완결 선언 (halfbody 19 파츠 / fullbody 27 파츠). |
+| **Rig & Parts** | halfbody v1 손 리깅 | 🟢 halfbody v1.0.0~v1.3.0 + fullbody v1.0.0 저작 완성. **50+10 파라미터** (halfbody v1.3.0 50 공유 + fullbody 전용 10, JSON 실측 — 버전 narrative README 는 `overall_*` 제외 -1 표기), **12+17 PhysicsSetting**. 세션 107 에서 `parameter_ids` opt-in 완결 선언 (halfbody 19/30 파츠 / fullbody 27/38 파츠). 세션 125 `rig-templates/README.md` 재작성 — 5 템플릿 JSON 실측 카탈로그. |
 | **AI Generation** | nano-banana 어댑터 | 🟡 3 어댑터 (nano-banana 100 / sdxl 80 / flux-fill 70) + Mock + HTTP 클라이언트 + `routeWithFallback` + `MetricsHook` + `SafetyFilter` 계약. 실 벤더 키 분포 캡처는 Runtime. |
 | **Post-Processing** | Stage 1·3·6 | 🟡 Stage 1 (alpha 닫힘/feather/UV 클립) + Stage 3 RGB/Lab/palette + atlas-hook. 111 tests. Stage 6 pivot 미착수. |
 | **UX (web-editor)** | 에디터 뼈대 | 🟡 3-column 레이아웃 + halfbody/fullbody 템플릿 스위처 + 파츠 사이드바 + Inspector(parameters/motions/expressions 패널) + SVG 구조 렌더러 + 파츠↔하이라이트 양방향 + 파츠-파라미터 뷰 필터. Save/History 는 Runtime. |
@@ -71,9 +71,9 @@
 
 ---
 
-## 4. 다음 세션 진입점 (세션 125 후보)
+## 4. 다음 세션 진입점 (세션 126 후보)
 
-진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 세션 120 ADR 0007 Option diff 노트 + 세션 121 메타 정합성 점검 + 세션 122 golden step 카탈로그 + 세션 123 schema/README 카탈로그 + 세션 124 rig-template-lint 규칙 카탈로그로 **문서·분석·검증·색인·카탈로그 축 완전 소진**. 세션 125 자율 후보: 후보 J renderer-observer (ROI 낮음, 8 세션 이월) / 후보 I 보류 (ADR 0007 Open Question #3 사용자 답변 선행) / docs 상호 참조 색인 등 잔여 (기존 문서 대비 중복 위험). ADR 0007 리뷰 또는 명시적 지시 대기 권장.
+진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 120 ADR 0007 Option diff + 121 메타 점검 + 122 golden 색인 + 123 schema 카탈로그 + 124 lint 규칙 카탈로그 + 125 rig-templates 카탈로그로 **문서·분석·검증·색인·카탈로그 축 완전 소진**. 세션 126 자율 후보: 후보 J renderer-observer (ROI 낮음, 9 세션 이월) / 후보 I 보류 (ADR 0007 Open Question #3) / 잔여 저 ROI (docs 상호 참조 색인 등, 중복 위험). ADR 0007 리뷰 또는 명시적 지시 대기 권장 — 자율 iteration 발동 시 "소진 선언" minimal 세션 권장.
 
 **보존 루트 진입점 (ADR 0007 리뷰 대기 중)**:
 
