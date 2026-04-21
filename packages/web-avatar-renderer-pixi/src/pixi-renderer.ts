@@ -387,18 +387,35 @@ function buildParamToSlots(meta: RendererBundleMeta): Map<string, string[]> {
 }
 
 /**
- * parameter id 이름을 휴리스틱으로 분류해 (β P1-S4) per-part 변환 축을 계산.
- * - `*_angle_*` / `*_angle` → rotation (degrees) — 2D Z-axis 기준.
+ * parameter id 이름을 휴리스틱으로 분류해 (β P1-S4/S5) per-part 변환 축을 계산.
+ *
+ * **Cubism 3 축 분리** (세션 P1-S5): 기존 세션 P1-S4 는 모든 `*angle*` 을 Z-rotation
+ * 에 몰아넣어 head_angle_x/y/z 세 슬라이더가 시각적으로 구분되지 않는 문제가 있었다.
+ * 실 Cubism 규칙은 x=pitch(고개 끄덕임), y=yaw(좌우 돌림), z=roll(기울임). 2D
+ * sprite 공간에는 Z rotation 밖에 없으므로 x/y 는 offset 으로 Mock 시각화:
+ * - `*_angle_x*` → offsetY (고개 끄덕임을 수직 이동으로 Mock, 30deg → 12px).
+ * - `*_angle_y*` → offsetX (좌우 돌림을 수평 이동으로 Mock, 30deg → 12px).
+ * - `*_angle_z*` 또는 z/x/y 없는 일반 `*angle*` → rotation (실 2D 회전, deg→rad).
  * - `*_sway*` / `*_shake*` → offsetY (정규화 [-1, 1] * 12px).
- * - `*_offset_x*` → offsetX (정규화 * 12px).
+ * - `*_offset_x*` / `*_position_x*` → offsetX (정규화 * 12px).
  * - 그 외 → null (명시적 매핑이 생기기 전까지는 per-part 반영 보류).
+ *
+ * 스케일 선택 근거: preview canvas ≈ 320px 기준, 12px (~3.75%) 은 subtle 하면서도
+ * 육안 관찰 가능. angle_x/y 는 range [-30, 30] deg 이므로 0.4 px/deg.
  *
  * 실 Cubism 디포머는 parameter_id → deformer_id → 축이 데이터 기반 매핑이지만,
  * β 단계에서 그 메타는 번들에 실리지 않아 이름 기반 휴리스틱으로 대체. 실 asset
  * 합류 시점(β P3+) 에 데이터 기반 매핑으로 교체.
  */
 function transformFromParameter(id: string, value: number): PixiPartTransform | null {
-  if (id.includes("angle")) {
+  // 더 specific 한 axis suffix 먼저.
+  if (id.includes("angle_x")) {
+    return { offsetY: value * 0.4 };
+  }
+  if (id.includes("angle_y")) {
+    return { offsetX: value * 0.4 };
+  }
+  if (id.includes("angle_z") || id.includes("angle")) {
     return { rotation: degToRad(value) };
   }
   if (id.includes("sway") || id.includes("shake")) {
@@ -510,11 +527,16 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
         frame: new pixi.Rectangle(frame.x, frame.y, frame.width, frame.height),
       });
       const sprite = new pixi.Sprite(partTexture);
-      const spriteX = originX + frame.x * fit;
-      const spriteY = originY + frame.y * fit;
-      sprite.position.set(spriteX, spriteY);
+      // anchor (0.5, 0.5) 로 설정해 setPartTransform 의 rotation 이 sprite 중심을
+      // 피벗으로 돌도록. 기본 anchor(0,0) 이면 top-left 피벗이라 rotation 이
+      // "코너를 중심으로 orbit" 처럼 보여 Mock 체감이 깨진다.
+      sprite.anchor.set(0.5, 0.5);
       sprite.width = frame.width * fit;
       sprite.height = frame.height * fit;
+      // anchor=0.5 기준 position 은 sprite 중심점 — UV 프레임 top-left 에 width/2, height/2 가산.
+      const spriteX = originX + (frame.x + frame.width / 2) * fit;
+      const spriteY = originY + (frame.y + frame.height / 2) * fit;
+      sprite.position.set(spriteX, spriteY);
       root.addChild(sprite);
       partEntries.set(part.slot_id, { obj: sprite, baseX: spriteX, baseY: spriteY });
       drawn += 1;

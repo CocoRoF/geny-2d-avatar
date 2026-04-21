@@ -628,12 +628,12 @@ test("createPixiRenderer: destroy 후 motion/expression 이벤트 no-op (P1-S3)"
 function boundMeta(): RendererBundleMeta {
   return {
     parts: [
-      { role: "head", slot_id: "head_slot", parameter_ids: ["head_angle_x"] },
+      { role: "head", slot_id: "head_slot", parameter_ids: ["head_angle_z"] },
       { role: "ahoge", slot_id: "ahoge_slot", parameter_ids: ["ahoge_sway"] },
       { role: "body", slot_id: "body_slot" },
     ],
     parameters: [
-      { id: "head_angle_x", range: [-30, 30], default: 0 },
+      { id: "head_angle_z", range: [-30, 30], default: 0 },
       { id: "ahoge_sway", range: [-1, 1], default: 0 },
     ],
   };
@@ -650,14 +650,66 @@ test("createPixiRenderer: parameter_ids 를 가진 파츠만 per-part setPartTra
   await mf.flushCreate();
 
   host.dispatchEvent(
-    new CustomEvent("parameterchange", { detail: { id: "head_angle_x", value: 30 } }),
+    new CustomEvent("parameterchange", { detail: { id: "head_angle_z", value: 30 } }),
   );
   const calls = mf.apps[0]?.setPartTransformCalls ?? [];
   assert.equal(calls.length, 1, "바인드된 파츠 1개만");
   assert.equal(calls[0]?.slot_id, "head_slot");
   const rad = calls[0]?.transform.rotation ?? 0;
-  assert.ok(Math.abs(rad - Math.PI / 6) < 1e-9, "angle 휴리스틱 → 30deg=π/6 rad");
+  assert.ok(Math.abs(rad - Math.PI / 6) < 1e-9, "angle_z 휴리스틱 → 30deg=π/6 rad");
   assert.equal(mf.apps[0]?.rotationCalls.length, 0, "바인드된 파츠가 있으면 root setRotation 은 skip");
+  r.destroy();
+});
+
+test("createPixiRenderer: Cubism 축 분리 — angle_x→offsetY, angle_y→offsetX, angle_z→rotation (P1-S5)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({
+    meta: {
+      parts: [
+        {
+          role: "face",
+          slot_id: "face_slot",
+          parameter_ids: ["head_angle_x", "head_angle_y", "head_angle_z"],
+        },
+      ],
+      parameters: [
+        { id: "head_angle_x", range: [-30, 30], default: 0 },
+        { id: "head_angle_y", range: [-30, 30], default: 0 },
+        { id: "head_angle_z", range: [-30, 30], default: 0 },
+      ],
+    },
+  });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  host.dispatchEvent(
+    new CustomEvent("parameterchange", { detail: { id: "head_angle_x", value: 30 } }),
+  );
+  host.dispatchEvent(
+    new CustomEvent("parameterchange", { detail: { id: "head_angle_y", value: -30 } }),
+  );
+  host.dispatchEvent(
+    new CustomEvent("parameterchange", { detail: { id: "head_angle_z", value: 15 } }),
+  );
+  const calls = mf.apps[0]?.setPartTransformCalls ?? [];
+  assert.equal(calls.length, 3);
+  // angle_x → offsetY (pitch = 끄덕임 = 수직 이동 Mock)
+  assert.equal(calls[0]?.transform.offsetY, 12, "angle_x 30deg → offsetY 12px");
+  assert.equal(calls[0]?.transform.rotation, undefined);
+  assert.equal(calls[0]?.transform.offsetX, undefined);
+  // angle_y → offsetX (yaw = 좌우 = 수평 이동 Mock)
+  assert.equal(calls[1]?.transform.offsetX, -12, "angle_y -30deg → offsetX -12px");
+  assert.equal(calls[1]?.transform.rotation, undefined);
+  assert.equal(calls[1]?.transform.offsetY, undefined);
+  // angle_z → rotation (roll = 실 2D 회전)
+  const rad = calls[2]?.transform.rotation ?? 0;
+  assert.ok(Math.abs(rad - Math.PI / 12) < 1e-9, "angle_z 15deg → π/12 rad");
+  assert.equal(calls[2]?.transform.offsetX, undefined);
+  assert.equal(calls[2]?.transform.offsetY, undefined);
   r.destroy();
 });
 
@@ -728,7 +780,7 @@ test("createPixiRenderer: 같은 파라미터가 여러 파츠에 바인드되�
   r.destroy();
 });
 
-test("createPixiRenderer: parameter_ids 를 가진 파츠의 head_angle_x 는 per-part + root fallback 은 skip (P1-S4)", async () => {
+test("createPixiRenderer: 바인드된 파라미터는 rotationParameter 와 동일해도 root fallback 은 skip (P1-S4/5)", async () => {
   const mf = makeMockFactory();
   const host = makeHost({
     meta: {
@@ -743,6 +795,7 @@ test("createPixiRenderer: parameter_ids 를 가진 파츠의 head_angle_x 는 pe
     element: host,
     mount: makeMount(),
     createApp: mf.createApp,
+    // 기본 rotationParameter = "head_angle_x" — 바인드 파츠가 있으면 root fallback 은 skip 되어야.
   });
   await mf.flushCreate();
 
@@ -753,6 +806,8 @@ test("createPixiRenderer: parameter_ids 를 가진 파츠의 head_angle_x 는 pe
   assert.equal(calls.length, 2, "두 파츠 모두 호출");
   assert.equal(calls[0]?.slot_id, "a");
   assert.equal(calls[1]?.slot_id, "b");
+  // P1-S5: angle_x → offsetY (Mock pitch). 축이 rotation 이 아니라도 per-part 로 처리됐으므로 root 는 skip.
+  assert.equal(calls[0]?.transform.offsetY, 6, "angle_x 15deg → offsetY 6px");
   assert.equal(mf.apps[0]?.rotationCalls.length, 0, "per-part 로 처리됐으므로 root 는 skip");
   r.destroy();
 });
