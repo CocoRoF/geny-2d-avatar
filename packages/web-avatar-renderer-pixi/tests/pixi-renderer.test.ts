@@ -18,12 +18,16 @@ import {
 import type {
   RendererAtlas,
   RendererBundleMeta,
+  RendererExpression,
   RendererHost,
+  RendererMotion,
 } from "@geny/web-avatar-renderer";
 
 interface MockApp extends PixiAppHandle {
   readonly rebuildCalls: readonly PixiSceneInput[];
   readonly rotationCalls: readonly number[];
+  readonly setMotionCalls: readonly (RendererMotion | null)[];
+  readonly setExpressionCalls: readonly (RendererExpression | null)[];
   readonly destroyed: boolean;
 }
 
@@ -49,11 +53,15 @@ function makeMockFactory(opts: { failFirst?: boolean; defer?: boolean } = {}): M
         const state = {
           rebuildCalls: [] as PixiSceneInput[],
           rotationCalls: [] as number[],
+          setMotionCalls: [] as (RendererMotion | null)[],
+          setExpressionCalls: [] as (RendererExpression | null)[],
           destroyed: false,
         };
         const handle: MockApp = {
           rebuildCalls: state.rebuildCalls,
           rotationCalls: state.rotationCalls,
+          setMotionCalls: state.setMotionCalls,
+          setExpressionCalls: state.setExpressionCalls,
           get destroyed() {
             return state.destroyed;
           },
@@ -62,6 +70,12 @@ function makeMockFactory(opts: { failFirst?: boolean; defer?: boolean } = {}): M
           },
           setRotation(rad) {
             state.rotationCalls.push(rad);
+          },
+          setMotion(motion) {
+            state.setMotionCalls.push(motion);
+          },
+          setExpression(expression) {
+            state.setExpressionCalls.push(expression);
           },
           destroy() {
             state.destroyed = true;
@@ -431,4 +445,168 @@ test("createPixiRenderer: createApp failure leaves stage=idle", async () => {
   assert.equal(r.stage, "idle", "failed init does not latch into ready");
   assert.equal(mf.apps.length, 0);
   r.destroy();
+});
+
+// ─── β P1-S3: motion/expression binding ──────────────────────────────────────
+
+function sampleMotion(overrides: Partial<RendererMotion> = {}): RendererMotion {
+  return {
+    pack_id: "idle.default",
+    duration_sec: 4,
+    fade_in_sec: 0.5,
+    fade_out_sec: 0.5,
+    loop: true,
+    ...overrides,
+  };
+}
+
+function sampleExpression(overrides: Partial<RendererExpression> = {}): RendererExpression {
+  return {
+    expression_id: "smile",
+    name_en: "Smile",
+    fade_in_sec: 0.2,
+    fade_out_sec: 0.2,
+    ...overrides,
+  };
+}
+
+test("createPixiRenderer: motionstart 이벤트 → app.setMotion 호출 (P1-S3)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: sampleMeta(2) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  const motion = sampleMotion();
+  host.dispatchEvent(
+    new CustomEvent("motionstart", { detail: { pack_id: motion.pack_id, motion } }),
+  );
+  assert.equal(r.motionStartCount, 1);
+  assert.equal(r.lastMotion?.pack_id, "idle.default");
+  assert.equal(r.lastMotion?.loop, true);
+  assert.equal(mf.apps[0]?.setMotionCalls.length, 1);
+  assert.equal(mf.apps[0]?.setMotionCalls[0]?.pack_id, "idle.default");
+  r.destroy();
+});
+
+test("createPixiRenderer: expressionchange 이벤트 → app.setExpression 호출 (id + null 양쪽) (P1-S3)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: sampleMeta(1) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  const expr = sampleExpression();
+  host.dispatchEvent(
+    new CustomEvent("expressionchange", {
+      detail: { expression_id: expr.expression_id, expression: expr },
+    }),
+  );
+  assert.equal(r.expressionChangeCount, 1);
+  assert.equal(r.lastExpression?.expression_id, "smile");
+
+  host.dispatchEvent(
+    new CustomEvent("expressionchange", {
+      detail: { expression_id: null, expression: null },
+    }),
+  );
+  assert.equal(r.expressionChangeCount, 2);
+  assert.equal(r.lastExpression, null);
+
+  const calls = mf.apps[0]?.setExpressionCalls ?? [];
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]?.expression_id, "smile");
+  assert.equal(calls[1], null);
+  r.destroy();
+});
+
+test("createPixiRenderer: createApp 완료 전 motion/expression 이 오면 app ready 후 replay (P1-S3)", async () => {
+  const mf = makeMockFactory({ defer: true });
+  const host = makeHost({ meta: sampleMeta(1) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  assert.equal(r.stage, "initializing");
+  host.dispatchEvent(
+    new CustomEvent("motionstart", {
+      detail: { pack_id: "idle.default", motion: sampleMotion() },
+    }),
+  );
+  host.dispatchEvent(
+    new CustomEvent("expressionchange", {
+      detail: { expression_id: "smile", expression: sampleExpression() },
+    }),
+  );
+  assert.equal(r.motionStartCount, 1);
+  assert.equal(r.expressionChangeCount, 1);
+
+  await mf.flushCreate();
+  assert.equal(r.stage, "ready");
+  assert.equal(mf.apps[0]?.setMotionCalls.length, 1, "replay motion after app ready");
+  assert.equal(mf.apps[0]?.setExpressionCalls.length, 1, "replay expression after app ready");
+  r.destroy();
+});
+
+test("createPixiRenderer: malformed motion/expression ignored (P1-S3)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: sampleMeta(1) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  host.dispatchEvent(new CustomEvent("motionstart", { detail: null }));
+  host.dispatchEvent(new CustomEvent("motionstart", { detail: { pack_id: 1 } as never }));
+  host.dispatchEvent(
+    new CustomEvent("motionstart", {
+      detail: { pack_id: "x", motion: { pack_id: "x" } } as never,
+    }),
+  );
+  assert.equal(r.motionStartCount, 0);
+
+  host.dispatchEvent(new CustomEvent("expressionchange", { detail: null }));
+  host.dispatchEvent(
+    new CustomEvent("expressionchange", {
+      detail: { expression_id: "x", expression: null } as never,
+    }),
+  );
+  assert.equal(r.expressionChangeCount, 0, "expression with id but null payload ignored");
+  r.destroy();
+});
+
+test("createPixiRenderer: destroy 후 motion/expression 이벤트 no-op (P1-S3)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: sampleMeta(1) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+  r.destroy();
+
+  host.dispatchEvent(
+    new CustomEvent("motionstart", {
+      detail: { pack_id: "idle.default", motion: sampleMotion() },
+    }),
+  );
+  host.dispatchEvent(
+    new CustomEvent("expressionchange", {
+      detail: { expression_id: "smile", expression: sampleExpression() },
+    }),
+  );
+  assert.equal(r.motionStartCount, 0);
+  assert.equal(r.expressionChangeCount, 0);
+  assert.equal(mf.apps[0]?.setMotionCalls.length, 0);
+  assert.equal(mf.apps[0]?.setExpressionCalls.length, 0);
 });

@@ -19,7 +19,11 @@ import type {
   Renderer,
   RendererAtlas,
   RendererBundleMeta,
+  RendererExpression,
+  RendererExpressionChangeEventDetail,
   RendererHost,
+  RendererMotion,
+  RendererMotionStartEventDetail,
   RendererParameterChangeEventDetail,
   RendererReadyEventDetail,
 } from "@geny/web-avatar-renderer";
@@ -51,8 +55,12 @@ export interface PixiRenderer extends Renderer {
   readonly lastAtlas: RendererAtlas | null;
   readonly lastTextureUrl: string | null;
   readonly lastParameterChange: RendererParameterChangeEventDetail | null;
+  readonly lastMotion: RendererMotion | null;
+  readonly lastExpression: RendererExpression | null;
   readonly readyCount: number;
   readonly parameterChangeCount: number;
+  readonly motionStartCount: number;
+  readonly expressionChangeCount: number;
   /** 생명 주기 단계 — "idle" | "initializing" | "ready" | "destroyed". */
   readonly stage: PixiRendererStage;
   /**
@@ -87,6 +95,18 @@ export type CreatePixiApp = (options: CreatePixiAppOptions) => Promise<PixiAppHa
 export interface PixiAppHandle {
   readonly rebuild: (scene: PixiSceneInput) => void;
   readonly setRotation: (radians: number) => void;
+  /**
+   * motion pack 이 시작되면 호출 (β P1-S3). `null` 은 현재 motion 해제 의미.
+   * loop=true 인 motion 은 subtle idle breath (sine scale.y) 를 ticker 에 걸고,
+   * loop=false 는 현재 fade 기간만 적용 후 자동 해제 (Mock — 실 curve 는 β P3+).
+   */
+  readonly setMotion: (motion: RendererMotion | null) => void;
+  /**
+   * expression 이 바뀌면 호출 (β P1-S3). `null` 은 neutral resting state.
+   * 실 parameter delta 블렌딩은 β P3+ 실 expression asset 합류 시점. 현재는
+   * stage.alpha 를 미세하게 건드려 "표정이 바뀌었음" 을 시각적으로 알리는 Mock.
+   */
+  readonly setExpression: (expression: RendererExpression | null) => void;
   readonly destroy: () => void;
 }
 
@@ -114,8 +134,12 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
   let lastAtlas: RendererAtlas | null = null;
   let lastTextureUrl: string | null = null;
   let lastParameterChange: RendererParameterChangeEventDetail | null = null;
+  let lastMotion: RendererMotion | null = null;
+  let lastExpression: RendererExpression | null = null;
   let readyCount = 0;
   let parameterChangeCount = 0;
+  let motionStartCount = 0;
+  let expressionChangeCount = 0;
   let app: PixiAppHandle | null = null;
   let destroyed = false;
 
@@ -147,6 +171,59 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
     }
   }
 
+  function onMotionStart(evt: Event): void {
+    const detail = (evt as CustomEvent<RendererMotionStartEventDetail>).detail;
+    if (!detail || typeof detail.pack_id !== "string" || !detail.motion) return;
+    const motion = detail.motion;
+    if (
+      typeof motion.pack_id !== "string" ||
+      typeof motion.duration_sec !== "number" ||
+      typeof motion.fade_in_sec !== "number" ||
+      typeof motion.fade_out_sec !== "number" ||
+      typeof motion.loop !== "boolean"
+    ) {
+      return;
+    }
+    lastMotion = {
+      pack_id: motion.pack_id,
+      duration_sec: motion.duration_sec,
+      fade_in_sec: motion.fade_in_sec,
+      fade_out_sec: motion.fade_out_sec,
+      loop: motion.loop,
+    };
+    motionStartCount += 1;
+    if (app) app.setMotion(lastMotion);
+  }
+
+  function onExpressionChange(evt: Event): void {
+    const detail = (evt as CustomEvent<RendererExpressionChangeEventDetail>).detail;
+    if (!detail) return;
+    if (detail.expression_id === null) {
+      lastExpression = null;
+      expressionChangeCount += 1;
+      if (app) app.setExpression(null);
+      return;
+    }
+    const expression = detail.expression;
+    if (
+      !expression ||
+      typeof expression.expression_id !== "string" ||
+      typeof expression.name_en !== "string" ||
+      typeof expression.fade_in_sec !== "number" ||
+      typeof expression.fade_out_sec !== "number"
+    ) {
+      return;
+    }
+    lastExpression = {
+      expression_id: expression.expression_id,
+      name_en: expression.name_en,
+      fade_in_sec: expression.fade_in_sec,
+      fade_out_sec: expression.fade_out_sec,
+    };
+    expressionChangeCount += 1;
+    if (app) app.setExpression(lastExpression);
+  }
+
   function applyMeta(): void {
     if (destroyed || !lastMeta) return;
     if (app) {
@@ -164,6 +241,10 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
         app = handle;
         stage = "ready";
         if (lastMeta) handle.rebuild(currentScene(lastMeta));
+        // app 이 createApp 완료 전에 발생한 motion/expression 을 놓치지 않도록
+        // 마지막 상태를 재생.
+        if (lastMotion) handle.setMotion(lastMotion);
+        if (lastExpression) handle.setExpression(lastExpression);
       },
       (err: unknown) => {
         stage = "idle";
@@ -176,6 +257,8 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
 
   element.addEventListener("ready", onReady);
   element.addEventListener("parameterchange", onParameterChange);
+  element.addEventListener("motionstart", onMotionStart);
+  element.addEventListener("expressionchange", onExpressionChange);
 
   // late-attach: host 가 이미 bundle 을 갖고 있으면 즉시 meta 반영.
   const existing = element.bundle;
@@ -195,6 +278,8 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
       destroyed = true;
       element.removeEventListener("ready", onReady);
       element.removeEventListener("parameterchange", onParameterChange);
+      element.removeEventListener("motionstart", onMotionStart);
+      element.removeEventListener("expressionchange", onExpressionChange);
       if (app) {
         app.destroy();
         app = null;
@@ -216,11 +301,23 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
     get lastParameterChange(): RendererParameterChangeEventDetail | null {
       return lastParameterChange;
     },
+    get lastMotion(): RendererMotion | null {
+      return lastMotion;
+    },
+    get lastExpression(): RendererExpression | null {
+      return lastExpression;
+    },
     get readyCount(): number {
       return readyCount;
     },
     get parameterChangeCount(): number {
       return parameterChangeCount;
+    },
+    get motionStartCount(): number {
+      return motionStartCount;
+    },
+    get expressionChangeCount(): number {
+      return expressionChangeCount;
     },
     get stage(): PixiRendererStage {
       return stage;
@@ -368,6 +465,42 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
     }
   }
 
+  // β P1-S3: idle breath. motion.loop=true 면 ticker 에 sine scale.y 를 건다.
+  // 진폭 4% / 주기 = motion.duration_sec (fallback 4s). fade_in 동안 진폭이 0→max 로,
+  // fade_out (해제 시) 에서 max→0 로 선형 램프. 실 motion3 curve 는 β P3+ 에서 대체.
+  let breathMotion: RendererMotion | null = null;
+  let breathElapsedMs = 0;
+  let breathRampMs = 0;
+  let breathRampDurationMs = 0;
+  let breathRampDirection: "in" | "out" = "in";
+  let breathRampFactor = 0; // 0 ~ 1
+  const tickerCallback = (opts: { deltaMS?: number }): void => {
+    const dt = typeof opts.deltaMS === "number" ? opts.deltaMS : 16.6667;
+    if (breathRampDurationMs > 0) {
+      breathRampMs += dt;
+      const t = Math.min(1, breathRampMs / breathRampDurationMs);
+      breathRampFactor = breathRampDirection === "in" ? t : 1 - t;
+      if (t >= 1) {
+        breathRampDurationMs = 0;
+        breathRampFactor = breathRampDirection === "in" ? 1 : 0;
+        if (breathRampDirection === "out") {
+          // fade_out 완료 — ticker 를 끄고 scale 복귀.
+          app.ticker.remove(tickerCallback);
+          root.scale.set(1, 1);
+          breathMotion = null;
+          return;
+        }
+      }
+    }
+    if (!breathMotion) return;
+    breathElapsedMs += dt;
+    const periodMs = Math.max(500, breathMotion.duration_sec * 1000);
+    const phase = (breathElapsedMs / periodMs) * Math.PI * 2;
+    const amplitude = 0.04 * breathRampFactor;
+    const sy = 1 + Math.sin(phase) * amplitude;
+    root.scale.set(1, sy);
+  };
+
   return {
     rebuild(scene) {
       root.removeChildren();
@@ -393,6 +526,53 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
     },
     setRotation(radians) {
       root.rotation = radians;
+    },
+    setMotion(motion) {
+      if (motion === null) {
+        if (!breathMotion) return;
+        breathRampDirection = "out";
+        breathRampMs = 0;
+        breathRampDurationMs = Math.max(0, (breathMotion.fade_out_sec || 0) * 1000);
+        if (breathRampDurationMs === 0) {
+          app.ticker.remove(tickerCallback);
+          root.scale.set(1, 1);
+          breathMotion = null;
+          breathRampFactor = 0;
+        }
+        return;
+      }
+      if (!motion.loop) {
+        // loop=false motion 은 idle breath 로 잡지 않음 — one-shot 은 실 curve
+        // 가 있어야 의미 있으므로 β P3+ 에서 처리.
+        return;
+      }
+      if (!breathMotion) {
+        app.ticker.add(tickerCallback);
+      }
+      breathMotion = motion;
+      breathElapsedMs = 0;
+      breathRampDirection = "in";
+      breathRampMs = 0;
+      breathRampDurationMs = Math.max(0, (motion.fade_in_sec || 0) * 1000);
+      breathRampFactor = breathRampDurationMs === 0 ? 1 : 0;
+    },
+    setExpression(expression) {
+      // Mock: 표정 변경 시 stage alpha 를 잠깐 낮췄다가 복귀시켜 "표정이 전환됐음"
+      // 을 시각적으로 알림. 실 parameter delta 합성은 β P3+ 실 expression asset
+      // 합류 시점.
+      const fadeIn = expression ? expression.fade_in_sec : 0.15;
+      const targetAlpha = expression ? 1 : 0.95;
+      let elapsed = 0;
+      const duration = Math.max(60, fadeIn * 1000);
+      const startAlpha = root.alpha;
+      const blinkCallback = (o: { deltaMS?: number }): void => {
+        const dt = typeof o.deltaMS === "number" ? o.deltaMS : 16.6667;
+        elapsed += dt;
+        const t = Math.min(1, elapsed / duration);
+        root.alpha = startAlpha + (targetAlpha - startAlpha) * t;
+        if (t >= 1) app.ticker.remove(blinkCallback);
+      };
+      app.ticker.add(blinkCallback);
     },
     destroy() {
       app.destroy(true, { children: true, texture: false });

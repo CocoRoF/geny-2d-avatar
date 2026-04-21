@@ -9,9 +9,9 @@
 ## 0. 현재 상태 (2026-04-21)
 
 - **Foundation**: ✅ 종료 (Exit 4/4 + 릴리스 게이트 3/3 + lint C1~C14 + migrator + 렌더러 계약 + 15 패키지 + 125+ 세션 문서)
-- **β 로드맵**: 🟢 **P1 실질 완료 + P2 🟡 Mock e2e 수직 슬라이스 작동** (2026-04-21 P1-S2+P2-S1 세션) — `deriveAtlasFromTemplate` → halfbody 30 / fullbody 38 slots, pixi 렌더러가 `pixi.Assets.load` + `new PIXI.Texture({ source, frame })` 로 실 sprite 렌더, `PixiRenderer.regenerate({ atlas, textureUrl })` live swap, 브라우저 Mock 텍스처 생성기 + 5-pill Generate UI. P1-S1 (Option E Accepted + scaffold) 포함. P0 Q1~Q6 사용자 승인 여전히 대기 (비차단).
+- **β 로드맵**: 🟢 **P1 S1+S2+S3 완료 + P2 🟡 S1 완료** (2026-04-21) — P1-S3 에서 motion/expression 계약 확장 + pixi 렌더러 구독 + loop motion idle breath ticker (scale.y sine 4%) + expression alpha blend (Mock). web-editor 의 기존 motion/expression 버튼 클릭 → pixi 캔버스 실 애니메이션. P1 실질 완료: sprite·slider·motion·expression 전부 실 픽셀 반영. P0 Q1~Q6 사용자 승인 여전히 대기 (비차단).
 - **자율 모드**: 🟢 β 범위 활성. SOAK/speculative doc 는 금지 (사용자 2026-04-21 correction).
-- **다음 step**: P1-S3 (motion/expression 의 pixi 바인딩) 또는 P2-S2 (Mock 품질 개선 — 얼굴 구성요소 추가). P3 은 `BL-VENDOR-KEY` 블로커 대기.
+- **다음 step**: P2-S2 (Mock 품질 개선 — 얼굴 구성요소), P1-S4 (parts 별 파라미터 바인딩), 또는 P2-S3 (pill timing 측정). P3 은 `BL-VENDOR-KEY` 블로커 대기.
 
 ## 1. β 까지의 외부 의존 3 축
 
@@ -28,7 +28,7 @@
 | Phase | 상태 | 예상 세션 | 시작 조건 | 검수 (전부 green 이어야 종료) |
 |---|---|---:|---|---|
 | **P0** UX wireframe | 🟡 산출물 완료 · 사용자 Q1~Q6 승인 대기 | 1 | ✅ 자율 세션 P0-S1 (2026-04-21) | 사용자 `docs/UX-BETA-WIREFRAME.md §9` Q1~Q6 승인 |
-| **P1** 실 픽셀 렌더 | 🟢 **S1+S2 완료** (실 sprite 렌더 + atlas slot 파생 + slider 실반영) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
+| **P1** 실 픽셀 렌더 | 🟢 **S1+S2+S3 완료** (sprite + atlas slot + slider + motion/expression 바인딩) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
 | **P2** 프롬프트 UI + Mock e2e | 🟡 **S1 완료** (Generate UI + Mock 생성기 + live swap 파이프라인) · S2+ 진행 예정 | 2~3 | P1 완료 | Mock 벤더로 프롬프트→프리뷰 5초 내 완결 |
 | **P3** 실 nano-banana 통합 | ⚪ 대기 | 3~5 | P2 완료 + BL-VENDOR-KEY | 실 HTTP 호출 10회 중 7회 이상 성공 |
 | **P4** 5 슬롯 자동 조립 | ⚪ 대기 | 3~5 | P3 완료 | 프롬프트 1 줄 → 30초 내 5 슬롯 생성 + atlas |

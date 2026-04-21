@@ -10,6 +10,10 @@ export {
   type RendererAtlas,
   type RendererAtlasSlot,
   type RendererAtlasTexture,
+  type RendererMotion,
+  type RendererExpression,
+  type RendererMotionStartEventDetail,
+  type RendererExpressionChangeEventDetail,
 } from "./contracts.js";
 
 export {

@@ -87,6 +87,48 @@ export interface RendererParameterChangeEventDetail {
 }
 
 /**
+ * motion pack 의 렌더러 관점 축소 표현 — β P1-S3 에서 도입. 렌더러는 `loop` /
+ * `duration_sec` / fade 두 축만 쓰고 실 motion3 curve 는 소비하지 않는다 (curve
+ * 평가는 β P3+ 실 asset 합류 시점).
+ */
+export interface RendererMotion {
+  readonly pack_id: string;
+  readonly duration_sec: number;
+  readonly fade_in_sec: number;
+  readonly fade_out_sec: number;
+  readonly loop: boolean;
+}
+
+/**
+ * expression 의 렌더러 관점 축소 표현 — β P1-S3 에서 도입. 실 parameter delta 합성은
+ * β P3+ 실 expression asset 합류 시점.
+ */
+export interface RendererExpression {
+  readonly expression_id: string;
+  readonly name_en: string;
+  readonly fade_in_sec: number;
+  readonly fade_out_sec: number;
+}
+
+/**
+ * `<geny-avatar>` 의 `motionstart` CustomEvent detail. `playMotion(pack_id)` 호출
+ * 이후 발사. 세션 94 의 계약을 β P1-S3 에서 renderer 계약으로 승격.
+ */
+export interface RendererMotionStartEventDetail {
+  readonly pack_id: string;
+  readonly motion: RendererMotion;
+}
+
+/**
+ * `<geny-avatar>` 의 `expressionchange` CustomEvent detail. `setExpression(id | null)`
+ * 대칭. null 전달 시 중립 복귀 의미.
+ */
+export interface RendererExpressionChangeEventDetail {
+  readonly expression_id: string | null;
+  readonly expression: RendererExpression | null;
+}
+
+/**
  * 렌더러가 구독하는 호스트 — 실 `<geny-avatar>` 또는 테스트용 `EventTarget` 래퍼.
  * `bundle` 이 optional 인 이유: renderer 가 ready 이벤트 뒤늦게 붙었을 때 즉시
  * build 로 catch-up 할 수 있게 (renderer.ts 의 late-attach 경로, 세션 91).
