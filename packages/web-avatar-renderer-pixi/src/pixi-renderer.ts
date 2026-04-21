@@ -107,7 +107,22 @@ export interface PixiAppHandle {
    * stage.alpha 를 미세하게 건드려 "표정이 바뀌었음" 을 시각적으로 알리는 Mock.
    */
   readonly setExpression: (expression: RendererExpression | null) => void;
+  /**
+   * 슬롯 단위 변환 적용 (β P1-S4). parameter_ids 를 가진 파츠에만 per-part
+   * rotation/offset 을 줄 때 호출. 축 미제공 필드는 이전 값 유지.
+   */
+  readonly setPartTransform: (slot_id: string, transform: PixiPartTransform) => void;
   readonly destroy: () => void;
+}
+
+/**
+ * slot 에 적용할 per-part 변환 축 (β P1-S4). 모든 필드 optional — 일부만 바뀔 때
+ * 나머지는 이전 값 유지. 실 Cubism 의 warp/rotation 디포머의 최소 Mock 대응.
+ */
+export interface PixiPartTransform {
+  readonly rotation?: number; // radians
+  readonly offsetX?: number;
+  readonly offsetY?: number;
 }
 
 /**
@@ -142,6 +157,8 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
   let expressionChangeCount = 0;
   let app: PixiAppHandle | null = null;
   let destroyed = false;
+  // β P1-S4: parameter_id → 바인드된 slot_id 역색인. `lastMeta` 바뀔 때 재구성.
+  let paramToSlots: Map<string, string[]> = new Map();
 
   function captureBundle(bundle: {
     meta: RendererBundleMeta;
@@ -151,6 +168,7 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
     lastMeta = bundle.meta;
     lastAtlas = bundle.atlas ?? null;
     lastTextureUrl = resolveTextureUrl(bundle.atlas ?? null, bundle.bundleUrl);
+    paramToSlots = buildParamToSlots(bundle.meta);
   }
 
   function onReady(evt: Event): void {
@@ -166,6 +184,17 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
     if (!detail || typeof detail.id !== "string" || typeof detail.value !== "number") return;
     lastParameterChange = { id: detail.id, value: detail.value };
     parameterChangeCount += 1;
+    const boundSlots = paramToSlots.get(detail.id);
+    if (boundSlots && boundSlots.length > 0 && app) {
+      const transform = transformFromParameter(detail.id, detail.value);
+      if (transform) {
+        for (const slotId of boundSlots) {
+          app.setPartTransform(slotId, transform);
+        }
+      }
+      return;
+    }
+    // 바인드된 파츠가 없으면 root 레벨 rotationParameter fallback 유지 — demo 편의.
     if (detail.id === rotationParameter && app) {
       app.setRotation(degToRad(detail.value));
     }
@@ -337,6 +366,51 @@ function degToRad(deg: number): number {
 }
 
 /**
+ * parts 역색인 — parameter_id → 바인드된 slot_id[]. 순서 보존 (Map iteration 순).
+ * parameter_ids 가 없거나 빈 파츠는 색인 미포함.
+ */
+function buildParamToSlots(meta: RendererBundleMeta): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const part of meta.parts) {
+    const ids = part.parameter_ids;
+    if (!ids || ids.length === 0) continue;
+    for (const pid of ids) {
+      let list = map.get(pid);
+      if (!list) {
+        list = [];
+        map.set(pid, list);
+      }
+      list.push(part.slot_id);
+    }
+  }
+  return map;
+}
+
+/**
+ * parameter id 이름을 휴리스틱으로 분류해 (β P1-S4) per-part 변환 축을 계산.
+ * - `*_angle_*` / `*_angle` → rotation (degrees) — 2D Z-axis 기준.
+ * - `*_sway*` / `*_shake*` → offsetY (정규화 [-1, 1] * 12px).
+ * - `*_offset_x*` → offsetX (정규화 * 12px).
+ * - 그 외 → null (명시적 매핑이 생기기 전까지는 per-part 반영 보류).
+ *
+ * 실 Cubism 디포머는 parameter_id → deformer_id → 축이 데이터 기반 매핑이지만,
+ * β 단계에서 그 메타는 번들에 실리지 않아 이름 기반 휴리스틱으로 대체. 실 asset
+ * 합류 시점(β P3+) 에 데이터 기반 매핑으로 교체.
+ */
+function transformFromParameter(id: string, value: number): PixiPartTransform | null {
+  if (id.includes("angle")) {
+    return { rotation: degToRad(value) };
+  }
+  if (id.includes("sway") || id.includes("shake")) {
+    return { offsetY: value * 12 };
+  }
+  if (id.includes("offset_x") || id.includes("position_x")) {
+    return { offsetX: value * 12 };
+  }
+  return null;
+}
+
+/**
  * atlas.textures[0].path + bundleUrl → 절대 텍스처 URL. atlas 가 없거나 텍스처 항목이
  * 없거나 bundleUrl 이 빠지면 null. 다수 텍스처는 현재 지원 안 함 (β 는 single-sheet).
  */
@@ -379,6 +453,16 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
   app.stage.addChild(root);
 
   let baseTexture: { readonly texture: unknown; readonly source: string } | null = null;
+
+  // β P1-S4: per-part display object 색인. rebuild 마다 재생성. 각 entry 는 baseline
+  // 좌표 (rotation=0, offset=0 기준) 를 들고 있어 setPartTransform 호출 시 delta 를
+  // 적용할 수 있다.
+  type PartEntry = {
+    readonly obj: { position: { set: (x: number, y: number) => void }; rotation: number };
+    readonly baseX: number;
+    readonly baseY: number;
+  };
+  const partEntries = new Map<string, PartEntry>();
 
   async function loadTexture(url: string): Promise<unknown | null> {
     if (baseTexture && baseTexture.source === url) return baseTexture.texture;
@@ -426,10 +510,13 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
         frame: new pixi.Rectangle(frame.x, frame.y, frame.width, frame.height),
       });
       const sprite = new pixi.Sprite(partTexture);
-      sprite.position.set(originX + frame.x * fit, originY + frame.y * fit);
+      const spriteX = originX + frame.x * fit;
+      const spriteY = originY + frame.y * fit;
+      sprite.position.set(spriteX, spriteY);
       sprite.width = frame.width * fit;
       sprite.height = frame.height * fit;
       root.addChild(sprite);
+      partEntries.set(part.slot_id, { obj: sprite, baseX: spriteX, baseY: spriteY });
       drawn += 1;
     }
     return drawn > 0;
@@ -462,6 +549,7 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
       g.stroke({ color: 0x2b4a8b, width: 1, alpha: 0.4 });
       g.position.set(cx, cy);
       root.addChild(g);
+      partEntries.set(part.slot_id, { obj: g, baseX: cx, baseY: cy });
     }
   }
 
@@ -504,6 +592,7 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
   return {
     rebuild(scene) {
       root.removeChildren();
+      partEntries.clear();
       const stageW = app.renderer.width;
       const stageH = app.renderer.height;
       // stage 중심 기준 회전.
@@ -526,6 +615,14 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
     },
     setRotation(radians) {
       root.rotation = radians;
+    },
+    setPartTransform(slot_id, transform) {
+      const entry = partEntries.get(slot_id);
+      if (!entry) return;
+      if (transform.rotation !== undefined) entry.obj.rotation = transform.rotation;
+      const dx = transform.offsetX ?? 0;
+      const dy = transform.offsetY ?? 0;
+      entry.obj.position.set(entry.baseX + dx, entry.baseY + dy);
     },
     setMotion(motion) {
       if (motion === null) {

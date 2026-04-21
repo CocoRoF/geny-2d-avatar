@@ -20,6 +20,13 @@
 export interface RendererPart {
   readonly role: string;
   readonly slot_id: string;
+  /**
+   * 이 파츠의 변형을 드라이브하는 parameter id 들 — β P1-S4 에서 추가.
+   * `<geny-avatar>` 번들의 `WebAvatarPart.parameter_ids` 와 동일. 렌더러는 이 목록
+   * 을 역색인해 parameterchange 시 해당 파츠의 sprite 에만 변환을 적용한다.
+   * 빠진 파츠(empty/undef)는 어떤 파라미터 변화에도 직접 반응하지 않음.
+   */
+  readonly parameter_ids?: readonly string[];
 }
 
 /**

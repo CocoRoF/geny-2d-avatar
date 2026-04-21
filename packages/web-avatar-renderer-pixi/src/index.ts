@@ -8,6 +8,7 @@ export {
   type PixiAppHandle,
   type PixiSceneInput,
   type RegenerateInput,
+  type PixiPartTransform,
 } from "./pixi-renderer.js";
 
 export {

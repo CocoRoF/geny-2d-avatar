@@ -13,6 +13,7 @@ import {
   createPixiRenderer,
   type PixiAppHandle,
   type CreatePixiApp,
+  type PixiPartTransform,
   type PixiSceneInput,
 } from "../src/index.js";
 import type {
@@ -23,11 +24,17 @@ import type {
   RendererMotion,
 } from "@geny/web-avatar-renderer";
 
+interface PartTransformCall {
+  readonly slot_id: string;
+  readonly transform: PixiPartTransform;
+}
+
 interface MockApp extends PixiAppHandle {
   readonly rebuildCalls: readonly PixiSceneInput[];
   readonly rotationCalls: readonly number[];
   readonly setMotionCalls: readonly (RendererMotion | null)[];
   readonly setExpressionCalls: readonly (RendererExpression | null)[];
+  readonly setPartTransformCalls: readonly PartTransformCall[];
   readonly destroyed: boolean;
 }
 
@@ -55,6 +62,7 @@ function makeMockFactory(opts: { failFirst?: boolean; defer?: boolean } = {}): M
           rotationCalls: [] as number[],
           setMotionCalls: [] as (RendererMotion | null)[],
           setExpressionCalls: [] as (RendererExpression | null)[],
+          setPartTransformCalls: [] as PartTransformCall[],
           destroyed: false,
         };
         const handle: MockApp = {
@@ -62,6 +70,7 @@ function makeMockFactory(opts: { failFirst?: boolean; defer?: boolean } = {}): M
           rotationCalls: state.rotationCalls,
           setMotionCalls: state.setMotionCalls,
           setExpressionCalls: state.setExpressionCalls,
+          setPartTransformCalls: state.setPartTransformCalls,
           get destroyed() {
             return state.destroyed;
           },
@@ -76,6 +85,9 @@ function makeMockFactory(opts: { failFirst?: boolean; defer?: boolean } = {}): M
           },
           setExpression(expression) {
             state.setExpressionCalls.push(expression);
+          },
+          setPartTransform(slot_id, transform) {
+            state.setPartTransformCalls.push({ slot_id, transform });
           },
           destroy() {
             state.destroyed = true;
@@ -609,4 +621,138 @@ test("createPixiRenderer: destroy 후 motion/expression 이벤트 no-op (P1-S3)"
   assert.equal(r.expressionChangeCount, 0);
   assert.equal(mf.apps[0]?.setMotionCalls.length, 0);
   assert.equal(mf.apps[0]?.setExpressionCalls.length, 0);
+});
+
+// ─── β P1-S4: per-part parameter binding ─────────────────────────────────────
+
+function boundMeta(): RendererBundleMeta {
+  return {
+    parts: [
+      { role: "head", slot_id: "head_slot", parameter_ids: ["head_angle_x"] },
+      { role: "ahoge", slot_id: "ahoge_slot", parameter_ids: ["ahoge_sway"] },
+      { role: "body", slot_id: "body_slot" },
+    ],
+    parameters: [
+      { id: "head_angle_x", range: [-30, 30], default: 0 },
+      { id: "ahoge_sway", range: [-1, 1], default: 0 },
+    ],
+  };
+}
+
+test("createPixiRenderer: parameter_ids 를 가진 파츠만 per-part setPartTransform 호출 (P1-S4)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: boundMeta() });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  host.dispatchEvent(
+    new CustomEvent("parameterchange", { detail: { id: "head_angle_x", value: 30 } }),
+  );
+  const calls = mf.apps[0]?.setPartTransformCalls ?? [];
+  assert.equal(calls.length, 1, "바인드된 파츠 1개만");
+  assert.equal(calls[0]?.slot_id, "head_slot");
+  const rad = calls[0]?.transform.rotation ?? 0;
+  assert.ok(Math.abs(rad - Math.PI / 6) < 1e-9, "angle 휴리스틱 → 30deg=π/6 rad");
+  assert.equal(mf.apps[0]?.rotationCalls.length, 0, "바인드된 파츠가 있으면 root setRotation 은 skip");
+  r.destroy();
+});
+
+test("createPixiRenderer: sway 파라미터는 offsetY 로 매핑 (P1-S4)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: boundMeta() });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  host.dispatchEvent(
+    new CustomEvent("parameterchange", { detail: { id: "ahoge_sway", value: 0.5 } }),
+  );
+  const calls = mf.apps[0]?.setPartTransformCalls ?? [];
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.slot_id, "ahoge_slot");
+  assert.equal(calls[0]?.transform.offsetY, 6, "sway 0.5 * 12px = 6px");
+  r.destroy();
+});
+
+test("createPixiRenderer: 바인드된 파츠가 없는 파라미터는 root rotation fallback (P1-S4)", async () => {
+  const mf = makeMockFactory();
+  // 기존 sampleMeta 는 parameter_ids 를 안 실어 binding 없음.
+  const host = makeHost({ meta: sampleMeta(2) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  host.dispatchEvent(
+    new CustomEvent("parameterchange", { detail: { id: "head_angle_x", value: 45 } }),
+  );
+  assert.equal(mf.apps[0]?.setPartTransformCalls.length, 0, "per-part binding 없음");
+  assert.equal(mf.apps[0]?.rotationCalls.length, 1, "rotationParameter fallback 유지");
+  r.destroy();
+});
+
+test("createPixiRenderer: 같은 파라미터가 여러 파츠에 바인드되면 전부 호출 (P1-S4)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({
+    meta: {
+      parts: [
+        { role: "left", slot_id: "left_slot", parameter_ids: ["body_breath"] },
+        { role: "right", slot_id: "right_slot", parameter_ids: ["body_breath"] },
+      ],
+      parameters: [{ id: "body_breath", range: [0, 1], default: 0 }],
+    },
+  });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  // body_breath 는 휴리스틱 매칭 (angle/sway/offset_x 아무것도 안 맞음) → transform null
+  // → setPartTransform 은 안 호출되고 fallback rotation 도 안 됨.
+  host.dispatchEvent(
+    new CustomEvent("parameterchange", { detail: { id: "body_breath", value: 0.7 } }),
+  );
+  assert.equal(mf.apps[0]?.setPartTransformCalls.length, 0, "매핑 없는 파라미터는 미반영");
+  assert.equal(r.parameterChangeCount, 1, "하지만 count 는 증가");
+  r.destroy();
+});
+
+test("createPixiRenderer: parameter_ids 를 가진 파츠의 head_angle_x 는 per-part + root fallback 은 skip (P1-S4)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({
+    meta: {
+      parts: [
+        { role: "a", slot_id: "a", parameter_ids: ["head_angle_x"] },
+        { role: "b", slot_id: "b", parameter_ids: ["head_angle_x"] },
+      ],
+      parameters: [{ id: "head_angle_x", range: [-30, 30], default: 0 }],
+    },
+  });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+
+  host.dispatchEvent(
+    new CustomEvent("parameterchange", { detail: { id: "head_angle_x", value: 15 } }),
+  );
+  const calls = mf.apps[0]?.setPartTransformCalls ?? [];
+  assert.equal(calls.length, 2, "두 파츠 모두 호출");
+  assert.equal(calls[0]?.slot_id, "a");
+  assert.equal(calls[1]?.slot_id, "b");
+  assert.equal(mf.apps[0]?.rotationCalls.length, 0, "per-part 로 처리됐으므로 root 는 skip");
+  r.destroy();
 });
