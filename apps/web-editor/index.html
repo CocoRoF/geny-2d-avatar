@@ -1140,6 +1140,48 @@
       const BETA_BUDGET_MS = 5000;
       const PHASE_LABELS = ["ingest", "synth", "atlas", "swap", "paint"];
 
+      // β P2-S4 — 텔레메트리 훅. phase ms 를 구조화된 console.info("geny.metric", ...)
+      // 로 emit. P5 staging 에서 log scraper 가 Prometheus pushgateway 로 변환.
+      // window.__genyMetricsSink 가 있으면 그 함수에도 fan-out (테스트·dev 패널용).
+      // 지표 이름은 β §7 "geny_ai_call_duration_seconds" 축과 호환되도록
+      // kind="generate.phase" + labels.phase 로 구성.
+      function emitMetric(event) {
+        try {
+          console.info("geny.metric", event);
+          const sink = globalThis?.__genyMetricsSink;
+          if (typeof sink === "function") sink(event);
+        } catch {
+          // metric emit 이 실 경로를 깨선 안 됨.
+        }
+      }
+
+      function emitGenerateMetrics({ trigger, prompt, phaseMs, totalMs, budgetMs, ok }) {
+        const ts = Date.now();
+        const labels = {
+          trigger, // "user" | "auto"
+          template: document.querySelector("#template-picker")?.value ?? "unknown",
+          ok: ok ? "true" : "false",
+        };
+        // 각 phase ms + total 로 카운터·히스토그램 레코드 분해.
+        for (let i = 0; i < PHASE_LABELS.length; i += 1) {
+          emitMetric({
+            ts,
+            kind: "generate.phase",
+            name: "geny_generate_phase_duration_ms",
+            value: Math.round(phaseMs[i] ?? 0),
+            labels: { ...labels, phase: PHASE_LABELS[i] },
+          });
+        }
+        emitMetric({
+          ts,
+          kind: "generate.total",
+          name: "geny_generate_total_duration_ms",
+          value: Math.round(totalMs),
+          labels: { ...labels, budget_ms: String(budgetMs), budget_ok: totalMs <= budgetMs ? "true" : "false" },
+          prompt_len: prompt.length,
+        });
+      }
+
       function setPillPhase(index, phase) {
         const el = pillEls[index - 1];
         if (!el) return;
@@ -1237,6 +1279,14 @@
           const budget = total <= BETA_BUDGET_MS ? "ok" : "over";
           genStatusEl.textContent = budget === "ok" ? `✓ ${Math.round(total)}ms` : `⚠ ${Math.round(total)}ms (>${BETA_BUDGET_MS})`;
           renderTimings(phaseMs, total);
+          emitGenerateMetrics({
+            trigger: "user",
+            prompt,
+            phaseMs,
+            totalMs: total,
+            budgetMs: BETA_BUDGET_MS,
+            ok: true,
+          });
         } catch (err) {
           const total = performance.now() - t0;
           console.error("[generate] failed", err);
@@ -1247,6 +1297,14 @@
             }
           }
           renderTimingError(phaseMs, total);
+          emitGenerateMetrics({
+            trigger: "user",
+            prompt,
+            phaseMs,
+            totalMs: total,
+            budgetMs: BETA_BUDGET_MS,
+            ok: false,
+          });
         } finally {
           generateBtn.disabled = false;
         }
@@ -1273,10 +1331,17 @@
         const atlas = pixiRenderer.lastAtlas;
         if (!atlas) return;
         autoPreviewDone = true;
+        const phaseMs = [0, 0, 0, 0, 0];
+        const t0 = performance.now();
+        let tPhase = t0;
+        const currentTemplate = document.querySelector("#template-picker")?.value ?? "halfbody";
+        const defaultPrompt = `default · ${currentTemplate}`;
         try {
-          const currentTemplate = document.querySelector("#template-picker")?.value ?? "halfbody";
-          const defaultPrompt = `default · ${currentTemplate}`;
+          phaseMs[0] = 0; // auto 에는 사용자 입력 대기 없음
+          tPhase = performance.now();
           const mock = await mockGenerateTexture(defaultPrompt, atlas);
+          phaseMs[1] = performance.now() - tPhase;
+          tPhase = performance.now();
           const newAtlas = {
             textures: [
               {
@@ -1287,14 +1352,37 @@
             ],
             slots: atlas.slots,
           };
+          phaseMs[2] = performance.now() - tPhase;
+          tPhase = performance.now();
           if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
           lastBlobUrl = mock.textureUrl;
-          await pixiRenderer.regenerate({ atlas: newAtlas, textureUrl: mock.textureUrl });
-          // gen-status 는 그대로 "준비" 유지 — Generate 버튼 결과와 시각적으로 구분.
-          console.info("[auto-preview] initial avatar painted for", currentTemplate);
+          const regenPromise = pixiRenderer.regenerate({ atlas: newAtlas, textureUrl: mock.textureUrl });
+          phaseMs[3] = performance.now() - tPhase;
+          tPhase = performance.now();
+          await (regenPromise ?? Promise.resolve());
+          phaseMs[4] = performance.now() - tPhase;
+          const total = performance.now() - t0;
+          console.info("[auto-preview] initial avatar painted for", currentTemplate, `${Math.round(total)}ms`);
+          emitGenerateMetrics({
+            trigger: "auto",
+            prompt: defaultPrompt,
+            phaseMs,
+            totalMs: total,
+            budgetMs: BETA_BUDGET_MS,
+            ok: true,
+          });
         } catch (err) {
+          const total = performance.now() - t0;
           console.warn("[auto-preview] failed", err);
-          autoPreviewDone = false; // 재시도 가능하게
+          autoPreviewDone = false;
+          emitGenerateMetrics({
+            trigger: "auto",
+            prompt: defaultPrompt,
+            phaseMs,
+            totalMs: total,
+            budgetMs: BETA_BUDGET_MS,
+            ok: false,
+          });
         }
       }
 

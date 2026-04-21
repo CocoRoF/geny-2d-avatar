@@ -9,9 +9,9 @@
 ## 0. 현재 상태 (2026-04-21)
 
 - **Foundation**: ✅ 종료 (Exit 4/4 + 릴리스 게이트 3/3 + lint C1~C14 + migrator + 렌더러 계약 + 15 패키지 + 125+ 세션 문서)
-- **β 로드맵**: 🟢 **P1 S1+S2+S3+S4+S5+S6 완료 + P2 🟢 S1+S2+S3 완료** (2026-04-21) — P1-S6 에서 초기 로드 auto-preview: `<geny-avatar>` ready + pixi late-attach 두 경로 훅 → 페이지 로드 직후 `mockGenerateTexture("default · <template>", atlas)` → placeholder 4×4 PNG 대신 avatar shape 이 즉시 표시. autoPreviewDone 단일 실행 보장, swapTemplate 에서 리셋. P2-S3 pill timing 실측 + β §7 5000ms 예산 시각화. P2-S2 mock 품질 개선 (16 카테고리 halfbody+fullbody). P1-S5 시각 정확성 (sprite.anchor=0.5 + Cubism 3 축 분리). P1-S4 per-part parameter binding. 데이터 배선 이미 완결. P0 Q1~Q6 사용자 승인 여전히 대기 (비차단).
+- **β 로드맵**: 🟢 **P1 S1+S2+S3+S4+S5+S6 완료 + P2 🟢 S1+S2+S3+S4 완료** (2026-04-21) — P2-S4 에서 텔레메트리 훅: `emitMetric(event)` → `console.info("geny.metric", {...})` + optional `__genyMetricsSink` fan-out. `emitGenerateMetrics` 가 runGenerate/runAutoPreview 1 회 결과를 phase 별 5 이벤트 + total 1 이벤트로 emit (metric name = `geny_generate_phase_duration_ms` / `geny_generate_total_duration_ms`, labels = trigger/template/ok/phase). β §7 "frontend timing" 경로의 client 절반 완결. P5 log scraper → Prometheus pushgateway 대비. P1-S6 auto-preview (4×4 placeholder PNG 교체). P2-S3 pill timing + 5000ms 예산 시각화. P2-S2 mock 품질 개선. P1-S5 시각 정확성. P1-S4 per-part parameter binding. P0 Q1~Q6 사용자 승인 여전히 대기 (비차단).
 - **자율 모드**: 🟢 β 범위 활성. SOAK/speculative doc 는 금지 (사용자 2026-04-21 correction).
-- **다음 step**: atlas pivot_uv 확장 (hair/ahoge 실 피벗), P2-S4 텔레메트리 훅 (phase ms → console.info geny.metrics), 또는 번들 계약 정리. P3 은 `BL-VENDOR-KEY` 블로커 대기.
+- **다음 step**: atlas pivot_uv 확장 (hair/ahoge 실 피벗), metric 단위테스트 (sink 주입), 또는 dev metrics panel (`?debug=metrics`). P3 은 `BL-VENDOR-KEY` 블로커 대기.
 
 ## 1. β 까지의 외부 의존 3 축
 
@@ -29,7 +29,7 @@
 |---|---|---:|---|---|
 | **P0** UX wireframe | 🟡 산출물 완료 · 사용자 Q1~Q6 승인 대기 | 1 | ✅ 자율 세션 P0-S1 (2026-04-21) | 사용자 `docs/UX-BETA-WIREFRAME.md §9` Q1~Q6 승인 |
 | **P1** 실 픽셀 렌더 | 🟢 **S1+S2+S3+S4+S5+S6 완료** (sprite + atlas slot + slider + motion/expression + per-part binding + sprite pivot/axis split + mount-time auto-preview) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
-| **P2** 프롬프트 UI + Mock e2e | 🟢 **S1+S2+S3 완료** (Generate UI + Mock 생성기 + live swap + 역할별 shape 렌더링 + per-phase timing + β §7 5000ms 예산 시각화) | 2~3 | P1 완료 | Mock 벤더로 프롬프트→프리뷰 5초 내 완결 **— 측정 기반 완결** |
+| **P2** 프롬프트 UI + Mock e2e | 🟢 **S1+S2+S3+S4 완료** (Generate UI + Mock 생성기 + live swap + 역할별 shape 렌더링 + per-phase timing + β §7 5000ms 예산 시각화 + 구조화 텔레메트리 emit) | 2~3 | P1 완료 | Mock 벤더로 프롬프트→프리뷰 5초 내 완결 **— 측정 기반 완결 + P5 log scraper 대비** |
 | **P3** 실 nano-banana 통합 | ⚪ 대기 | 3~5 | P2 완료 + BL-VENDOR-KEY | 실 HTTP 호출 10회 중 7회 이상 성공 |
 | **P4** 5 슬롯 자동 조립 | ⚪ 대기 | 3~5 | P3 완료 | 프롬프트 1 줄 → 30초 내 5 슬롯 생성 + atlas |
 | **P5** staging 배포 | ⚪ 대기 | 2~3 | P4 완료 + BL-STAGING | 외부 네트워크에서 `beta.geny.ai` 시나리오 A 완주 |
