@@ -23,14 +23,14 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, 세션 126 직후)
+## 1. 현재 상태 (2026-04-21, 세션 127 직후)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
 | **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 + golden step 카탈로그 + schema/README 22 스키마 실측 카탈로그 + rig-template-lint C1~C14 규칙 카탈로그 + rig-templates/README 5 템플릿 실측 카탈로그 + **세션 126 자율 후보 완전 소진 공식 기록** (문서·색인 축 6 연속 120→125, 내부 진입 가능 후보 0, ADR 0007 리뷰 / 외부 블로커 해제 / 사용자 지시 대기) |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 126 (2026-04-17~04-21, 5일) | 자율 모드 |
+| **누적 세션** | 127 (2026-04-17~04-21, 5일) | 자율 모드 (세션 127 = 소진 재확인, 외부 블로커 6 축 무변화) |
 | **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 에서 14 패키지 README 문서 축 완결 (프론트엔드 4 + 백엔드/인프라 10). 세션 120 은 코드 변경 없음 (ADR 0007 Option 별 diff 노트 — `progress/notes/adr-0007-option-diffs.md`). 세션 121 에서 "15" 드리프트 해소 — 세션 111/114 doc 의 "13→14" / "14→15" 표기가 실제 +1 변화량은 맞았으나 베이스가 12/13 이었음 (세션 89 에 들어온 `web-editor-logic` 을 당시 누적 카운트에서 빠뜨려 1 밀림) |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (schema 1 + CLI 번들 3 + 패키지 16 + 스크립트·infra 8 + 앱 e2e 2) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가. 세션 122 `progress/runbooks/02-golden-step-catalog.md` 로 30 step 의 보장·의존성·도입 색인 고정 |
