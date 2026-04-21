@@ -820,16 +820,269 @@
         return (h >>> 0) % 360;
       }
 
+      // β P2-S2: slot_id 를 역할 카테고리로 분류해 shape 선택. 'skin' → 베이지,
+      // 'hair' → 어두운 hair color, 'eye_iris' → prompt hue, 'eye_white' → 흰색 등.
+      // 실 벤더 이미지가 합류하는 β P3+ 까지 "프롬프트를 바꾸면 캐릭터가 바뀐다" 를
+      // 가능한 avatar-like 하게 Mock 한다.
+      function mockCategoryOf(slotId) {
+        if (slotId === "face_base" || slotId === "face_shadow" || slotId === "nose") return "skin";
+        if (slotId === "cheek_blush") return "blush";
+        if (slotId.startsWith("eye_white")) return "eye_white";
+        if (slotId.startsWith("eye_iris")) return "eye_iris";
+        if (slotId.startsWith("eye_lash_upper")) return "lash_upper";
+        if (slotId.startsWith("eye_lash_lower")) return "lash_lower";
+        if (slotId.startsWith("brow")) return "brow";
+        if (slotId === "mouth_base") return "mouth_lips";
+        if (slotId === "mouth_inner") return "mouth_inner";
+        if (slotId === "ahoge") return "ahoge";
+        if (slotId === "hair_front") return "hair_front";
+        if (slotId === "hair_back") return "hair_back";
+        if (slotId.startsWith("hair_side")) return "hair_side";
+        if (
+          slotId === "neck" ||
+          slotId === "hip" ||
+          slotId.startsWith("arm_") ||
+          slotId.startsWith("leg_") ||
+          slotId.startsWith("foot_")
+        )
+          return "skin_body";
+        if (
+          slotId === "torso" ||
+          slotId === "cloth_main" ||
+          slotId === "cloth_cape" ||
+          slotId === "cloth_skirt"
+        )
+          return "cloth";
+        if (slotId.startsWith("accessory") || slotId === "acc_belt") return "accessory";
+        return "generic";
+      }
+
+      function mockRoundRect(ctx, x, y, w, h, r) {
+        const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.lineTo(x + w - rr, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+        ctx.lineTo(x + w, y + h - rr);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+        ctx.lineTo(x + rr, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+        ctx.lineTo(x, y + rr);
+        ctx.quadraticCurveTo(x, y, x + rr, y);
+        ctx.closePath();
+      }
+
+      function mockDrawPartShape(ctx, category, x, y, w, h, hueSlot, theme) {
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        const min = Math.min(w, h);
+        switch (category) {
+          case "skin": {
+            ctx.fillStyle = theme.skin;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + h * 0.03, w * 0.46, h * 0.48, 0, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+          }
+          case "skin_body": {
+            ctx.fillStyle = theme.skin;
+            mockRoundRect(ctx, x + w * 0.1, y + h * 0.05, w * 0.8, h * 0.9, min * 0.12);
+            ctx.fill();
+            return;
+          }
+          case "blush": {
+            ctx.fillStyle = `hsla(${theme.blushHue}, 75%, 76%, 0.82)`;
+            ctx.beginPath();
+            ctx.ellipse(x + w * 0.2, cy, w * 0.16, h * 0.5, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + w * 0.8, cy, w * 0.16, h * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+          }
+          case "eye_white": {
+            ctx.fillStyle = "hsl(0, 0%, 98%)";
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, w * 0.44, h * 0.36, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "hsla(0, 0%, 45%, 0.45)";
+            ctx.lineWidth = Math.max(2, min * 0.03);
+            ctx.stroke();
+            return;
+          }
+          case "eye_iris": {
+            ctx.fillStyle = `hsl(${theme.eyeHue}, 65%, 42%)`;
+            ctx.beginPath();
+            ctx.arc(cx, cy, min * 0.36, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "hsl(0, 0%, 8%)";
+            ctx.beginPath();
+            ctx.arc(cx, cy, min * 0.16, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "hsla(0, 0%, 100%, 0.85)";
+            ctx.beginPath();
+            ctx.arc(cx - min * 0.1, cy - min * 0.12, min * 0.08, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+          }
+          case "lash_upper": {
+            ctx.strokeStyle = theme.lashColor;
+            ctx.lineWidth = Math.max(3, h * 0.35);
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.1, y + h * 0.75);
+            ctx.quadraticCurveTo(cx, y + h * 0.1, x + w * 0.9, y + h * 0.75);
+            ctx.stroke();
+            return;
+          }
+          case "lash_lower": {
+            ctx.strokeStyle = `hsla(0, 0%, 20%, 0.6)`;
+            ctx.lineWidth = Math.max(2, h * 0.25);
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.15, y + h * 0.2);
+            ctx.quadraticCurveTo(cx, y + h * 0.9, x + w * 0.85, y + h * 0.2);
+            ctx.stroke();
+            return;
+          }
+          case "brow": {
+            ctx.strokeStyle = theme.browColor;
+            ctx.lineWidth = Math.max(4, h * 0.55);
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.1, y + h * 0.85);
+            ctx.quadraticCurveTo(cx, y + h * 0.05, x + w * 0.9, y + h * 0.55);
+            ctx.stroke();
+            return;
+          }
+          case "mouth_lips": {
+            ctx.strokeStyle = `hsl(350, 55%, 45%)`;
+            ctx.lineWidth = Math.max(3, h * 0.18);
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.2, y + h * 0.45);
+            ctx.quadraticCurveTo(cx, y + h * 0.85, x + w * 0.8, y + h * 0.45);
+            ctx.stroke();
+            return;
+          }
+          case "mouth_inner": {
+            ctx.fillStyle = `hsl(352, 55%, 30%)`;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy + h * 0.1, w * 0.28, h * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            return;
+          }
+          case "ahoge": {
+            ctx.fillStyle = theme.hair;
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.35, y + h * 0.95);
+            ctx.quadraticCurveTo(x + w * 0.1, y + h * 0.4, cx, y + h * 0.05);
+            ctx.quadraticCurveTo(x + w * 0.9, y + h * 0.4, x + w * 0.65, y + h * 0.95);
+            ctx.closePath();
+            ctx.fill();
+            return;
+          }
+          case "hair_front": {
+            ctx.fillStyle = theme.hair;
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.05, y + h * 0.95);
+            ctx.lineTo(x + w * 0.05, y + h * 0.4);
+            ctx.bezierCurveTo(
+              x + w * 0.18, y + h * 0.05,
+              x + w * 0.42, y + h * 0.02,
+              x + w * 0.5, y + h * 0.12,
+            );
+            ctx.bezierCurveTo(
+              x + w * 0.58, y + h * 0.02,
+              x + w * 0.82, y + h * 0.05,
+              x + w * 0.95, y + h * 0.4,
+            );
+            ctx.lineTo(x + w * 0.95, y + h * 0.95);
+            ctx.closePath();
+            ctx.fill();
+            return;
+          }
+          case "hair_back": {
+            ctx.fillStyle = `hsl(${theme.hairHue}, 45%, ${theme.hairLight - 6}%)`;
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.04, y + h * 0.98);
+            ctx.quadraticCurveTo(x - w * 0.05, y + h * 0.4, x + w * 0.12, y + h * 0.08);
+            ctx.quadraticCurveTo(cx, y - h * 0.02, x + w * 0.88, y + h * 0.08);
+            ctx.quadraticCurveTo(x + w * 1.05, y + h * 0.4, x + w * 0.96, y + h * 0.98);
+            ctx.closePath();
+            ctx.fill();
+            return;
+          }
+          case "hair_side": {
+            ctx.fillStyle = theme.hair;
+            ctx.beginPath();
+            ctx.moveTo(x + w * 0.45, y + h * 0.08);
+            ctx.bezierCurveTo(
+              x + w * 0.15, y + h * 0.25,
+              x + w * 0.1, y + h * 0.7,
+              x + w * 0.35, y + h * 0.95,
+            );
+            ctx.lineTo(x + w * 0.75, y + h * 0.92);
+            ctx.bezierCurveTo(
+              x + w * 0.55, y + h * 0.65,
+              x + w * 0.6, y + h * 0.3,
+              x + w * 0.55, y + h * 0.08,
+            );
+            ctx.closePath();
+            ctx.fill();
+            return;
+          }
+          case "cloth": {
+            ctx.fillStyle = `hsl(${theme.clothHue}, 55%, 48%)`;
+            mockRoundRect(ctx, x + w * 0.08, y + h * 0.05, w * 0.84, h * 0.9, min * 0.1);
+            ctx.fill();
+            ctx.strokeStyle = `hsla(${theme.clothHue}, 65%, 25%, 0.4)`;
+            ctx.lineWidth = Math.max(2, min * 0.02);
+            ctx.stroke();
+            return;
+          }
+          case "accessory": {
+            ctx.fillStyle = `hsla(${hueSlot}, 65%, 58%, 0.6)`;
+            mockRoundRect(ctx, x + w * 0.1, y + h * 0.1, w * 0.8, h * 0.8, min * 0.1);
+            ctx.fill();
+            return;
+          }
+          default: {
+            const grad = ctx.createRadialGradient(cx, cy, min * 0.1, cx, cy, min * 0.6);
+            grad.addColorStop(0, `hsla(${hueSlot}, 70%, 72%, 0.85)`);
+            grad.addColorStop(1, `hsla(${hueSlot}, 55%, 42%, 0.78)`);
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, w, h);
+          }
+        }
+      }
+
+      // 프롬프트 해시에서 avatar 테마(피부톤·머리색·눈색·옷색) 를 결정론으로 파생.
+      function mockThemeFromPrompt(prompt) {
+        const base = mockHashHue(prompt || "default");
+        return {
+          skin: `hsl(${(base + 15) % 360 < 30 || (base + 15) % 360 > 330 ? 30 : 28}, 40%, ${78 + (base % 8)}%)`,
+          blushHue: 350 + ((base >> 2) % 10),
+          eyeHue: (base + 80) % 360,
+          hairHue: (base + 210) % 360,
+          hairLight: 24 + (base % 12),
+          get hair() {
+            return `hsl(${this.hairHue}, 45%, ${this.hairLight}%)`;
+          },
+          clothHue: (base + 140) % 360,
+          browColor: `hsl(${(base + 210) % 360}, 40%, 22%)`,
+          lashColor: `hsl(${(base + 210) % 360}, 30%, 14%)`,
+        };
+      }
+
       async function mockGenerateTexture(prompt, atlas) {
         const canvas = document.createElement("canvas");
         canvas.width = MOCK_CANVAS_SIZE;
         canvas.height = MOCK_CANVAS_SIZE;
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("Canvas 2D context unavailable");
-        // 배경 — 프롬프트 hue 로 얇은 tint.
-        const bgHue = mockHashHue(prompt || "default");
-        ctx.fillStyle = `hsl(${bgHue}, 22%, 94%)`;
-        ctx.fillRect(0, 0, MOCK_CANVAS_SIZE, MOCK_CANVAS_SIZE);
+        const theme = mockThemeFromPrompt(prompt);
+        // 투명 배경 — sprite 단위 합성 시 불필요한 배경색이 sprite 사각형에 묻어
+        // 파츠 모양을 망치지 않게.
+        ctx.clearRect(0, 0, MOCK_CANVAS_SIZE, MOCK_CANVAS_SIZE);
 
         for (const slot of atlas.slots) {
           const [ux, uy, uw, uh] = slot.uv;
@@ -839,27 +1092,10 @@
           const h = Math.max(2, Math.round(uh * MOCK_CANVAS_SIZE));
           const key = `${prompt}::${slot.slot_id}`;
           const hue = mockHashHue(key);
-          const grad = ctx.createRadialGradient(
-            x + w / 2,
-            y + h / 2,
-            Math.min(w, h) * 0.1,
-            x + w / 2,
-            y + h / 2,
-            Math.max(w, h) * 0.6,
-          );
-          grad.addColorStop(0, `hsla(${hue}, 70%, 72%, 0.95)`);
-          grad.addColorStop(1, `hsla(${hue}, 55%, 42%, 0.88)`);
-          ctx.fillStyle = grad;
-          ctx.fillRect(x, y, w, h);
-          ctx.strokeStyle = `hsla(${hue}, 60%, 25%, 0.6)`;
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-          // slot_id 레이블 — 디버깅 + "각 슬롯이 실 영역을 덮고 있다" 를 시각 확인.
-          if (Math.min(w, h) > 40) {
-            ctx.fillStyle = "rgba(20,20,20,0.78)";
-            ctx.font = `${Math.max(12, Math.round(Math.min(w, h) / 10))}px ui-monospace, monospace`;
-            ctx.fillText(slot.slot_id, x + 6, y + 16);
-          }
+          const category = mockCategoryOf(slot.slot_id);
+          ctx.save();
+          mockDrawPartShape(ctx, category, x, y, w, h, hue, theme);
+          ctx.restore();
         }
 
         const blob = await new Promise((resolve, reject) => {
