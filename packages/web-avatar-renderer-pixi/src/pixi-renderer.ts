@@ -375,6 +375,38 @@ function degToRad(deg: number): number {
 }
 
 /**
+ * β P1-S7 — slot.pivot_uv 기반 sprite anchor/position 계산. 순수 함수로 분리해 테스트
+ * 가능하게. pivot_uv 가 없으면 slot UV 중심 (기존 anchor=0.5 동작과 정확히 동일).
+ *
+ * - anchorX/Y: sprite 의 로컬 0..1 좌표 (rotation 피벗).
+ * - spriteX/Y: stage 절대 좌표 (sprite.position). pivot 이 그려질 지점.
+ */
+export function resolvePivotPlacement(params: {
+  slot: { uv: readonly [number, number, number, number]; pivot_uv?: readonly [number, number] };
+  frame: { x: number; y: number; width: number; height: number };
+  canvasW: number;
+  canvasH: number;
+  fit: number;
+  originX: number;
+  originY: number;
+}): { anchorX: number; anchorY: number; spriteX: number; spriteY: number } {
+  const [u0, v0, u1, v1] = params.slot.uv;
+  const centerU = (u0 + u1) / 2;
+  const centerV = (v0 + v1) / 2;
+  const pivotU = params.slot.pivot_uv?.[0] ?? centerU;
+  const pivotV = params.slot.pivot_uv?.[1] ?? centerV;
+  // slot 내 정규화 좌표 — clamp 로 slot 바깥 pivot 도 안전히 처리.
+  const du = u1 - u0;
+  const dv = v1 - v0;
+  const anchorX = du > 0 ? (pivotU - u0) / du : 0.5;
+  const anchorY = dv > 0 ? (pivotV - v0) / dv : 0.5;
+  // sprite position: pivot 이 실제로 그려질 stage 좌표 = origin + pivotUV * canvas * fit.
+  const spriteX = params.originX + pivotU * params.canvasW * params.fit;
+  const spriteY = params.originY + pivotV * params.canvasH * params.fit;
+  return { anchorX, anchorY, spriteX, spriteY };
+}
+
+/**
  * parts 역색인 — parameter_id → 바인드된 slot_id[]. 순서 보존 (Map iteration 순).
  * parameter_ids 가 없거나 빈 파츠는 색인 미포함.
  */
@@ -536,15 +568,21 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
         frame: new pixi.Rectangle(frame.x, frame.y, frame.width, frame.height),
       });
       const sprite = new pixi.Sprite(partTexture);
-      // anchor (0.5, 0.5) 로 설정해 setPartTransform 의 rotation 이 sprite 중심을
-      // 피벗으로 돌도록. 기본 anchor(0,0) 이면 top-left 피벗이라 rotation 이
-      // "코너를 중심으로 orbit" 처럼 보여 Mock 체감이 깨진다.
-      sprite.anchor.set(0.5, 0.5);
+      // β P1-S7 — pivot_uv 가 있으면 그 UV 지점을 anchor/피벗으로. 없으면 slot 중심
+      // (이전 anchor=0.5 동작과 정확히 동일). hair/ahoge 는 머리 위가 실 피벗이라
+      // center 로 돌리면 어긋나 보임 — pivot_uv 필드로 교정.
+      const { anchorX, anchorY, spriteX, spriteY } = resolvePivotPlacement({
+        slot,
+        frame,
+        canvasW,
+        canvasH,
+        fit,
+        originX,
+        originY,
+      });
+      sprite.anchor.set(anchorX, anchorY);
       sprite.width = frame.width * fit;
       sprite.height = frame.height * fit;
-      // anchor=0.5 기준 position 은 sprite 중심점 — UV 프레임 top-left 에 width/2, height/2 가산.
-      const spriteX = originX + (frame.x + frame.width / 2) * fit;
-      const spriteY = originY + (frame.y + frame.height / 2) * fit;
       sprite.position.set(spriteX, spriteY);
       root.addChild(sprite);
       partEntries.set(part.slot_id, { obj: sprite, baseX: spriteX, baseY: spriteY });

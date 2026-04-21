@@ -1,5 +1,6 @@
 export {
   createPixiRenderer,
+  resolvePivotPlacement,
   type PixiRenderer,
   type PixiRendererOptions,
   type PixiRendererStage,

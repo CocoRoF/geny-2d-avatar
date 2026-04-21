@@ -55,6 +55,13 @@
             "maxItems": 4,
             "items": { "type": "number", "minimum": 0, "maximum": 1 },
             "description": "[u0, v0, u1, v1] 정규화 좌표. (0,0) = 좌상, (1,1) = 우하. u1 > u0, v1 > v0 권장."
+          },
+          "pivot_uv": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "number", "minimum": 0, "maximum": 1 },
+            "description": "(β P1-S7) 회전/스케일 피벗의 정규화 UV 좌표 [u, v] — canvas 전체 기준. 없으면 slot UV 중심 사용. hair/ahoge 처럼 머리 위 어딘가가 실 피벗인 파츠에서 지정."
           }
         }
       }

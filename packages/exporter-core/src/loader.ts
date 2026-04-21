@@ -208,6 +208,8 @@ export interface TemplateAtlasSlotEntry {
   slot_id: string;
   texture_path: string;
   uv: [number, number, number, number];
+  /** β P1-S7 optional — 회전/스케일 피벗의 canvas UV 좌표. 미지정 시 slot UV 중심. */
+  pivot_uv?: [number, number];
 }
 
 export interface TemplateAtlasDoc {

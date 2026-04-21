@@ -50,6 +50,12 @@ export interface RendererAtlasSlot {
   readonly slot_id: string;
   readonly texture_path: string;
   readonly uv: readonly [number, number, number, number];
+  /**
+   * β P1-S7 optional — 회전/스케일 피벗의 **canvas UV** 좌표 [u, v] (0..1 전체 텍스처 기준).
+   * 있으면 렌더러가 sprite.anchor 를 이 UV 가 slot 내 어디에 해당하는지로 계산해
+   * 피벗을 정확히 맞춘다. 미지정 시 slot UV 중심 (호환).
+   */
+  readonly pivot_uv?: readonly [number, number];
 }
 
 /**

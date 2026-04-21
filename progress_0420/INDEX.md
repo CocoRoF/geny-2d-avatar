@@ -23,14 +23,14 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, P2-S4 직후 — **β Phase P1 🟢 완료 · P2 🟢 S1+S2+S3+S4 완료**)
+## 1. 현재 상태 (2026-04-22, P1-S7 직후 — **β Phase P1 🟢 S1~S7 완료 · P2 🟢 S1+S2+S3+S4 완료**)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | **β Phase P1 🟢 (S1~S6 완료) + P2 🟢 (S1+S2+S3+S4 완료)** (Foundation ✅ 종료, P0 UX wireframe 산출물 완료 · Q1~Q6 사용자 승인은 비차단 대기) | P2-S4 (2026-04-21) — **텔레메트리 훅**. `emitMetric(event)` + `emitGenerateMetrics({trigger,prompt,phaseMs,totalMs,budgetMs,ok})` → `console.info("geny.metric", ...)` + optional `globalThis.__genyMetricsSink` fan-out. 각 회 Generate 가 phase 별 5 이벤트 + total 1 이벤트 emit (Prometheus-ready metric names + labels). P5 log scraper 대비. runGenerate 성공/실패 + runAutoPreview (trigger="auto") 전부 emit. P1-S6 auto-preview 로 4×4 placeholder 제거. P2-S3 — regenerate Promise<void> + per-phase ms + β §7 예산 시각화. P2-S2 — 16 역할 카테고리. P1-S5 — sprite.anchor=0.5 + Cubism 3 축 분리. P1-S4 — parts 별 parameter 바인딩. P1-S3 — motion/expression. P1-S2+P2-S1 — atlas UV + Generate bar. P1-S1 — ADR 0007 Option E Accepted + pixi scaffold. |
+| **단계** | **β Phase P1 🟢 (S1~S7 완료) + P2 🟢 (S1+S2+S3+S4 완료)** (Foundation ✅ 종료, P0 UX wireframe 산출물 완료 · Q1~Q6 사용자 승인은 비차단 대기) | P1-S7 (2026-04-22) — **atlas `pivot_uv` 확장**. optional `[u,v]` 캔버스 UV 필드 schema (`atlas.schema.json`) + `RendererAtlasSlot` contract + `TemplateAtlasSlotEntry` loader 에 추가. pixi 렌더러의 sprite anchor/position 계산을 순수 함수 `resolvePivotPlacement()` 로 분리 (세션 91 D2 duck-typed 원칙 준수). hair/ahoge 가 실 머리 위/얼굴 피벗을 중심으로 회전·스케일 (기존: 언제나 sprite bbox 중심). `pivot_uv` 미지정 시 formula 상 완전 동일 behavior (backward-compatible). 36 테스트 green (3 신규). P2-S4 — 텔레메트리 훅 (`emitMetric` + Prometheus-ready names/labels). P1-S6 auto-preview 로 4×4 placeholder 제거. P2-S3 — regenerate Promise<void> + per-phase ms + β §7 예산 시각화. P2-S2 — 16 역할 카테고리. P1-S5 — sprite.anchor=0.5 + Cubism 3 축 분리. P1-S4 — parts 별 parameter 바인딩. P1-S3 — motion/expression. P1-S2+P2-S1 — atlas UV + Generate bar. P1-S1 — ADR 0007 Option E Accepted + pixi scaffold. |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 128 Foundation + P0-S1 + P1-S1 + P1-S2+P2-S1 + P1-S3 + P1-S4 + P1-S5 + P2-S2 + P2-S3 + P1-S6 + P2-S4 (2026-04-17~04-21, 5일) | Foundation 연대기 1~127 동결. 128 β 모드 전환 이후는 phase+step ID (`P0-S1` / `P1-S1` / `P1-S2+P2-S1` / `P1-S3` / `P1-S4` / `P1-S5` / `P2-S2` / `P2-S3` / `P1-S6` / `P2-S4`...). |
+| **누적 세션** | 128 Foundation + P0-S1 + P1-S1 + P1-S2+P2-S1 + P1-S3 + P1-S4 + P1-S5 + P2-S2 + P2-S3 + P1-S6 + P2-S4 + P1-S7 (2026-04-17~04-22, 6일) | Foundation 연대기 1~127 동결. 128 β 모드 전환 이후는 phase+step ID (`P0-S1` / `P1-S1` / `P1-S2+P2-S1` / `P1-S3` / `P1-S4` / `P1-S5` / `P2-S2` / `P2-S3` / `P1-S6` / `P2-S4` / `P1-S7`...). |
 | **누적 패키지** | **15** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. P1-S1 에서 `@geny/web-avatar-renderer-pixi` 합류 (14 → 15). P1-S2~S4 에선 기존 2 패키지 확장만 (renderer contract atlas+motion+expression+parameter_ids 필드 + renderer-pixi sprite/regenerate/motion/expression/per-part binding). |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (schema 1 + CLI 번들 3 + 패키지 16 + 스크립트·infra 8 + 앱 e2e 2) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가. 세션 122 `progress/runbooks/02-golden-step-catalog.md` 로 30 step 의 보장·의존성·도입 색인 고정 |
