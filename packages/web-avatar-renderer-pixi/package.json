@@ -1,0 +1,36 @@
+{
+  "name": "@geny/web-avatar-renderer-pixi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Geny 2D Avatar 브라우저 렌더러 — PixiJS v8 구현체. ADR 0007 Option E (hybrid) 의 primary path. `<geny-avatar>` 의 ready/parameterchange 이벤트를 구독해 PIXI.Application 으로 실 픽셀을 그린다. β 로드맵 P1 산출물.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:test": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist dist-test",
+    "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
+  },
+  "dependencies": {
+    "@geny/web-avatar-renderer": "workspace:*",
+    "pixi.js": "^8.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "typescript": "^5.6.3"
+  }
+}

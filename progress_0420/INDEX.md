@@ -23,15 +23,15 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, SOAK-02 직후 — **β Phase P0 🟡 · 외부 블로커 무변화 재확인**)
+## 1. 현재 상태 (2026-04-21, P1-S1 직후 — **β Phase P1 🟡 · PixiJS 렌더러 scaffold 합류**)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | **β Phase P0 🟡 (산출물 완료 · 사용자 승인 대기)** (Foundation ✅ 종료) | 세션 128 β 모드 전환 → **P0-S1** `docs/UX-BETA-WIREFRAME.md` (12 섹션) → **SOAK-01** `progress/notes/beta-pending-decisions.md` 저작 — Q1~Q6 / ADR 0007 / BL-VENDOR-KEY / BL-STAGING / BL-BUDGET / BL-LEGAL 전체 결정 로그 단일 창구화. 사용자 "Q1~Q6 전부 기본 + ADR 0007 Option E" 두 줄이면 P0 ✅ + P1-S1~S5 5 세션 즉시 open. 자율 모드 β 범위 재활성화 상태. |
+| **단계** | **β Phase P1 🟡 (S1 완료 · S2+ 진행)** (Foundation ✅ 종료, P0 UX wireframe 산출물 완료 · Q1~Q6 사용자 승인은 비차단 대기) | P1-S1 (2026-04-21) — ADR 0007 **Option E Accepted**. `packages/web-avatar-renderer-pixi/` 신설 (PixiJS v8 MIT, 15 tests pass). `apps/web-editor/?renderer=pixi` dynamic import 경로 + pixi.js ESM 번들 vendored + importmap. SVG 구조 프리뷰는 interaction 전담으로 유지 (Consequences §공통 준수). 다음: P1-S2 실 atlas 슬롯 populate 시 `PIXI.Sprite` 교체 (`atlasUvToFrame` unit tested). |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 128 (2026-04-17~04-21, 5일) | Foundation 연대기 1~127 동결. 128 에서 β 모드 전환. 이후 세션은 phase+step ID (`P0-S1` / `P1-S1`...) |
-| **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 에서 14 패키지 README 문서 축 완결 (프론트엔드 4 + 백엔드/인프라 10). 세션 120 은 코드 변경 없음 (ADR 0007 Option 별 diff 노트 — `progress/notes/adr-0007-option-diffs.md`). 세션 121 에서 "15" 드리프트 해소 — 세션 111/114 doc 의 "13→14" / "14→15" 표기가 실제 +1 변화량은 맞았으나 베이스가 12/13 이었음 (세션 89 에 들어온 `web-editor-logic` 을 당시 누적 카운트에서 빠뜨려 1 밀림) |
+| **누적 세션** | 128 Foundation + P0-S1 + P1-S1 (2026-04-17~04-21, 5일) | Foundation 연대기 1~127 동결. 128 β 모드 전환 이후는 phase+step ID (`P0-S1` / `P1-S1`...). |
+| **누적 패키지** | **15** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. P1-S1 에서 `@geny/web-avatar-renderer-pixi` 합류 (14 → 15). |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (schema 1 + CLI 번들 3 + 패키지 16 + 스크립트·infra 8 + 앱 e2e 2) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가. 세션 122 `progress/runbooks/02-golden-step-catalog.md` 로 30 step 의 보장·의존성·도입 색인 고정 |
 | **스키마 카탈로그** | **22 계약** (v1 21 + common/ids 1) | `schema/README.md` — 7 그룹 × 4-라인 (보장/소비자/Docs/도입). 세션 123 재작성 — placeholder 2 제거 + examples/ 언급 제거 + 누락 8 추가. `validate-schemas.mjs checked=244 failed=0` |

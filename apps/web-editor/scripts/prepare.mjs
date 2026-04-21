@@ -59,6 +59,13 @@ step("build @geny/web-avatar-renderer", () => {
   runPnpm(["--filter", "@geny/web-avatar-renderer", "run", "build"]);
 });
 
+// β P1-S1 — `?renderer=pixi` 쿼리로 동작하는 `createPixiRenderer` (PixiJS v8 실 픽셀
+// 렌더러, ADR 0007 Option E primary). Default 경로에선 load 하지 않고 SVG 구조
+// 프리뷰가 기본 유지. dynamic import 경로만 열어둠.
+step("build @geny/web-avatar-renderer-pixi", () => {
+  runPnpm(["--filter", "@geny/web-avatar-renderer-pixi", "run", "build"]);
+});
+
 step("copy @geny/web-avatar dist → public/vendor", () => {
   const src = resolve(repoRoot, "packages/web-avatar/dist");
   cpSync(src, vendorDir, { recursive: true });
@@ -80,6 +87,24 @@ step("copy @geny/web-avatar-renderer dist → public/vendor/web-avatar-renderer"
   const src = resolve(repoRoot, "packages/web-avatar-renderer/dist");
   const dst = join(vendorDir, "web-avatar-renderer");
   cpSync(src, dst, { recursive: true });
+});
+
+step("copy @geny/web-avatar-renderer-pixi dist → public/vendor/web-avatar-renderer-pixi", () => {
+  const src = resolve(repoRoot, "packages/web-avatar-renderer-pixi/dist");
+  const dst = join(vendorDir, "web-avatar-renderer-pixi");
+  cpSync(src, dst, { recursive: true });
+});
+
+// β P1-S1 — pixi.js ESM bundle 을 public/vendor 로 복사. dynamic `import("pixi.js")`
+// 는 index.html 의 importmap 을 거쳐 이 파일로 resolve 된다. 8.6+ `dist/pixi.min.mjs`
+// 는 self-contained ESM (gzip ~170KB) — 별도 bundler 단계 없이 브라우저에서 작동.
+step("copy pixi.js ESM bundle → public/vendor/pixi.min.mjs", () => {
+  const pixiSrc = resolve(
+    repoRoot,
+    "packages/web-avatar-renderer-pixi/node_modules/pixi.js/dist/pixi.min.mjs",
+  );
+  const pixiDst = join(vendorDir, "pixi.min.mjs");
+  cpSync(pixiSrc, pixiDst);
 });
 
 const exporterDist = resolve(repoRoot, "packages/exporter-core/dist");

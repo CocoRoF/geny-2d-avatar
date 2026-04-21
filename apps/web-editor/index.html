@@ -157,6 +157,16 @@
       .stage-inner svg[data-testid="structure-preview"] {
         width: 100%;
         height: 100%;
+        position: relative;
+        z-index: 1;
+      }
+      .stage-inner .pixi-mount {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        border-radius: 12px;
+        overflow: hidden;
+        pointer-events: none;
       }
       .preview-controls {
         display: flex;
@@ -285,6 +295,7 @@
       <section class="preview" aria-label="preview player">
         <div class="stage">
           <div class="stage-inner" id="stage-inner">
+            <div class="pixi-mount" id="pixi-mount"></div>
             <geny-avatar id="avatar"></geny-avatar>
           </div>
         </div>
@@ -302,6 +313,15 @@
       </aside>
     </main>
 
+    <!-- β P1-S1 — `import("pixi.js")` 를 vendored ESM bundle 로 해석. Default 경로에선
+         pixi bundle 을 load 하지 않음 (`?renderer=pixi` 쿼리 시 dynamic import 진입). -->
+    <script type="importmap">
+      {
+        "imports": {
+          "pixi.js": "./public/vendor/pixi.min.mjs"
+        }
+      }
+    </script>
     <script type="module" src="./public/vendor/index.js"></script>
     <script type="module">
       import { CATEGORY_ORDER, categorize, parametersForPart } from "./public/vendor/web-editor-logic/index.js";
@@ -314,6 +334,14 @@
       const debugFlag = new URLSearchParams(location.search).get("debug") ?? "";
       const debugLoggerEnabled = debugFlag.split(",").map((s) => s.trim()).includes("logger");
       let debugLoggingRenderer = null;
+
+      // β P1-S1 — `?renderer=pixi` 쿼리가 켜지면 `@geny/web-avatar-renderer-pixi` 의
+      // `createPixiRenderer` 를 `<geny-avatar>` 에 attach 해 pixi.js 로 실 픽셀을
+      // 그린다. SVG 구조 프리뷰는 그대로 유지 (interaction 전담) — pixi 캔버스는
+      // 구조 SVG 뒤에 absolute 스택. Default 경로에선 load 하지 않음.
+      const rendererFlag = new URLSearchParams(location.search).get("renderer") ?? "";
+      const pixiEnabled = rendererFlag === "pixi";
+      let pixiRenderer = null;
 
       const statusEl = document.querySelector("#status");
       const groupsEl = document.querySelector("#parts-groups");
@@ -342,6 +370,21 @@
           if (entry) selectSidebarEntry(entry.li, entry.part, entry.cat, { fromRenderer: true });
         },
       });
+
+      // β P1-S1 — `?renderer=pixi` 경로에서만 dynamic import. pixi.js + 본 패키지
+      // 모두 vendored ESM 번들 / importmap 으로 해석됨. 에디터 본연은 실패해도
+      // 동작하도록 catch 후 silent skip.
+      if (pixiEnabled) {
+        const pixiMountEl = document.querySelector("#pixi-mount");
+        import("./public/vendor/web-avatar-renderer-pixi/index.js")
+          .then(({ createPixiRenderer }) => {
+            pixiRenderer = createPixiRenderer({ element: el, mount: pixiMountEl });
+            console.info("[geny-avatar/pixi] attached via ?renderer=pixi");
+          })
+          .catch((err) => {
+            console.warn("[geny-avatar/pixi] dynamic import failed", err);
+          });
+      }
 
       // 세션 116 — `?debug=logger` 경로에서만 dynamic import. 실패해도 에디터 본연은
       // 동작해야 하므로 catch 만 해두고 조용히 skip (dev 편의용 스위치).

@@ -9,9 +9,9 @@
 ## 0. 현재 상태 (2026-04-21)
 
 - **Foundation**: ✅ 종료 (Exit 4/4 + 릴리스 게이트 3/3 + lint C1~C14 + migrator + 렌더러 계약 + 14 패키지 + 125 세션 문서)
-- **β 로드맵**: 🟡 Phase **P0 산출물 완료 (UX-BETA-WIREFRAME)**, 사용자 Q1~Q6 승인 + ADR 0007 Decision 대기
-- **자율 모드**: 🟢 **β 범위 재활성화** (세션 128, 사용자 `<<autonomous-loop-dynamic>>` 재승인). 외부 블로커 phase (P1·P3·P5·P6) 는 자율 진입 금지.
-- **다음 자율 가능 step**: (a) ADR 0007 Accept 시 P1-S1 / (b) 사용자 P0 승인 + Q1~Q6 답변 → §9 블록 제거 후 P1 대기 / (c) 외부 블로커 전부 블락 시 소진 선언 minimal 세션
+- **β 로드맵**: 🟡 Phase **P1-S1 완료** (ADR 0007 Option E Accepted, `@geny/web-avatar-renderer-pixi` scaffold, `?renderer=pixi` 에디터 통합), P0 Q1~Q6 사용자 승인은 여전히 대기 (비차단 — UI 레이아웃 결정이므로 P2 진입 전까지 unblock 필요)
+- **자율 모드**: 🟢 β 범위 활성. SOAK/speculative doc 는 금지 (사용자 2026-04-21 correction).
+- **다음 step**: P1-S2 (실 atlas 슬롯 populate 시 `PIXI.Sprite` 교체 — 샘플 번들 atlas.slots 가 비어있어 현재는 구조 프리뷰만. rig-template 측 slot 배치 or nano-banana 합류 후 텍스처 투입).
 
 ## 1. β 까지의 외부 의존 3 축
 
@@ -28,7 +28,7 @@
 | Phase | 상태 | 예상 세션 | 시작 조건 | 검수 (전부 green 이어야 종료) |
 |---|---|---:|---|---|
 | **P0** UX wireframe | 🟡 산출물 완료 · 사용자 Q1~Q6 승인 대기 | 1 | ✅ 자율 세션 P0-S1 (2026-04-21) | 사용자 `docs/UX-BETA-WIREFRAME.md §9` Q1~Q6 승인 |
-| **P1** 실 픽셀 렌더 | ⚪ 대기 | 3~5 | ADR 0007 Accepted | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
+| **P1** 실 픽셀 렌더 | 🟡 S1 완료 · S2+ 진행 중 | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
 | **P2** 프롬프트 UI + Mock e2e | ⚪ 대기 | 2~3 | P1 완료 | Mock 벤더로 프롬프트→프리뷰 5초 내 완결 |
 | **P3** 실 nano-banana 통합 | ⚪ 대기 | 3~5 | P2 완료 + BL-VENDOR-KEY | 실 HTTP 호출 10회 중 7회 이상 성공 |
 | **P4** 5 슬롯 자동 조립 | ⚪ 대기 | 3~5 | P3 완료 | 프롬프트 1 줄 → 30초 내 5 슬롯 생성 + atlas |
