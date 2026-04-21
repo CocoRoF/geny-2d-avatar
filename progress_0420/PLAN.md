@@ -39,6 +39,8 @@
 
 ## 3. 즉시 다음 액션 (사용자 선택)
 
+> **📋 외부 대기 결정 단일 창구**: [`progress/notes/beta-pending-decisions.md`](../progress/notes/beta-pending-decisions.md) — Q1~Q6 / ADR 0007 / BL-* 전부 이 한 파일 위에서 답변하면 P0~P6 잠금이 순차 해제된다. **최단 β 경로**: Q1~Q6 "전부 기본" + ADR 0007 "Option E" 두 줄이면 P0 ✅ + P1-S1 ~ S5 5 세션이 즉시 open.
+
 **옵션 A (권장)** — β 플랜 리뷰 후 ADR 0007 Accept:
 
 1. 사용자가 `docs/PRODUCT-BETA.md` + `docs/ROADMAP-BETA.md` 리뷰
