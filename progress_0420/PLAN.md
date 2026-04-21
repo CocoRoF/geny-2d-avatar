@@ -1,257 +1,98 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 127+)
+# PLAN — β 로드맵 모드 (2026-04-21 이후)
 
-본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
+**Foundation 종료**. 세션 127 에서 자율 후보 소진 선언 + 사용자 지시로 **β 로드맵 모드 전환**. 본 문서는 이제 "β 릴리스까지 무엇을 어떤 순서로 만들지" 의 세션 단위 트래커다. 카탈로그 축은 끝났다.
 
----
-
-## 0. 원칙
-
-1. **self-contained 우선** — 외부 의존(cluster / 실 벤더 키 / 새 팀 리소스)이 없는 세션을 먼저 소화. 외부 블록이 풀린 시점에 한꺼번에 소화하지 않도록 분산.
-2. **lint catalog 단일 책임** — `physics-lint` 안의 Cxx 는 각자 1 축. 한 세션에 2 축 묶지 말 것(세션 108 D5 선례).
-3. **골든 불변식 보호** — sha256 기반 골든(halfbody v1.2.0/v1.3.0 aria+web-avatar, fullbody v1.0.0 zoe)은 의도된 변경 이외엔 건드리지 않음.
-4. **ADR 0005 L1~L4 재확인** — 새 저자 개입이 발생하면 L1 migrator 자동패치 · L2 lint fatal · L3 저자 범위 · L4 파이프라인 불변식 각 축에서 누락이 없는지 역으로 훑기.
-5. **매 세션 push** — `feedback_autonomous_sessions.md` 의무. 세션 doc `progress/sessions/` 에 추가 + `progress_0420/INDEX.md §1·§4` 최소 1 줄 갱신.
+권위 문서는 이제 **`docs/PRODUCT-BETA.md`** (제품 정의) + **`docs/ROADMAP-BETA.md`** (phase 별 실행 로드맵) 두 개다. 본 PLAN 은 그 두 문서의 **세션 운영 뷰**다.
 
 ---
 
-## 1. 블로커 지도
+## 0. 현재 상태 (2026-04-21)
 
-### 1.1 외부 의존 블로커 (지시 / 타팀 리소스 대기)
+- **Foundation**: ✅ 종료 (Exit 4/4 + 릴리스 게이트 3/3 + lint C1~C14 + migrator + 렌더러 계약 + 14 패키지 + 125 세션 문서)
+- **β 로드맵**: 🟡 Phase P0 진입 대기 (사용자 승인 + ADR 0007 Decision 선행)
+- **자율 모드**: ❌ 비활성 (세션 127 사용자 지시로 종료)
+- **다음 세션 트리거**: 사용자가 명시적으로 phase+step 지정 (예: "P1-S1 진행")
 
-| 블로커 | 해소 조건 | 풀리면 열리는 세션 |
-|---|---|---|
-| **BL-STAGING** — K8s staging cluster access | 인프라팀 승인 + kubeconfig 배포 | 세션 96 (staging 배포) · observability 실 Prometheus 스크레이프 · E 단계 실 브라우저 preview |
-| **BL-VENDOR-KEY** — 실 벤더 키 (nano-banana / sdxl / flux) | 각 벤더 계정 + quota | 실 벤더 분포 캡처(세션 88 D 후속) · BullMQ `attempts>1` 베이스라인 재캡처(세션 86 D6) |
-| **BL-DEPRECATION-POLICY** — `docs/03 §7.3` 충돌 (legacy 수정 허용 범위) | 저자/PM 결정 — legacy minor-bump 허용인가 freeze 인가 | legacy v1.0.0~v1.2.0 `parameter_ids` opt-in 복제 (세션 105 D1 블로커 a) |
+## 1. β 까지의 외부 의존 3 축
 
-### 1.2 내부 블로커 (이 저장소 안에서 해소 가능)
-
-| 블로커 | 해소 경로 | 선행 조건 |
-|---|---|---|
-| ~~**BL-MIGRATOR**~~ — ✅ 해소 (세션 111, `@geny/migrator@0.1.0`) | — | — |
-| **BL-LEGACY-CONSUMER** — legacy opt-in 복제를 먹을 소비자 없음 | Runtime 소비자 합류 시 | 세션 97 Runtime 착수(세션 105 D1 블로커 c) |
-
-> 세션 105 D1 의 3 블로커(docs/03 §7.3 / migrator 부재 / 소비자 없음) 중 (b) migrator 는 세션 111 에서 `@geny/migrator` 로 해소. (a)(c) 는 외부 의존 — 후보 C 착수는 둘 다 풀릴 때까지 대기.
-
----
-
-## 2. 세션 후보 상세
-
-### 후보 A — C13 deformer 트리 무결성 (세션 108 자연 연장) ✅ **완료 (세션 109)**
-
-- **범위**: `scripts/rig-template/physics-lint.mjs` 에 C13 블록 추가 — 7 sub-rule (duplicate / root-missing / root-parent / parent-missing / non-root-null-parent / cycle / orphan).
-- **산출**: physics-lint rule 12→**13**, 테스트 21→**30** (9 신규 케이스 2t~2ab). CLI header 에 `tree=<ok|skip>` 추가. 공식 5 템플릿 전부 tree=ok.
-- **후속**: `rig-template-lint` 리브랜딩 임계 도달 — 후보 D 승격. **C14 후보** 신설 (parts↔deformers 사각형 완성).
-
-### 후보 B — `packages/migrator/` skeleton + `v1.2.0→v1.3.0` ✅ **완료 (세션 111)**
-
-- **실제 범위**:
-  - `@geny/migrator@0.1.0` (TS ESM) 신규 — `src/{index,migrate,io,types}.ts` + `src/migrations/{index,v1-0-0-to-v1-1-0,v1-1-0-to-v1-2-0,v1-2-0-to-v1-3-0}.ts` + `src/migrations/data/{v1-1-0,v1-2-0,v1-3-0}.ts`.
-  - 공개 API: `migrate(srcDir, outDir, options?)` / `planMigrations(from)` / `MIGRATORS`.
-  - 3 migrator **전부 이식** (PLAN 원안은 v1.2.0→v1.3.0 만이었으나 세션 111 D1 에서 원자적 이식으로 상향).
-  - CLI shim `scripts/rig-template/migrate.mjs` 530 줄 → 53 줄. dynamic import 로 `dist/index.js` 참조 (bare specifier / workspace 의존 추가 없음).
-- **산출**: 1 신규 패키지 + 8 단위 테스트 + 골든 step 14 3-단 (build → test → CLI 회귀). 누적 패키지 13 → 14. 기존 CLI 테스트는 완전 pass — 출력 bit-by-bit 동일 확인.
-- **후속**: BL-MIGRATOR 해소 → 후보 C(legacy opt-in 복제) 의 (b) 블로커 제거. v1.3.0→v1.4.0 은 본 skeleton 의 첫 external 확장 자리.
-
-### 후보 C — legacy v1.0.0~v1.2.0 `parameter_ids` opt-in 복제
-
-- **범위**: halfbody v1.0.0 / v1.1.0 / v1.2.0 의 공식 파츠 19 개에 `parameter_ids` 필드 추가(세션 107 halfbody v1.3.0 선언 내용 이식). 빈 배열 `[]` 은 "overall-only 명시"(세션 95 D2 / 98 D2 시맨틱).
-- **진입 조건**: **두 축 동시 충족** 필요 (세션 111 에서 (b) 해소)
-  - (a) docs/03 §7.3 legacy 수정 허용 결정 — **BL-DEPRECATION-POLICY** 해소 필요(외부).
-  - ~~(b) migrator 가 legacy 를 patch 할 수 있어야 함~~ ✅ 세션 111 `@geny/migrator@0.1.0`.
-  - (c) 소비자(Runtime)가 legacy opt-in 을 먹을 경로 존재 — **세션 97** 이후.
-- **산출**: 19 파츠 × 3 버전 opt-in + golden sha256 3 개 추가 + 테스트.
-- **소요**: 1 세션(patch 만) 혹은 2 세션(migrator 확장 포함).
-- **리스크**: (a)(c) 가 안 풀리면 golden 만 늘어나고 소비자 없음 → 단순 보관 비용. 방지: (a)(c) 해소 전까지는 후보 C 착수 금지.
-
-### 후보 D — `rig-template-lint` 리브랜딩 ✅ **완료 (세션 110)**
-
-- **범위**: `scripts/rig-template/physics-lint.{mjs,test.mjs}` → `rig-template-lint.{mjs,test.mjs}`. golden step name `rig-template physics-lint` → `rig-template-lint`. docs/03 §6.2/§13.1 갱신. fullbody README / mao_pro_mapping 갱신. progress_0420/ 3 파일 갱신.
-- **정책**: 세션 로그 (`progress/sessions/*`) 와 ADR 0005 는 역사 보존 — 당시 파일 이름(`physics-lint`) 그대로 유지. 에러 메시지 prefix `C1~C13` 도 그대로 — session 로그 / ADR 0005 의 역사 식별자 보존.
-- **산출**: 파일 rename (git mv) + 내부 로그 prefix `[physics-lint]` → `[rig-template-lint]` + CLI Usage / error 메시지 rename. 공식 5 템플릿 lint 결과는 byte-equal 유지, golden 불변.
-- **후속**: 향후 `scripts/rig-template/deformer-lint.mjs` 같은 수직 분리가 필요해지면 ADR 0005 L2 변경으로 처리.
-
-### 후보 E — 세션 96 실 staging 배포
-
-- **범위**: Helm install → kube-prometheus-stack 실제 스크레이프 확인 → `values-staging.yaml` 의 `release: kube-prometheus-stack` SM selector 매칭 검증 → worker-generate + orchestrator 양쪽 pod ready.
-- **진입 조건**: **BL-STAGING** 해소 필수. cluster access + kubeconfig + (선택) Redis external endpoint 결정.
-- **산출**: 실 staging 환경에서 observability 4 층(exposition/snapshot/e2e/fallback) 중 **실 Prometheus 스크레이프** 층을 닫는 첫 증거.
-- **소요**: 1~2 세션.
-- **리스크**: cluster 정책(RBAC / NetworkPolicy / storage class)이 로컬 docker 조건과 다를 수 있음 — runbook 01-incident-p1.md 적용 시나리오 드리블.
-
-### 후보 F — 세션 97 Runtime 전환 착수 (Cubism/WebGL 실 렌더러 합류)
-
-- **범위**: `@geny/web-avatar-runtime` (또는 web-editor-renderer 확장) 신규 패키지. Cubism SDK / PixiJS / WebGL 중 택일(ADR 후보). `<geny-avatar>` 커스텀 엘리먼트의 현 happy-dom 모의 렌더를 실 렌더러로 교체.
-- **진입 조건**: Foundation 종료 선언 + 렌더러 기술 선택 ADR(신규 0007 후보).
-- **산출**: 실 브라우저에서 halfbody/fullbody base 템플릿이 pose / motion / expression 변경에 따라 움직이는 첫 증거.
-- **소요**: **큰 세션 묶음(5~10 세션)**. 단일 세션 불가.
-- **리스크**: Foundation 의 "mock-first" 구조가 Runtime 에서 성립하지 않는 부분(real GL context / GPU / timing)이 다수 — 세션 분해 필요.
-
----
-
-## 3. 우선순위 (2026-04-20 판단)
-
-```
-[완료]
-  세션 109 = 후보 A (C13 deformer 트리 무결성) ✅
-  세션 110 = 후보 D (rig-template-lint 리브랜딩) ✅
-  세션 111 = 후보 B (migrator skeleton)         ✅ BL-MIGRATOR 해소
-  세션 112 = 후보 G (C14 parts↔deformers)        ✅ 사각형 완결, L2 포화
-  세션 113 = ADR 0007 Draft (렌더러 기술)        ✅ 사용자 리뷰 대기
-  세션 114 = 렌더러 인터페이스 패키지 선행 분리  ✅ @geny/web-avatar-renderer@0.1.0
-  세션 115 = Null/Logging renderer 구현체         ✅ 21 tests (계약 10 + null 6 + logging 5)
-  세션 116 = 후보 H (apps/web-editor wire-through)  ✅ `?debug=logger` + e2e assertion
-  세션 117 = 후보 K (web-avatar-renderer README)    ✅ 계약/가드/팩토리/attachment pattern
-  세션 118 = 후보 L (인접 프론트엔드 3 패키지 README) ✅ web-editor-logic/-renderer 신규 + web-avatar 갱신
-  세션 119 = 후보 M (나머지 10 패키지 README triage)    ✅ job-queue-bullmq 신규 + post-processing 재작성, 8 FRESH skip
-  세션 120 = 대안 (c) (ADR 0007 Option 별 코드 영향 범위 예상 diff 노트)  ✅ progress/notes/adr-0007-option-diffs.md 신규 (278 줄)
-  세션 121 = 대안 (b) (progress_0420 메타 정합성 점검)                     ✅ 패키지 카운트 15→14 드리프트 해소 + 테스트 수 4 패키지 드리프트 해소 (ai-adapter-core/web-editor-logic/job-queue-bullmq/worker-generate). doc-only, 코드 변경 0
-  세션 122 = 대안 (a) (golden step 카탈로그)                                ✅ progress/runbooks/02-golden-step-catalog.md 신규 — 30 step × (보장/실행/의존성/도입) 4-라인 색인 (1 schema + 3 CLI + 16 pkg + 8 script + 2 e2e). 인접 드리프트 해소 — INDEX §2 "29 step→30", INDEX §1 "11 패키지+5 e2e→16+2", scripts/README.md stale entries 갱신
-  세션 123 = (대안 schema 카탈로그) schema/README.md 재작성                   ✅ v1 22 스키마 실측 카탈로그 — 7 그룹 × 4-라인 (보장/소비자/Docs/도입). placeholder 2 제거(style-profile/export-job) + examples/ 언급 제거 + 누락 8 추가 (adapter-catalog/deformers/motion-pack/palette/parameters/physics/pose/test-poses). `validate-schemas.mjs` → `checked=244 failed=0` 무변동
-  세션 124 = (γ lint 규칙 카탈로그) progress/runbooks/03-rig-template-lint-rules.md 신규   ✅ 14 규칙 × 34 테스트 × 4-라인(보장/실행/의존성/도입) 색인. §0 분류 + §1~§6 규칙 블록 (C1~C14 + C10/C13 sub-rule 전개) + §7 FAMILY_OUTPUT_RULES 6 family 테이블 + §8 CLI 옵션 + §9 테스트 34 매핑 + §10 참고. runbook README 에 03 entry 추가. doc-only
-  세션 125 = (rig-templates 카탈로그) rig-templates/README.md 재작성                       ✅ 5 공식 템플릿(halfbody v1.0.0~v1.3.0 + fullbody v1.0.0) × 8 실측(parts/params/deformers/physics/expressions/motions/test_poses/도입) 카탈로그. 스테일 제거: `v1.0.1/` 예시 / "parts 24개" / `v1.0.0` 구조만 전제한 트리. 진화 축(pose.json v1.1.0+, expressions/ textures/ v1.2.0+) 명시. 인접 드리프트 해소: INDEX §2 "49+10 parameters → 50+10 (JSON 실측)" + parts 분모 명시(19/30 · 27/38). doc-only, 코드 변경 0
-  세션 126 = (소진 선언 minimal) 자율 후보 완전 소진 공식 기록                               ✅ PLAN §7 재작성(127+ 진입 조건 6 축 정리) + INDEX §1 헤더 "125 직후→126 직후" + 단계 cell 소진 선언 덧붙임. 저장소 상태 재검토: 내부 문서/코드/검증 축 모두 green, 자율 진입 가능 후보 0. 외부 입력 대기 후보 6 축(ADR 0007 / BL-STAGING / BL-VENDOR-KEY / BL-DEPRECATION-POLICY / Runtime / migrator v1.4.0) 나열. doc-only
-
-[자율 모드 후속 후보 — 완전 소진 공식 기록 (세션 126). ADR 0007 리뷰 / 사용자 지시 대기]
-  세션 127 = (진입 조건) 외부 블로커 해제 여부 재확인 → 해제 있으면 해당 후보 진입 / 없으면 "소진 재확인" 초단 세션 + ScheduleWakeup 3600s
-
-[사용자 의사 확정 후]
-  세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
-  세션 ? = 후보 F (Runtime) Spike — 선택된 렌더러로 첫 픽셀
-  세션 ? = v1.3.0→v1.4.0 migrator (리그 변경 범위 합의 후)
-
-[외부 블록 해소 후]
-  세션 ? = 후보 E (staging)      ← BL-STAGING 해소 시
-  세션 ? = 후보 C (legacy opt-in) ← BL-DEPRECATION-POLICY 해소 시
-```
-
-### 후보 G — C14 `parts ↔ deformers` 사각형 완성 ✅ **완료 (세션 112)**
-
-- **실제 범위**: `parts/*.spec.json.deformation_parent` ↔ `deformers.nodes[].id` 교차 검증. parts 루프 재구성 (deformers.json 선로드, I/O 1 회 유지). `parts_deformation_parents_checked` 카운터 summary 노출.
-- **산출**: rig-template-lint rule 13→**14**, 테스트 30→**34** (4 신규 케이스 2ac~2af). 공식 5 템플릿 clean + `parts_checked == parts_deformation_parents_checked` 전 버전 성립 (파츠 전원 deformer 연결 불변식 확정).
-- **후속**: C11+C12+C13+C14 사각형 완결 → L2 저자 범위 포화. 세션 109 이후 self-contained lint 확장 여지 소진 — 다음 라운드는 Runtime(후보 F) 또는 외부 의존 해소.
-
-### 3.1 추천 실행 순서 근거
-
-1. ~~**후보 A**~~ — 세션 109 완료 ✅.
-2. ~~**후보 D**~~ — 세션 110 완료 ✅.
-3. ~~**후보 B**~~ — 세션 111 완료 ✅. BL-MIGRATOR 해소.
-4. ~~**후보 G (C14)**~~ — 세션 112 완료 ✅. L2 사각형 완결.
-5. **다음 self-contained 없음** — v1.3.0→v1.4.0 migrator 는 리그 변경 범위(외부 판단) 선행. ADR 0007 초안 작성은 self-contained 이지만 판단 축이 엔지니어링 + 라이선스 + UX 를 섞어야 해 사용자 의사 선행이 합리적.
-6. **후보 C 는 (a) 외부 정책 해소 대기** — (b) 는 세션 111 에서 자체 풀림. (a)(c) 가 동시에 열릴 때 착수.
-7. **후보 E / F 는 외부 의존** — 들어올 때 연속 묶음으로 소화.
-
-### 3.2 비추 (하지 말 것)
-
-- **C13 과 C11/C12 리팩터 동시 진행** — 세션 108 D5 가 명시적으로 축 분리 결정. 한 번에 묶으면 regression 원인 진단 비용 급증.
-- **migrator 와 legacy opt-in 한 세션 압축** — sha256 골든이 3 개 추가되는데 migrator bit-drift 와 legacy patch 의 원인 구분이 흐려진다. 두 세션으로 분리 권장.
-- **staging 배포 + observability e2e 재정비 묶음** — 실 cluster 문제(외부 원인)와 코드 회귀(내부 원인)가 섞이면 debugging 비용 폭발.
-
----
-
-## 4. 품질 기준 (세션 종료 체크리스트)
-
-모든 세션이 commit 전에 **이 5 축 통과** 를 문서화:
-
-1. **타입 체크**: `pnpm run typecheck` 전체 green.
-2. **테스트**: `pnpm run test` 패키지 전체 + `pnpm run test:golden` 29 step green (영향 범위만 실행한 경우 이유 문서화).
-3. **lint**: physics-lint 21+ case + eslint/prettier 전수.
-4. **세션 doc**: `progress/sessions/YYYY-MM-DD-session-NN-slug.md` 템플릿 9 섹션 + Decisions D1~Dn + Next 후속 세션 링크.
-5. **index 갱신**: `progress_0420/INDEX.md §1·§4` 최소 1 줄 + (영향 축이 있으면) §2 워크스트림 상태 이모지.
-
----
-
-## 5. 리스크 레지스터
-
-| 리스크 | 가능성 | 영향 | 완화책 |
+| # | 블로커 | 해제 조건 | 차단 phase |
 |---|---|---|---|
-| sha256 골든 drift (migrator 이동 시) | 중 | 대 | 후보 B 에서 golden 동일 검증 **테스트로 고정** + 세션 doc D 에 bit-by-bit 불변 근거 명시 |
-| legacy opt-in (후보 C) 를 소비자 없이 저장만 | 고 | 중 | 후보 C 의 진입 조건 (c) 를 통과 전까지 착수 금지 규칙 |
-| `physics-lint` 리브랜딩 중 외부 참조 누락 | 중 | 소 | 후보 D 에서 `grep -r physics-lint` 전수 치환 + 세션 doc 에 치환 목록 첨부 |
-| Runtime 합류 시 Mock-only 불변식 깨짐 (세션 85 D7 `cost_usd` success-only 가 실 성공률 0 일 때 divide-by-zero?) | 중 | 중 | 후보 F 착수 시 observability 불변식 8 메트릭 union 을 실벤더 샘플로 재검증하는 세션 분할 |
-| staging Prometheus SM selector 불일치 | 중 | 중 | 후보 E 에서 `release: kube-prometheus-stack` 매칭 테스트 CI step 로 고정 |
-| 세션 수 폭증으로 progress_0420/ 다시 비대화 | 저 | 소 | INDEX.md §1 은 **표 갱신만** 허용, §4 세션 로그는 한 줄 규칙. 대형 내용은 `progress/sessions/` 로 |
+| 1 | **ADR 0007 Decision** | `progress/adr/0007-renderer-technology.md` Decision 섹션에 Option A/C/D/E 중 하나 Accepted | P1 진입 |
+| 2 | **BL-VENDOR-KEY** | GCP 프로젝트 + Gemini API 키 + quota ≥ 1000 req/month | P3 진입 |
+| 3 | **BL-STAGING** | K8s cluster + kubeconfig + DNS(`beta.geny.ai`) + TLS | P5 진입 |
 
----
+이 3 개를 사용자/운영 측이 풀 때마다 다음 phase 가 열린다. P0~P2 는 외부 블로커 없이 진입 가능.
 
-## 6. Foundation 종료 선언 기준
+## 2. Phase 진행 트래커
 
-현 시점에서 Foundation Exit 4/4 + 릴리스 게이트 3/3 이 모두 닫혀 있으므로 **기술적 종료 자격** 은 이미 확보. 다만 "Runtime 전환 착수(후보 F)" 를 트리거하려면 추가로 다음 3 가지가 필요:
+| Phase | 상태 | 예상 세션 | 시작 조건 | 검수 (전부 green 이어야 종료) |
+|---|---|---:|---|---|
+| **P0** UX wireframe | ⚪ 대기 | 1 | 사용자 "P0 진행" 지시 | 사용자 wireframe md 승인 |
+| **P1** 실 픽셀 렌더 | ⚪ 대기 | 3~5 | ADR 0007 Accepted | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
+| **P2** 프롬프트 UI + Mock e2e | ⚪ 대기 | 2~3 | P1 완료 | Mock 벤더로 프롬프트→프리뷰 5초 내 완결 |
+| **P3** 실 nano-banana 통합 | ⚪ 대기 | 3~5 | P2 완료 + BL-VENDOR-KEY | 실 HTTP 호출 10회 중 7회 이상 성공 |
+| **P4** 5 슬롯 자동 조립 | ⚪ 대기 | 3~5 | P3 완료 | 프롬프트 1 줄 → 30초 내 5 슬롯 생성 + atlas |
+| **P5** staging 배포 | ⚪ 대기 | 2~3 | P4 완료 + BL-STAGING | 외부 네트워크에서 `beta.geny.ai` 시나리오 A 완주 |
+| **P6** β 오픈 | ⚪ 대기 | open | P5 완료 | `docs/PRODUCT-BETA.md §7` 6 지표 모두 목표치 |
 
-1. **ADR 0007 (렌더러 기술 선택)** — Cubism / PixiJS / Three.js / 자체 GL 중 택일 + 이유 + 성능/라이선스 함의.
-2. **후보 A 완료 (C13)** — lint catalog 안정화. Runtime 진입 후 lint 변경은 단가가 크다.
-3. **후보 B 완료 (migrator skeleton)** — Runtime 이 legacy / 신규 템플릿을 다 먹으려면 migrate 경로가 한 곳에 모여 있어야 함.
+세부 작업 단위는 `docs/ROADMAP-BETA.md §3` 참조.
 
-이 3 축이 닫히면 사용자에게 **"Foundation 종료 + Runtime 전환 착수 승인 요청"** 을 명시적으로 내보낸다. (자율 모드여도 phase 전환은 사용자 확인 의무.)
+## 3. 즉시 다음 액션 (사용자 선택)
 
----
+**옵션 A (권장)** — β 플랜 리뷰 후 ADR 0007 Accept:
 
-## 7. 다음 즉시 행동 (세션 127+)
+1. 사용자가 `docs/PRODUCT-BETA.md` + `docs/ROADMAP-BETA.md` 리뷰
+2. 수정 요청이 있으면 다음 세션에 반영
+3. 승인 시 ADR 0007 Option 선택 (권장: **Option E 하이브리드**)
+4. P0-S1 (UX wireframe) 세션 착수
 
-**세션 126 — 소진 선언 minimal 세션 완료**. 문서·색인 축 6 연속 (120 옵션 → 121 메타 → 122 golden → 123 schema → 124 lint → 125 rig-templates) 종료 후 세션 126 에서 자율 후보 완전 소진을 공식 기록. 현재 저장소 상태 재검토 결과 (2026-04-21):
+**옵션 B** — β 범위 수정:
+- MVP 범위 축소 (예: "파라미터 조작만, 텍스처 생성 제외")
+- 또는 확대 (fullbody 포함 등)
 
-**자율 mode 로 진입 가능한 후보 — 없음**.
-- **내부 문서 축**: 20+ README / runbook 3 종 / schema 카탈로그 / rig-templates 카탈로그 / ADR 7 건 / 탐색 노트 1 건 / 세션 로그 125 건 — 모두 실측 권위 상태. 추가 카탈로그는 중복 / 파편화 위험.
-- **내부 코드 축**: lint C1~C14 포화 · migrator 3 체인 완결 · 렌더러 계약 패키지 + 2 구현체 · web-editor wire-through 확보. 추가 self-contained 확장은 **가짜 진전** (consumer 부재).
-- **내부 검증 축**: golden 30 step · bullmq-integration lane · 22 schema validate · perf-harness SLO · gitleaks 보안 — 모두 green.
+**옵션 C** — Foundation 유지 + Runtime Spike 만:
+- β 대신 내부 Spike 로 렌더러만 검증
 
-**사용자 입력 또는 외부 블로커 해제가 선행되어야 하는 후보만 남음**:
-1. **ADR 0007 (렌더러 기술) Decision 확정** — 사용자 pick 한 줄 → `progress/notes/adr-0007-option-diffs.md` §6~§7 에 따라 Critical path 즉시 진입.
-2. **BL-STAGING 해제** → 세션 96 실 staging 배포.
-3. **BL-VENDOR-KEY 해제** → 실 벤더 분포 캡처 (세션 88 D 후속) + BullMQ `attempts>1` 베이스라인 재캡처.
-4. **BL-DEPRECATION-POLICY 결정** → legacy v1.0.0~v1.2.0 `parameter_ids` 복제 (후보 C).
-5. **Runtime 전환 착수 승인** → 세션 97 Runtime Spike (ADR 0007 Accept + 리그 변경 범위 합의 선행).
-6. **v1.3.0→v1.4.0 리그 변경 범위 합의** → migrator 첫 external 확장.
+## 4. Foundation 기간의 미완료 항목 (β 에 **흡수**)
 
-**세션 127 자율 iteration 발동 시**: 저장소 상태 점검 → 외부 의존 블로커 해제 여부 재확인 → 해제된 것 있으면 해당 후보 진입, 없으면 **"소진 재확인" 초단 세션** (session doc 5~10 줄, header bump, push) + ScheduleWakeup 3600s (최대 대기). 반복 시마다 간격 상향 조정.
+기존 `progress_0420/PLAN.md` 의 후보들은 β phase 에 맵핑되거나 폐기된다:
 
----
+| 구 Foundation 후보 | β 처분 |
+|---|---|
+| 후보 F (Runtime 전환) | → **P1+P2+P3+P4 로 분해**. Runtime phase 단일 덩어리가 아니라 phase 별 점진 진입 |
+| 후보 I (Server Headless Renderer ADR) | → P6 이후로 연기 (β 는 클라이언트 렌더) |
+| 후보 J (renderer-observer) | → **폐기**. 실 렌더러 합류 후 필요 시점에 Grafana 축으로 흡수 |
+| legacy v1.0.0~v1.2.0 opt-in 복제 | → **폐기** (β 는 halfbody v1.3.0 1 종만) |
+| v1.3.0→v1.4.0 migrator | → P4 이후 판단 (β 는 v1.3.0 유지) |
+| Stage 6 (pivot) 후처리 | → 폐기 (β 는 Stage 1·3 까지만) |
+| 실 staging 배포 (구 세션 96) | → **P5 로 맵핑** |
+| 실 벤더 분포 캡처 (구 세션 88 D 후속) | → **P3-S4 로 맵핑** |
+| BullMQ attempts>1 실 베이스라인 | → P5 이후 (Runtime 검증 단계) |
 
-### 과거: 세션 124 — rig-template-lint 규칙 카탈로그 runbook 03
+## 5. 세션 운영 규칙 (β 모드)
 
-`progress/runbooks/03-rig-template-lint-rules.md` (신규, ~240 줄). `scripts/rig-template/rig-template-lint.mjs` 의 14 규칙 × 34 테스트를 세션 122/123 의 4-라인 패턴으로 색인(보장/실행/의존성/도입). 14 규칙 + sub-rule (C10×2, C13×7) = 23 블록 + FAMILY_OUTPUT_RULES 6 family 테이블 + CLI 옵션 + 테스트 매핑.
+1. **자율 loop 없음**. 모든 세션은 사용자 명시 지시 후 착수.
+2. 세션 id 는 phase+step 으로 부여: `P1-S1` / `P1-S2` / ... . 기존 "세션 128" 번호 시리즈는 Foundation 연대기로 동결.
+3. 브랜치는 phase 단위 feature branch 권장: `feat/p1-renderer-pixi`.
+4. 커밋 메시지: `feat(P<phase>-S<step>): <deliverable>` 또는 `fix(P<phase>): <issue>`.
+5. 각 phase 종료 시 본 PLAN §2 표 상태 ⚪→🟡 (진행중) →✅ (완료) 로 업데이트.
+6. phase 종료 기준은 `docs/ROADMAP-BETA.md §3` 의 해당 phase 검수 기준 **전부 green**. 부분 green 은 종료 아님.
+7. 카탈로그/runbook/색인 문서는 **phase 작업 중 발생한 실 도구 필요성에 한해서만** 추가. 사전 정리는 금지.
 
----
+## 6. 권위 관계
 
-### 과거: 세션 123 — 대안 (schema 카탈로그) schema/README.md 재작성
+```
+docs/PRODUCT-BETA.md       ← 제품 정의 (불변, β 범위 변경 시만 수정)
+docs/ROADMAP-BETA.md       ← 실행 로드맵 (phase 완료 시 상태 bump)
+progress_0420/PLAN.md      ← 본 문서 (세션 운영 뷰, 매 phase 종료 시 §2 갱신)
+progress_0420/INDEX.md     ← 현재 상태 요약 (매 phase 종료 시 §1 단계 cell 갱신)
+progress_0420/SUMMARY.md   ← Foundation 역사 (불변, β 완료 후 append-only 블록 추가)
+```
 
-`schema/v1/` 실측 (21 `.schema.json` + 1 `common/ids.json` = 22) 카탈로그. 기존 ASCII 트리를 7 그룹 × 4-라인 구조로 교체. placeholder 2 건 완전 제거 (style-profile, export-job — git log 에 이력 없음). 존재하지 않는 `schema/examples/` 디렉터리 언급 제거. 누락 8 스키마 추가. 검증 블록 갱신: `checked=244 failed=0` 실측 + golden step 1 pointer.
+## 7. 참조
 
----
-
-### 과거: 세션 122 — 대안 (a) golden step 카탈로그
-
-`progress/runbooks/02-golden-step-catalog.md` (신규, ~240 줄) 작성. `scripts/test-golden.mjs` STEPS 배열의 30 단계를 §1 schema (1) / §2 CLI 번들 골든 (3) / §3 패키지 단위 (16) / §4 스크립트·infra (8) / §5 앱 e2e (2) 5 분류 × 각 step 4-라인 고정 구조 (보장 / 실행 / 의존성 / 도입) 으로 색인. §6 운영 팁 (golden 드리프트 대응 / build 필수 패키지 / bullmq-integration lane / step 추가 규약) + §7 참고 문서 포함. 인접 드리프트 해소: INDEX §2 Platform 워크스트림 "CI 29 step" → "30 step", INDEX §1 "11 패키지 테스트 + 5 e2e" → 실측 분류 "16 + 2", scripts/README.md `checked=131` + "5-step 골든" stale 수치 갱신, runbook README 에 02 entry 추가.
-
----
-
-### 과거: 세션 121 — 대안 (b) progress_0420 메타 정합성 점검
-
-1. **패키지 카운트 off-by-one**: INDEX §1 "15 packages" → "14". 근본 원인 = 세션 89 에 합류한 `@geny/web-editor-logic` 이 당시 누적 카운트에 미반영 → 세션 111 이 "13→14" 로 기록(실제 12→13), 세션 114 가 "14→15" 로 기록(실제 13→14). Delta +1 는 매 세션 정확, 베이스만 틀림. SUMMARY §2 (세션 114 마일스톤) + SUMMARY §13 (세션 119 셀) 동일 수정, memory 요약 블록 재작성.
-2. **백엔드/인프라 카운트**: 세션 119 doc 내부 모순 (line 4/11 "10 패키지" vs line 120 "11") 이 memory 에 전파 → memory 재작성으로 "프론트엔드 4 + 백엔드/인프라 10" 확정. 세션 119 doc 원문은 역사 보존(수정 안 함).
-3. **테스트 수 드리프트 4 건** (SUMMARY §7.1 CI 골든 step): `ai-adapter-core 68→70` (+2) / `web-editor-logic 57→39` (-18, 통합) / `job-queue-bullmq 25→28` (+3) / `worker-generate 21→45` (+24). 실측 `grep -cE "^test\(|^\s+test\(|await t\.test\(" <pkg>/tests/**/*.test.{ts,mjs}` 로 검증.
-
-**정책**: 현재 상태 기술(claims) 만 수정. 세션 로그(`progress/sessions/*`) 는 "최후의 진실 공급원" 으로 역사 보존 — INDEX README 에 명시. 세션 120 D3 "LOC 수치는 참고용" 과 동일 원칙 (주장 파일과 원천 파일 분리).
-
-**실측 clean 항목**: golden 30 step / rig-template-lint C1~C14 · 34 tests / ADR 0001~0007 / web-avatar-renderer 21 tests / post-processing 111 tests / migrator 8 tests / apps 3 / services 1 / scripts 18 — 드리프트 없음.
-
-**자율 모드 결정 (세션 123)**: 문서 축(117~119) + 옵션 분석(120) + 메타 점검(121) + 색인(122) 까지 소진. self-contained 후보 **거의 없음**:
-
-- **후보 J (renderer-observer)**: 세션 117~122 이월. ROI 여전히 낮음 — 실 렌더러 합류 전엔 시그널 노이즈. 의견 필요.
-- **후보 I (Server Headless ADR)**: 사용자 의사 선행. 변동 없음.
-- **(잔여 색인 후보, 낮은 ROI)**: `docs/` 14 챕터 상호 참조 색인 / ADR 0001~0007 요약 카탈로그 / 세션 로그 인덱스 재정비. 모두 기존 문서 대비 중복 위험.
-
-**2순위 (사용자 합의 후에만)**:
-- **ADR 0007 Accept 커밋**: 사용자가 A/D/E 중 선택하면 Decision 채워서 Status Accepted 로 재커밋. 세션 120 노트 §7 의 공통 touch 8 항목 일괄 편집 + §6 의 선택 옵션 Critical path 세션 1 번 즉시 실행.
-- **세션 97 Runtime 착수 Spike**: ADR 확정 후. 세션 120 노트 §2 (A) / §5 (D) / §6 (E) 의 Critical path sequence 를 그대로 따라갈 수 있음.
-- **v1.3.0→v1.4.0 migrator**: 리그 변경 범위 합의 후.
-
-**선행 read** (세션 123 에서):
-- 세션 122 doc 의 §4 Decisions — 카탈로그 위치/구조 선택 근거.
-- `progress/runbooks/02-golden-step-catalog.md` — step 추가/삭제 시 업데이트 규약 (§6.4).
-- `progress/notes/adr-0007-option-diffs.md` — 사용자 pick 시 참조.
-
-**세션 124+ 예약 후보**:
-- Option A/E 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규). 세션 120 노트 §2.6 Critical path sequence A-1~A-5 참조.
-- Option D 확정 시: 자체 WebGL2 첫 Spike (`@geny/web-avatar-renderer-webgl2` 신규). 세션 120 노트 §5.6 Critical path sequence D-1~D-8 참조.
-- legacy opt-in 복제(후보 C)는 BL-DEPRECATION-POLICY 외부 대기 유지.
+- [`docs/PRODUCT-BETA.md`](../docs/PRODUCT-BETA.md) — β 제품 정의 9 검수 항목
+- [`docs/ROADMAP-BETA.md`](../docs/ROADMAP-BETA.md) — Phase P0~P6 상세
+- [`progress/adr/0007-renderer-technology.md`](../progress/adr/0007-renderer-technology.md) — 렌더러 Draft (Decision 대기)
+- [`progress/notes/adr-0007-option-diffs.md`](../progress/notes/adr-0007-option-diffs.md) — Option 별 코드 영향 예상
+- [`rig-templates/README.md`](../rig-templates/README.md) — 템플릿 5 종 (β 는 halfbody v1.3.0 고정)

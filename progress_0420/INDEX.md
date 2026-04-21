@@ -23,14 +23,14 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, 세션 127 직후)
+## 1. 현재 상태 (2026-04-21, 세션 128 직후 — **β 로드맵 모드 전환**)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 + golden step 카탈로그 + schema/README 22 스키마 실측 카탈로그 + rig-template-lint C1~C14 규칙 카탈로그 + rig-templates/README 5 템플릿 실측 카탈로그 + **세션 126 자율 후보 완전 소진 공식 기록** (문서·색인 축 6 연속 120→125, 내부 진입 가능 후보 0, ADR 0007 리뷰 / 외부 블로커 해제 / 사용자 지시 대기) |
+| **단계** | **β 로드맵 모드 진입 대기** (Foundation ✅ 종료) | 세션 128 에서 사용자 지시로 β 모드 전환 — 권위 문서 `docs/PRODUCT-BETA.md` + `docs/ROADMAP-BETA.md` 신설, `PLAN.md` 재작성. 다음 진입은 P0-S1 (UX wireframe) 사용자 지시 대기. 자율 모드 OFF. |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 127 (2026-04-17~04-21, 5일) | 자율 모드 (세션 127 = 소진 재확인, 외부 블로커 6 축 무변화) |
+| **누적 세션** | 128 (2026-04-17~04-21, 5일) | Foundation 연대기 1~127 동결. 128 에서 β 모드 전환. 이후 세션은 phase+step ID (`P0-S1` / `P1-S1`...) |
 | **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 에서 14 패키지 README 문서 축 완결 (프론트엔드 4 + 백엔드/인프라 10). 세션 120 은 코드 변경 없음 (ADR 0007 Option 별 diff 노트 — `progress/notes/adr-0007-option-diffs.md`). 세션 121 에서 "15" 드리프트 해소 — 세션 111/114 doc 의 "13→14" / "14→15" 표기가 실제 +1 변화량은 맞았으나 베이스가 12/13 이었음 (세션 89 에 들어온 `web-editor-logic` 을 당시 누적 카운트에서 빠뜨려 1 밀림) |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (schema 1 + CLI 번들 3 + 패키지 16 + 스크립트·infra 8 + 앱 e2e 2) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가. 세션 122 `progress/runbooks/02-golden-step-catalog.md` 로 30 step 의 보장·의존성·도입 색인 고정 |
@@ -71,24 +71,37 @@
 
 ---
 
-## 4. 다음 세션 진입점 (세션 127 후보)
+## 4. 다음 세션 진입점 (β 로드맵 모드)
 
-진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 120 ADR 0007 Option diff + 121 메타 점검 + 122 golden 색인 + 123 schema 카탈로그 + 124 lint 규칙 카탈로그 + 125 rig-templates 카탈로그 + **126 소진 선언 minimal 세션** 로 자율 모드 진입 가능 후보 0 공식 기록. 세션 127 자율 iteration 발동 시: (1) 외부 블로커 해제 여부 재확인(ADR 0007 Decision / BL-STAGING / BL-VENDOR-KEY / BL-DEPRECATION-POLICY / Runtime 승인 / migrator v1.4.0 리그 변경 합의) → 해제된 것 있으면 해당 후보 진입, (2) 없으면 "소진 재확인" 초단 세션 (session doc 5~10 줄 + header bump + push) + ScheduleWakeup 3600s.
+**권위 문서 이동**: 진입점 우선순위는 이제 [`docs/ROADMAP-BETA.md §3`](../docs/ROADMAP-BETA.md) + [`PLAN.md §2·§3`](./PLAN.md) 이 권위. 본 §4 는 요약만 유지.
 
-**보존 루트 진입점 (ADR 0007 리뷰 대기 중)**:
+**현재 진입 대기**:
 
-1. **세션 113 후보 — v1.3.0→v1.4.0 migrator**: 세션 111 skeleton 의 첫 external 확장. `src/migrations/v1-3-0-to-v1-4-0.ts` append + 대상 파츠 결정 필요. 리그 변경 범위가 사전 합의되면 진입. self-contained 폭이 좁고, 저작 스코프 결정(외부) 필요.
-2. **세션 97 (Runtime 본격 착수)**: Cubism/WebGL 렌더러 합류 — 큰 세션, 별도 워크스페이스 (`@geny/web-avatar-runtime` 또는 web-editor-renderer 확장). Foundation Exit 4/4 + 릴리스 게이트 3/3 + lint 14 + migrator 인프라가 모두 들어선 지금이 자연 진입점. ADR 0007 (렌더러 기술) 선행.
-3. **legacy v1.0.0~v1.2.0 opt-in 복제** — docs/03 §7.3 deprecation 정책(외부) + 세션 111 (b 해소 완료) + Runtime 소비자(세션 97).
-4. **세션 96 (staging 배포)**: cluster access 확보 시 — 외부 의존 블록.
+| Phase | 착수 조건 | 내용 |
+|---|---|---|
+| **P0** UX wireframe (1 세션) | 사용자 "P0 진행" 지시 | web-editor 에 프롬프트 입력 + Generate 버튼 + 진행 UI 와이어프레임 md |
+| **P1** 실 픽셀 렌더 (3~5 세션) | ADR 0007 Accepted | `@geny/web-avatar-renderer-pixi` + 실제 `<canvas>` 픽셀 |
+| **P2** 프롬프트 UI + Mock e2e | P1 완료 | Generate 패널 + orchestrator HTTP + Mock 벤더 end-to-end |
+| **P3** 실 nano-banana | P2 + BL-VENDOR-KEY | 실 HTTPS POST + 비용/지연 실측 + 1-hop fallback |
+| **P4** 5 슬롯 자동 조립 | P3 완료 | texture-orchestrator 패키지 + atlas 자동화 |
+| **P5** staging 배포 | P4 + BL-STAGING | `beta.geny.ai` + 실 관측 스크레이프 |
+| **P6** β 오픈 | P5 완료 | `PRODUCT-BETA §7` 6 지표 목표 달성 |
 
-자율 모드에선 외부 의존이 없는 범위에서 후보 1 (migrator v1.3.0→v1.4.0) 을 우선 탐색하되, 리그 변경 범위가 미정이면 후보 2 의 ADR 0007 초안을 먼저 쓰는 게 대안.
+**외부 블로커 3 축** (사용자/운영 해제 대기):
+1. **ADR 0007 Decision** — Option E 하이브리드 권장 (PixiJS primary + 자체 미니 Cubism 선택)
+2. **BL-VENDOR-KEY** — GCP 프로젝트 + Gemini API 키 + quota
+3. **BL-STAGING** — K8s cluster + kubeconfig + DNS (`beta.geny.ai`) + TLS
+
+Foundation 연대기 진입점(migrator v1.4.0 / Stage 6 / legacy opt-in / renderer-observer)은 **β phase 에 흡수 또는 폐기** — 매핑 표는 [`PLAN.md §4`](./PLAN.md) 참조.
 
 ---
 
-## 5. 자율 운영 규칙
+## 5. 세션 운영 규칙 (β 모드)
 
-- 사용자 지시: "지시 전까지 세션을 이어 진행하고 매 세션 커밋 후 push" (auto-memory `feedback_autonomous_sessions.md`).
-- **세션 종료 절차**: (1) 변경 + 검증 → (2) `progress/sessions/` 에 세션 doc 작성 → (3) 본 `progress_0420/INDEX.md`/`PLAN.md` 갱신 → (4) commit + push → (5) ScheduleWakeup 다음 iteration.
-- 세션 번호는 `progress/sessions/YYYY-MM-DD-session-NN-slug.md` 규칙 유지 (현재 109 부터 시작).
-- 세션 doc 템플릿: [`progress/SESSION_TEMPLATE.md`](../progress/SESSION_TEMPLATE.md).
+- **자율 loop OFF** (세션 127 종료). 모든 세션은 사용자 명시 지시로 착수.
+- 세션 id 는 phase+step: `P1-S1` / `P1-S2` / ... . Foundation "세션 NN" 번호(1~128)는 연대기로 동결.
+- 브랜치: phase 단위 feature branch 권장 (`feat/p1-renderer-pixi`).
+- 커밋 메시지: `feat(P<phase>-S<step>): <deliverable>` 또는 `fix(P<phase>): <issue>`.
+- 세션 doc 경로: `progress/sessions/YYYY-MM-DD-P<phase>-S<step>-<slug>.md`.
+- Phase 종료 시 본 `INDEX.md §1` + [`PLAN.md §2`](./PLAN.md) 상태 bump (⚪→🟡→✅).
+- Foundation 카탈로그/runbook/색인 사전 정리 금지 — 실 도구 필요 발생 시만 추가.
