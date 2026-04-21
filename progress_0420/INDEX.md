@@ -1,6 +1,6 @@
 # progress_0420 — 진척 정리 (2026-04-20 스냅샷)
 
-이 폴더는 세션 1~118 누적 결과를 **읽을 수 있는 크기로** 재정리한 스냅샷이다. 기존 `progress/` 는 한 줄당 수천 토큰까지 부풀어 작업 진입에 부담이 됐다 — 본 폴더는 정밀도를 유지하면서 항해 가능성을 회복한다.
+이 폴더는 세션 1~119 누적 결과를 **읽을 수 있는 크기로** 재정리한 스냅샷이다. 기존 `progress/` 는 한 줄당 수천 토큰까지 부풀어 작업 진입에 부담이 됐다 — 본 폴더는 정밀도를 유지하면서 항해 가능성을 회복한다.
 
 ---
 
@@ -23,15 +23,15 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, 세션 118 직후)
+## 1. 현재 상태 (2026-04-21, 세션 119 직후)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + 프론트엔드 4 패키지 README 완결 |
+| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 15 패키지 README 축 완결 |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 118 (2026-04-17~04-21, 5일) | 자율 모드 |
-| **누적 패키지** | **15** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 118 인접 프론트엔드 패키지 3 개(`@geny/web-editor-logic` 신규 · `-editor-renderer` 신규 · `web-avatar` 갱신) README 점검으로 프론트엔드 4 패키지 문서 축 완결 |
+| **누적 세션** | 119 (2026-04-17~04-21, 5일) | 자율 모드 |
+| **누적 패키지** | **15** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 나머지 10 패키지 README triage — `job-queue-bullmq` 신규 + `post-processing` 재작성 (세션 32/35 미반영 해소), 8 패키지 FRESH 판정 skip. 프론트엔드 4 + 백엔드/인프라 11 = **15 패키지 문서 축 완결** |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (validate-schemas checked=244 + 11 패키지 테스트 + 5 e2e) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가 (halfbody+fullbody 각각 ready→parameterchange→destroy 3-event 스트림 고정) |
 | **rig-template-lint rules** | **C1~C14** (meta/dict/params/vertex/cubism-map/family/parts↔params/deformers↔params/tree/parts↔deformers) | 34 테스트 케이스. 세션 112 C14 로 `parts↔parameters↔deformers` 사각형 완결 |
@@ -49,7 +49,7 @@
 | **UX (web-editor)** | 에디터 뼈대 | 🟡 3-column 레이아웃 + halfbody/fullbody 템플릿 스위처 + 파츠 사이드바 + Inspector(parameters/motions/expressions 패널) + SVG 구조 렌더러 + 파츠↔하이라이트 양방향 + 파츠-파라미터 뷰 필터. Save/History 는 Runtime. |
 | **Platform / Infra** | K8s + CI/CD + 관측 | 🟢 CI 29 step + bullmq-integration lane + Prometheus/Grafana Helm chart + 4단 관측 방어망 (smoke/snapshot/e2e/fallback) + 보안스캔(gitleaks) + 성능 SLO 하네스 + 온콜 런북 + rig-template-lint 14 rules (C14 세션 112 `parts↔deformers`). 실 staging 배포만 외부 의존 대기. |
 | **Data** | Postgres/S3/Redis + 스키마 | 🟡 JSON Schema 22종 + Ed25519 license 검증 + adapter/palette 카탈로그. DB/S3 미착수 (Runtime). |
-| **Pipeline** | 단일 아바타 DAG | 🟢 exporter-core v0.6.0 + exporter-pipeline + orchestrator-service + worker-generate + job-queue-bullmq + **@geny/migrator (세션 111)**. ADR 0005 L1~L4 게이트 활성. halfbody v1.2.0/v1.3.0 + fullbody v1.0.0 sha256 골든 고정. |
+| **Pipeline** | 단일 아바타 DAG | 🟢 exporter-core v0.6.0 + exporter-pipeline + orchestrator-service + worker-generate + job-queue-bullmq + **@geny/migrator (세션 111)**. ADR 0005 L1~L4 게이트 활성. halfbody v1.2.0/v1.3.0 + fullbody v1.0.0 sha256 골든 고정. 세션 119 `job-queue-bullmq` README 신규 + `post-processing` README 재작성 (Stage 1 세션 35 + §6.4/§6.5 세션 32 반영). |
 | **Frontend** | 에디터 기본 레이아웃 | 🟢 `<geny-avatar>` 커스텀 엘리먼트 (ready/error/parameterchange/motionstart/expressionchange) + happy-dom 라이프사이클 회귀 + setParameter write-through. 세션 114 `@geny/web-avatar-renderer` 계약 패키지 선행 분리 + 세션 115 Null/Logging 구현체 (테스트 더블, dev/debug) + 세션 116 web-editor `?debug=logger` wire-through (첫 consumer 경로) + 세션 117 계약 패키지 README + 세션 118 인접 3 패키지 README (`@geny/web-editor-logic` · `-editor-renderer` · `web-avatar`). 실 Cubism/WebGL 렌더러는 Runtime. |
 
 🟢 = Foundation 목표 충족 / 🟡 = 진행중·일부만 / 🔴 = 블록 / ⚪ = 미착수
