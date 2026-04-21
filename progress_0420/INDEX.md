@@ -1,6 +1,6 @@
 # progress_0420 — 진척 정리 (2026-04-20 스냅샷)
 
-이 폴더는 세션 1~120 누적 결과를 **읽을 수 있는 크기로** 재정리한 스냅샷이다. 기존 `progress/` 는 한 줄당 수천 토큰까지 부풀어 작업 진입에 부담이 됐다 — 본 폴더는 정밀도를 유지하면서 항해 가능성을 회복한다.
+이 폴더는 세션 1~121 누적 결과를 **읽을 수 있는 크기로** 재정리한 스냅샷이다. 기존 `progress/` 는 한 줄당 수천 토큰까지 부풀어 작업 진입에 부담이 됐다 — 본 폴더는 정밀도를 유지하면서 항해 가능성을 회복한다.
 
 ---
 
@@ -23,15 +23,15 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, 세션 120 직후)
+## 1. 현재 상태 (2026-04-21, 세션 121 직후)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 15 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 |
+| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 120 (2026-04-17~04-21, 5일) | 자율 모드 |
-| **누적 패키지** | **15** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 에서 15 패키지 README 문서 축 완결. 세션 120 은 코드 변경 없음 (ADR 0007 Option 별 diff 노트 — `progress/notes/adr-0007-option-diffs.md`) |
+| **누적 세션** | 121 (2026-04-17~04-21, 5일) | 자율 모드 |
+| **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 에서 14 패키지 README 문서 축 완결 (프론트엔드 4 + 백엔드/인프라 10). 세션 120 은 코드 변경 없음 (ADR 0007 Option 별 diff 노트 — `progress/notes/adr-0007-option-diffs.md`). 세션 121 에서 "15" 드리프트 해소 — 세션 111/114 doc 의 "13→14" / "14→15" 표기가 실제 +1 변화량은 맞았으나 베이스가 12/13 이었음 (세션 89 에 들어온 `web-editor-logic` 을 당시 누적 카운트에서 빠뜨려 1 밀림) |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (validate-schemas checked=244 + 11 패키지 테스트 + 5 e2e) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가 (halfbody+fullbody 각각 ready→parameterchange→destroy 3-event 스트림 고정) |
 | **rig-template-lint rules** | **C1~C14** (meta/dict/params/vertex/cubism-map/family/parts↔params/deformers↔params/tree/parts↔deformers) | 34 테스트 케이스. 세션 112 C14 로 `parts↔parameters↔deformers` 사각형 완결 |
@@ -70,9 +70,9 @@
 
 ---
 
-## 4. 다음 세션 진입점 (세션 121 후보)
+## 4. 다음 세션 진입점 (세션 122 후보)
 
-진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 세션 120 ADR 0007 Option diff 노트 로 **문서·분석 축 소진**. 세션 121 자율 후보: (a) golden step runbook / CI step 가독성 정리 / (b) progress_0420 메타 정합성 점검 / (c) 후보 J renderer-observer (ROI 낮음) / 후보 I 보류 (사용자 의사 선행).
+진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 세션 120 ADR 0007 Option diff 노트 + 세션 121 메타 정합성 점검 으로 **문서·분석·검증 축 소진**. 세션 122 자율 후보: (a) golden step runbook / CI step 가독성 정리 (세션 121 미진입, 우선 권장) / 후보 J renderer-observer (ROI 낮음, 이월) / 후보 I 보류 (사용자 의사 선행).
 
 **보존 루트 진입점 (ADR 0007 리뷰 대기 중)**:
 

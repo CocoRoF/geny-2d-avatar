@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 121+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 122+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -105,14 +105,13 @@
   세션 118 = 후보 L (인접 프론트엔드 3 패키지 README) ✅ web-editor-logic/-renderer 신규 + web-avatar 갱신
   세션 119 = 후보 M (나머지 10 패키지 README triage)    ✅ job-queue-bullmq 신규 + post-processing 재작성, 8 FRESH skip
   세션 120 = 대안 (c) (ADR 0007 Option 별 코드 영향 범위 예상 diff 노트)  ✅ progress/notes/adr-0007-option-diffs.md 신규 (278 줄)
+  세션 121 = 대안 (b) (progress_0420 메타 정합성 점검)                     ✅ 패키지 카운트 15→14 드리프트 해소 + 테스트 수 4 패키지 드리프트 해소 (ai-adapter-core/web-editor-logic/job-queue-bullmq/worker-generate). doc-only, 코드 변경 0
 
-[자율 모드 후속 후보 — ADR 0007 Decision 불변 영역 (문서 축 + 옵션 분석 완결)]
-  세션 121 = (대안 a) golden step runbook / CI step 가독성 정리 — 30 step 의 설명·의도를
+[자율 모드 후속 후보 — ADR 0007 Decision 불변 영역 (문서 축 + 옵션 분석 + 메타 점검 완결)]
+  세션 122 = (대안 a) golden step runbook / CI step 가독성 정리 — 30 step 의 설명·의도를
             `progress/runbooks/` 또는 `scripts/README.md` 에 정리. 자율 가능, 외부 의존 없음.
-  세션 121 = (대안 b) progress_0420/ 자체 메타 정합성 점검 — 세션 번호 / 테스트 수 /
-            패키지 수 카운트가 SUMMARY/INDEX/PLAN 사이 어긋나지 않는지 교차 검증.
-  세션 121 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행 (변동 없음).
-  세션 121 = (후보, 신중 판단, 세션 117~120 이월) renderer-observer (가칭) — ROI 낮음, 의견 필요.
+  세션 122 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행 (변동 없음).
+  세션 122 = (후보, 신중 판단, 세션 117~121 이월) renderer-observer (가칭) — ROI 낮음, 의견 필요.
 
 [사용자 의사 확정 후]
   세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
@@ -185,15 +184,22 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 121)
+## 7. 다음 즉시 행동 (세션 122)
 
-세션 120 에서 **대안 (c) ADR 0007 Option 별 코드 영향 범위 예상 diff 노트** 작성 — `progress/notes/adr-0007-option-diffs.md` (278 줄, §0~§11). 5 옵션(A Pixi / B Three / C Cubism Viewer / D 자체 WebGL2 / E 하이브리드) 각각 (1) 신규 패키지, (2) 기존 파일 touch list, (3) golden step 변경, (4) 런타임/타입 계약 BC, (5) 리스크, (6) Critical path sequence 기록. 공통 기반 (§1, 세션 114~116 산출물) · 옵션 간 공통 touch (§7, 8 항목) · Open Questions 영향 (§8, 4 질문 × 5 옵션) 분리. 코드 변경 0, 테스트 영향 0, 골든 영향 0 (doc-only). 사용자 pick 후 즉시 Spike 진입 경로 닫힘.
+세션 121 에서 **대안 (b) progress_0420 메타 정합성 점검** 수행 — `progress_0420/{INDEX,SUMMARY}.md` + `memory/project_foundation_state.md` 의 현재 상태 기술(claims) 에서 드리프트 6 건 해소:
 
-**자율 모드 결정 (세션 121)**: 문서 축(117~119) + 옵션 분석(120) 까지 소진. self-contained 여지 매우 얇음:
+1. **패키지 카운트 off-by-one**: INDEX §1 "15 packages" → "14". 근본 원인 = 세션 89 에 합류한 `@geny/web-editor-logic` 이 당시 누적 카운트에 미반영 → 세션 111 이 "13→14" 로 기록(실제 12→13), 세션 114 가 "14→15" 로 기록(실제 13→14). Delta +1 는 매 세션 정확, 베이스만 틀림. SUMMARY §2 (세션 114 마일스톤) + SUMMARY §13 (세션 119 셀) 동일 수정, memory 요약 블록 재작성.
+2. **백엔드/인프라 카운트**: 세션 119 doc 내부 모순 (line 4/11 "10 패키지" vs line 120 "11") 이 memory 에 전파 → memory 재작성으로 "프론트엔드 4 + 백엔드/인프라 10" 확정. 세션 119 doc 원문은 역사 보존(수정 안 함).
+3. **테스트 수 드리프트 4 건** (SUMMARY §7.1 CI 골든 step): `ai-adapter-core 68→70` (+2) / `web-editor-logic 57→39` (-18, 통합) / `job-queue-bullmq 25→28` (+3) / `worker-generate 21→45` (+24). 실측 `grep -cE "^test\(|^\s+test\(|await t\.test\(" <pkg>/tests/**/*.test.{ts,mjs}` 로 검증.
 
-- **대안 (a) golden step runbook** (권장): 30 step 의 설명·의도를 `progress/runbooks/` 또는 `scripts/README.md` 에 정리. 각 step 이 "무엇을 보장하는지" 를 1~2 문장으로 색인화. Foundation → Runtime 전환 시 step 재배치 기준이 될 참조 문서. 외부 의존 0.
-- **대안 (b) progress_0420 메타 정합성** (권장): INDEX/SUMMARY/PLAN 사이 세션 번호·테스트 수·패키지 수 카운트 교차 검증. 자율 누적으로 생긴 drift 여부 확인. 외부 의존 0.
-- **후보 J (renderer-observer)**: 세션 117~120 이월. ROI 여전히 낮음 — 실 렌더러 합류 전엔 시그널 노이즈. 의견 필요.
+**정책**: 현재 상태 기술(claims) 만 수정. 세션 로그(`progress/sessions/*`) 는 "최후의 진실 공급원" 으로 역사 보존 — INDEX README 에 명시. 세션 120 D3 "LOC 수치는 참고용" 과 동일 원칙 (주장 파일과 원천 파일 분리).
+
+**실측 clean 항목**: golden 30 step / rig-template-lint C1~C14 · 34 tests / ADR 0001~0007 / web-avatar-renderer 21 tests / post-processing 111 tests / migrator 8 tests / apps 3 / services 1 / scripts 18 — 드리프트 없음.
+
+**자율 모드 결정 (세션 122)**: 문서 축(117~119) + 옵션 분석(120) + 메타 점검(121) 까지 소진. self-contained 여지 매우 얇음:
+
+- **대안 (a) golden step runbook** (세션 121 미진입 → 세션 122 권장): 30 step 의 설명·의도를 `progress/runbooks/` 또는 `scripts/README.md` 에 정리. 각 step 이 "무엇을 보장하는지" 를 1~2 문장으로 색인화. Foundation → Runtime 전환 시 step 재배치 기준이 될 참조 문서. 외부 의존 0.
+- **후보 J (renderer-observer)**: 세션 117~121 이월. ROI 여전히 낮음 — 실 렌더러 합류 전엔 시그널 노이즈. 의견 필요.
 - **후보 I (Server Headless ADR)**: 사용자 의사 선행. 변동 없음.
 
 **2순위 (사용자 합의 후에만)**:
@@ -201,11 +207,11 @@
 - **세션 97 Runtime 착수 Spike**: ADR 확정 후. 세션 120 노트 §2 (A) / §5 (D) / §6 (E) 의 Critical path sequence 를 그대로 따라갈 수 있음.
 - **v1.3.0→v1.4.0 migrator**: 리그 변경 범위 합의 후.
 
-**선행 read** (세션 121 에서):
-- 세션 120 doc 의 §7 "다음 세션 제안" — 대안 (a)/(b) 선택 근거.
+**선행 read** (세션 122 에서):
+- 세션 121 doc 의 §4 Decisions — 드리프트 수정 경계(현재 상태 claims 만, 세션 로그 보존) 근거.
 - `progress/notes/adr-0007-option-diffs.md` — 사용자 pick 시 참조.
 
-**세션 122+ 예약 후보**:
+**세션 123+ 예약 후보**:
 - Option A/E 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규). 세션 120 노트 §2.6 Critical path sequence A-1~A-5 참조.
 - Option D 확정 시: 자체 WebGL2 첫 Spike (`@geny/web-avatar-renderer-webgl2` 신규). 세션 120 노트 §5.6 Critical path sequence D-1~D-8 참조.
 - legacy opt-in 복제(후보 C)는 BL-DEPRECATION-POLICY 외부 대기 유지.
