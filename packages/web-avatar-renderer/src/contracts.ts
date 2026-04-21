@@ -36,11 +36,45 @@ export interface RendererBundleMeta {
 }
 
 /**
- * `<geny-avatar>` 의 `ready` CustomEvent detail. 렌더러는 `detail.bundle.meta` 만
- * 읽고 나머지는 무시 — 미래 번들 확장이 렌더러를 깨지 않게.
+ * atlas.json 의 slot UV 엔트리 — 렌더러가 part 배치에 직접 쓰는 축소 표현.
+ * β P1-S2 에서 도입. uv 는 `[x, y, w, h]` 정규화 좌표(0~1).
+ */
+export interface RendererAtlasSlot {
+  readonly slot_id: string;
+  readonly texture_path: string;
+  readonly uv: readonly [number, number, number, number];
+}
+
+/**
+ * atlas.json 의 텍스처 메타 — path 는 bundleUrl 기준 상대 경로.
+ */
+export interface RendererAtlasTexture {
+  readonly path: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * `<geny-avatar>` 가 이미 해석한 atlas.json. β P1-S2 이전엔 duck-typed 로만 접근했고,
+ * 지금은 pixi 렌더러가 slot/texture 를 직접 쓰므로 명시 계약.
+ */
+export interface RendererAtlas {
+  readonly textures: readonly RendererAtlasTexture[];
+  readonly slots: readonly RendererAtlasSlot[];
+}
+
+/**
+ * `<geny-avatar>` 의 `ready` CustomEvent detail. 렌더러는 `detail.bundle.meta` 를
+ * 기본 축으로 읽고, atlas 구동 렌더러 (β P1-S2 pixi) 는 `bundle.atlas` + `bundle.bundleUrl`
+ * 를 추가 사용. 두 field 모두 optional — atlas 가 없거나 URL 기반 resolve 가 필요 없는
+ * 렌더러는 무시하면 된다.
  */
 export interface RendererReadyEventDetail {
-  readonly bundle: { readonly meta: RendererBundleMeta };
+  readonly bundle: {
+    readonly meta: RendererBundleMeta;
+    readonly atlas?: RendererAtlas | null;
+    readonly bundleUrl?: string;
+  };
 }
 
 /**
@@ -58,7 +92,13 @@ export interface RendererParameterChangeEventDetail {
  * build 로 catch-up 할 수 있게 (renderer.ts 의 late-attach 경로, 세션 91).
  */
 export interface RendererHost extends EventTarget {
-  readonly bundle?: { readonly meta: RendererBundleMeta } | null;
+  readonly bundle?:
+    | {
+        readonly meta: RendererBundleMeta;
+        readonly atlas?: RendererAtlas | null;
+        readonly bundleUrl?: string;
+      }
+    | null;
 }
 
 /**

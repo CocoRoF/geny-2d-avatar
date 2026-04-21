@@ -7,6 +7,9 @@ export {
   type RendererReadyEventDetail,
   type RendererParameterChangeEventDetail,
   type RendererHost,
+  type RendererAtlas,
+  type RendererAtlasSlot,
+  type RendererAtlasTexture,
 } from "./contracts.js";
 
 export {

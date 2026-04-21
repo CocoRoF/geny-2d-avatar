@@ -7,7 +7,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
 import { loadTemplate } from "../src/loader.js";
-import { assembleWebAvatarBundle } from "../src/web-avatar-bundle.js";
+import {
+  assembleWebAvatarBundle,
+  deriveSlotsFromSpecs,
+  deriveAtlasFromTemplate,
+} from "../src/web-avatar-bundle.js";
 import { snapshotBundle } from "../src/bundle.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -262,6 +266,86 @@ test("assembleWebAvatarBundle: fullbody v1.0.0 web-avatar.json byte-for-byte + p
     const withIds = parts.filter((p) => Array.isArray(p.parameter_ids)).length;
     assert.equal(parts.length, 38, "fullbody v1.0.0 = 38 parts");
     assert.equal(withIds, 27, "fullbody v1.0.0 opt-in 27 parts (세션 101 Face 14 + 세션 102 비-Face 11 + 세션 107 ahoge 1 + acc_belt 1)");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("deriveSlotsFromSpecs: canvas_px + uv_box_px 있는 spec 만 정규화 UV 로 변환 (P1-S2)", () => {
+  const slots = deriveSlotsFromSpecs(
+    {
+      ahoge: {
+        schema_version: "v1",
+        slot_id: "ahoge",
+        role: "hair",
+        cubism_part_id: "PartAhoge",
+        canvas_px: { w: 2048, h: 2048 },
+        uv_box_px: { x: 864, y: 32, w: 320, h: 240 },
+      },
+      no_atlas: {
+        schema_version: "v1",
+        slot_id: "no_atlas",
+        role: "hair",
+        cubism_part_id: "PartNoAtlas",
+      },
+      invalid: {
+        schema_version: "v1",
+        slot_id: "invalid",
+        role: "hair",
+        cubism_part_id: "PartInvalid",
+        canvas_px: { w: 0, h: 2048 },
+        uv_box_px: { x: 0, y: 0, w: 100, h: 100 },
+      },
+    },
+    "textures/base.png",
+  );
+  assert.equal(slots.length, 1, "only ahoge has valid fields");
+  assert.equal(slots[0]!.slot_id, "ahoge");
+  assert.equal(slots[0]!.texture_path, "textures/base.png");
+  assert.deepEqual(slots[0]!.uv, [864 / 2048, 32 / 2048, 320 / 2048, 240 / 2048]);
+});
+
+test("deriveAtlasFromTemplate: halfbody v1.3.0 → 30 slots 정규화", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
+  const atlas = deriveAtlasFromTemplate(tpl);
+  assert.ok(atlas, "derived atlas must exist");
+  assert.equal(atlas.schema_version, "v1");
+  assert.equal(atlas.format, 1);
+  assert.equal(atlas.textures.length, 1);
+  assert.equal(atlas.textures[0]!.path, "textures/base.png");
+  assert.equal(atlas.slots.length, 30, "halfbody v1.3.0 has 30 parts");
+  const slotIds = atlas.slots.map((s) => s.slot_id);
+  const sortedIds = [...slotIds].sort();
+  assert.deepEqual(slotIds, sortedIds, "slots sorted by slot_id");
+  for (const slot of atlas.slots) {
+    assert.equal(slot.uv.length, 4);
+    for (const v of slot.uv) {
+      assert.ok(v >= 0 && v <= 1, `uv ${v} in [0,1]`);
+    }
+  }
+});
+
+test("deriveAtlasFromTemplate: fullbody v1.0.0 → 38 slots", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/fullbody/v1.0.0"));
+  const atlas = deriveAtlasFromTemplate(tpl);
+  assert.ok(atlas, "derived atlas must exist");
+  assert.equal(atlas.slots.length, 38);
+});
+
+test("assembleWebAvatarBundle: atlasOverride 가 template.atlas 를 대체 + 정규화 slots 직렬화 (P1-S2)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
+  const derived = deriveAtlasFromTemplate(tpl);
+  assert.ok(derived);
+  const dir = scratch();
+  try {
+    assembleWebAvatarBundle(tpl, dir, { atlasOverride: derived });
+    const atlas = JSON.parse(readFileSync(join(dir, "atlas.json"), "utf8")) as {
+      slots: Array<{ slot_id: string; uv: number[] }>;
+    };
+    assert.equal(atlas.slots.length, 30);
+    const ahoge = atlas.slots.find((s) => s.slot_id === "ahoge");
+    assert.ok(ahoge);
+    assert.deepEqual(ahoge.uv, [864 / 2048, 32 / 2048, 320 / 2048, 240 / 2048]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

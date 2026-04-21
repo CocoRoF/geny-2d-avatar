@@ -6,6 +6,8 @@ export {
   type CreatePixiApp,
   type CreatePixiAppOptions,
   type PixiAppHandle,
+  type PixiSceneInput,
+  type RegenerateInput,
 } from "./pixi-renderer.js";
 
 export {

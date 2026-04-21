@@ -91,7 +91,11 @@ export type {
   WebAvatarPhysicsSummary,
   ConvertWebAvatarOptions,
 } from "./converters/web-avatar.js";
-export { assembleWebAvatarBundle } from "./web-avatar-bundle.js";
+export {
+  assembleWebAvatarBundle,
+  deriveSlotsFromSpecs,
+  deriveAtlasFromTemplate,
+} from "./web-avatar-bundle.js";
 export type {
   WebAvatarBundleManifestJson,
   AssembleWebAvatarBundleOptions,

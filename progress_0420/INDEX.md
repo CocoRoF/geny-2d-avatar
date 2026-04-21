@@ -23,15 +23,15 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, P1-S1 직후 — **β Phase P1 🟡 · PixiJS 렌더러 scaffold 합류**)
+## 1. 현재 상태 (2026-04-21, P1-S2 + P2-S1 직후 — **β Phase P1 🟢 실질 완료 · P2 🟡 Mock e2e 수직 슬라이스 작동**)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | **β Phase P1 🟡 (S1 완료 · S2+ 진행)** (Foundation ✅ 종료, P0 UX wireframe 산출물 완료 · Q1~Q6 사용자 승인은 비차단 대기) | P1-S1 (2026-04-21) — ADR 0007 **Option E Accepted**. `packages/web-avatar-renderer-pixi/` 신설 (PixiJS v8 MIT, 15 tests pass). `apps/web-editor/?renderer=pixi` dynamic import 경로 + pixi.js ESM 번들 vendored + importmap. SVG 구조 프리뷰는 interaction 전담으로 유지 (Consequences §공통 준수). 다음: P1-S2 실 atlas 슬롯 populate 시 `PIXI.Sprite` 교체 (`atlasUvToFrame` unit tested). |
+| **단계** | **β Phase P1 🟢 (S1+S2 완료) + P2 🟡 (S1 완료)** (Foundation ✅ 종료, P0 UX wireframe 산출물 완료 · Q1~Q6 사용자 승인은 비차단 대기) | P1-S2+P2-S1 (2026-04-21) — **실 비즈니스 수직 슬라이스 개통**. `deriveAtlasFromTemplate` 가 PartSpec `canvas_px`+`uv_box_px` 에서 halfbody 30 / fullbody 38 slot UV 를 정규화 파생 (v1.2.0 goldens 보존 위해 `atlasOverride` opt-in). `@geny/web-avatar-renderer` contract 가 `RendererReadyEventDetail.bundle.{atlas, bundleUrl}` optional 로 확장. pixi 렌더러가 `pixi.Assets.load` + `new PIXI.Texture({ source, frame })` + `new PIXI.Sprite` 로 **실 텍스처 sprite** 렌더 (atlas 없으면 기존 hash-color grid 로 graceful fallback). `PixiRenderer.regenerate({ atlas, textureUrl })` 메서드로 ready 재-dispatch 없이 live swap (parameter state 보존). web-editor 에 Generate bar + 5-pill 진행 표시 + 브라우저-로컬 Mock 생성기 (`mockGenerateTexture(prompt, atlas)` — 2048² canvas 에 hash(prompt+slot_id) 기반 HSL radial-gradient + slot 레이블 + `toBlob` → blob URL). Enter 키 / 버튼 양쪽 작동 + 이전 blob URL `revokeObjectURL`. Mock 은 Mock — 실 이미지는 β P3 (BL-VENDOR-KEY) 에서 대체, 본 세션은 **prompt → hash → canvas → atlas → pixi → 픽셀** 파이프라인 live 를 end-to-end 로 증명. P1-S1 (2026-04-21) — ADR 0007 **Option E Accepted** + `packages/web-avatar-renderer-pixi/` scaffold (PixiJS v8 MIT) 포함. |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 128 Foundation + P0-S1 + P1-S1 (2026-04-17~04-21, 5일) | Foundation 연대기 1~127 동결. 128 β 모드 전환 이후는 phase+step ID (`P0-S1` / `P1-S1`...). |
-| **누적 패키지** | **15** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. P1-S1 에서 `@geny/web-avatar-renderer-pixi` 합류 (14 → 15). |
+| **누적 세션** | 128 Foundation + P0-S1 + P1-S1 + P1-S2+P2-S1 (2026-04-17~04-21, 5일) | Foundation 연대기 1~127 동결. 128 β 모드 전환 이후는 phase+step ID (`P0-S1` / `P1-S1` / `P1-S2+P2-S1`...). |
+| **누적 패키지** | **15** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. P1-S1 에서 `@geny/web-avatar-renderer-pixi` 합류 (14 → 15). P1-S2 에선 기존 3 패키지 확장만 (exporter-core derive helpers + renderer contract atlas 필드 + renderer-pixi sprite/regenerate). |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (schema 1 + CLI 번들 3 + 패키지 16 + 스크립트·infra 8 + 앱 e2e 2) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가. 세션 122 `progress/runbooks/02-golden-step-catalog.md` 로 30 step 의 보장·의존성·도입 색인 고정 |
 | **스키마 카탈로그** | **22 계약** (v1 21 + common/ids 1) | `schema/README.md` — 7 그룹 × 4-라인 (보장/소비자/Docs/도입). 세션 123 재작성 — placeholder 2 제거 + examples/ 언급 제거 + 누락 8 추가. `validate-schemas.mjs checked=244 failed=0` |

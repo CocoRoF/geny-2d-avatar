@@ -108,7 +108,7 @@ step("copy pixi.js ESM bundle → public/vendor/pixi.min.mjs", () => {
 });
 
 const exporterDist = resolve(repoRoot, "packages/exporter-core/dist");
-const { assembleWebAvatarBundle } = await import(
+const { assembleWebAvatarBundle, deriveAtlasFromTemplate } = await import(
   pathToFileURL(join(exporterDist, "web-avatar-bundle.js")).toString()
 );
 const { loadTemplate } = await import(
@@ -139,11 +139,18 @@ for (const t of TEMPLATES) {
     const tpl = loadTemplate(t.templateDir);
     const outDir = join(sampleRoot, t.id);
     mkdirSync(outDir, { recursive: true });
-    const result = assembleWebAvatarBundle(tpl, outDir, {
-      avatarId: t.avatarId,
-    });
+    // β P1-S2 — template.atlas.slots 는 placeholder 로 비어있으므로 part spec 의
+    // canvas_px + uv_box_px 에서 정규화 UV slot 을 유도해 override. 이렇게 해야
+    // pixi 렌더러가 atlas.slots 를 읽고 각 파츠를 실제 위치에 그릴 수 있다.
+    const derivedAtlas = deriveAtlasFromTemplate(tpl);
+    const assembleOpts = { avatarId: t.avatarId };
+    if (derivedAtlas) assembleOpts.atlasOverride = derivedAtlas;
+    const result = assembleWebAvatarBundle(tpl, outDir, assembleOpts);
     process.stdout.write(`\n  files=${result.files.length} `);
     process.stdout.write(`bytes=${result.files.reduce((s, f) => s + f.bytes, 0)}`);
+    if (derivedAtlas) {
+      process.stdout.write(` slots=${derivedAtlas.slots.length}`);
+    }
     assembledTemplates.push({
       id: t.id,
       label: t.label,

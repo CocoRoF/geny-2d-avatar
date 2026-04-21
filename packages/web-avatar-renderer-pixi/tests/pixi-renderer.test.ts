@@ -13,14 +13,16 @@ import {
   createPixiRenderer,
   type PixiAppHandle,
   type CreatePixiApp,
+  type PixiSceneInput,
 } from "../src/index.js";
 import type {
+  RendererAtlas,
   RendererBundleMeta,
   RendererHost,
 } from "@geny/web-avatar-renderer";
 
 interface MockApp extends PixiAppHandle {
-  readonly rebuildCalls: readonly RendererBundleMeta[];
+  readonly rebuildCalls: readonly PixiSceneInput[];
   readonly rotationCalls: readonly number[];
   readonly destroyed: boolean;
 }
@@ -45,7 +47,7 @@ function makeMockFactory(opts: { failFirst?: boolean; defer?: boolean } = {}): M
           return;
         }
         const state = {
-          rebuildCalls: [] as RendererBundleMeta[],
+          rebuildCalls: [] as PixiSceneInput[],
           rotationCalls: [] as number[],
           destroyed: false,
         };
@@ -55,8 +57,8 @@ function makeMockFactory(opts: { failFirst?: boolean; defer?: boolean } = {}): M
           get destroyed() {
             return state.destroyed;
           },
-          rebuild(meta) {
-            state.rebuildCalls.push(meta);
+          rebuild(scene) {
+            state.rebuildCalls.push(scene);
           },
           setRotation(rad) {
             state.rotationCalls.push(rad);
@@ -144,7 +146,7 @@ test("createPixiRenderer: ready triggers createApp and rebuild", async () => {
   assert.equal(r.stage, "ready");
   assert.equal(mf.apps.length, 1);
   assert.equal(mf.apps[0]?.rebuildCalls.length, 1);
-  assert.equal(mf.apps[0]?.rebuildCalls[0]?.parts.length, 4);
+  assert.equal(mf.apps[0]?.rebuildCalls[0]?.meta.parts.length, 4);
   r.destroy();
 });
 
@@ -183,7 +185,7 @@ test("createPixiRenderer: second ready after init re-rebuilds without recreating
   assert.equal(r.readyCount, 2);
   assert.equal(mf.apps.length, 1, "same app reused");
   assert.equal(mf.apps[0]?.rebuildCalls.length, 2, "second rebuild on reready");
-  assert.equal(mf.apps[0]?.rebuildCalls[1]?.parts.length, 5);
+  assert.equal(mf.apps[0]?.rebuildCalls[1]?.meta.parts.length, 5);
   r.destroy();
 });
 
@@ -296,6 +298,124 @@ test("createPixiRenderer: destroy during pending init tears down when init resol
   // app was created but then destroyed because destroy flag latched.
   assert.equal(mf.apps.length, 1);
   assert.equal(mf.apps[0]?.destroyed, true);
+});
+
+function sampleAtlas(): RendererAtlas {
+  return {
+    textures: [{ path: "textures/base.png", width: 2048, height: 2048 }],
+    slots: [
+      { slot_id: "slot_0", texture_path: "textures/base.png", uv: [0.0, 0.0, 0.5, 0.5] },
+      { slot_id: "slot_1", texture_path: "textures/base.png", uv: [0.5, 0.5, 0.5, 0.5] },
+    ],
+  };
+}
+
+test("createPixiRenderer: atlas + bundleUrl → rebuild scene 에 resolved textureUrl 전달 (P1-S2)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost();
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  host.dispatchEvent(
+    new CustomEvent("ready", {
+      detail: {
+        bundle: {
+          meta: sampleMeta(2),
+          atlas: sampleAtlas(),
+          bundleUrl: "https://host.example/pkg/bundle.json",
+        },
+      },
+    }),
+  );
+  await mf.flushCreate();
+  assert.equal(r.lastAtlas?.slots.length, 2);
+  assert.equal(r.lastTextureUrl, "https://host.example/pkg/textures/base.png");
+  const scene = mf.apps[0]?.rebuildCalls[0];
+  assert.ok(scene);
+  assert.equal(scene.meta.parts.length, 2);
+  assert.equal(scene.atlas?.slots.length, 2);
+  assert.equal(scene.textureUrl, "https://host.example/pkg/textures/base.png");
+  r.destroy();
+});
+
+test("createPixiRenderer: atlas 없는 번들 → scene.textureUrl null + atlas null", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost();
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  host.dispatchEvent(
+    new CustomEvent("ready", { detail: { bundle: { meta: sampleMeta(1) } } }),
+  );
+  await mf.flushCreate();
+  const scene = mf.apps[0]?.rebuildCalls[0];
+  assert.ok(scene);
+  assert.equal(scene.atlas ?? null, null);
+  assert.equal(scene.textureUrl ?? null, null);
+  assert.equal(r.lastAtlas, null);
+  assert.equal(r.lastTextureUrl, null);
+  r.destroy();
+});
+
+test("createPixiRenderer: bundleUrl 누락 시 textureUrl null (atlas 는 살아있음)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost();
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  host.dispatchEvent(
+    new CustomEvent("ready", {
+      detail: { bundle: { meta: sampleMeta(1), atlas: sampleAtlas() } },
+    }),
+  );
+  await mf.flushCreate();
+  assert.equal(r.lastAtlas?.slots.length, 2);
+  assert.equal(r.lastTextureUrl, null, "no bundleUrl → cannot resolve");
+  r.destroy();
+});
+
+test("createPixiRenderer: regenerate() 는 meta 유지하고 atlas/textureUrl 만 교체 + re-rebuild (P2-S1)", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: sampleMeta(2) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+  assert.equal(mf.apps[0]?.rebuildCalls.length, 1);
+
+  r.regenerate({
+    atlas: sampleAtlas(),
+    textureUrl: "blob:https://host.example/abc",
+  });
+  assert.equal(mf.apps[0]?.rebuildCalls.length, 2, "second rebuild from regenerate");
+  const scene = mf.apps[0]?.rebuildCalls[1];
+  assert.equal(scene?.meta.parts.length, 2, "meta preserved");
+  assert.equal(scene?.atlas?.slots.length, 2);
+  assert.equal(scene?.textureUrl, "blob:https://host.example/abc");
+  assert.equal(r.readyCount, 1, "regenerate does not bump readyCount");
+  r.destroy();
+});
+
+test("createPixiRenderer: regenerate() 는 destroy 후 no-op", async () => {
+  const mf = makeMockFactory();
+  const host = makeHost({ meta: sampleMeta(1) });
+  const r = createPixiRenderer({
+    element: host,
+    mount: makeMount(),
+    createApp: mf.createApp,
+  });
+  await mf.flushCreate();
+  r.destroy();
+  r.regenerate({ textureUrl: "blob:whatever" });
+  assert.equal(mf.apps[0]?.rebuildCalls.length, 1, "no new rebuild after destroy");
 });
 
 test("createPixiRenderer: createApp failure leaves stage=idle", async () => {

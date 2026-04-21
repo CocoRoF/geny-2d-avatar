@@ -168,7 +168,7 @@ Option B (Three.js) / C (Cubism Web SDK) 는 reject. Option D 직진은 reject (
 
 - [x] 사용자 / PM 리뷰 → Decision 확정 → 본 ADR Status "Accepted" 로 승격 + 커밋. (2026-04-21 P1-S1)
 - [x] 결정된 경로의 Spike 세션 예약. 산출물 = 하나의 번들 + 하나의 파라미터 슬라이더 → 회전하는 파츠 한 개. (P1-S1: `packages/web-avatar-renderer-pixi` scaffold + `?renderer=pixi` 에디터 통합, head_angle_x 회전 바인딩, 파츠 그리드 구조 프리뷰)
-- [ ] P1-S2: 실 atlas 슬롯 populate 후 `PIXI.Sprite` 교체 (`atlasUvToFrame` 이 UV 변환 담당).
+- [x] P1-S2: 실 atlas 슬롯 populate 후 `PIXI.Sprite` 교체 (`atlasUvToFrame` 이 UV 변환 담당). (2026-04-21 P1-S2+P2-S1: `deriveAtlasFromTemplate` → halfbody 30 / fullbody 38 slots, `RendererReadyEventDetail.bundle.atlas|bundleUrl` 확장, `pixi.Assets.load` + `new PIXI.Texture({ source, frame })` sprite 경로, `PixiRenderer.regenerate({ atlas, textureUrl })` live swap, 브라우저 Mock 텍스처 생성기 + 5-pill Generate UI)
 - [ ] `docs/13-tech-stack.md §2.2` 재작성 — 잠정 문구 ("택1") 를 본 ADR 결정으로 대체. pending ADR 이름 `adr/0013-pixijs-vs-own-mini-renderer.md` 를 ADR 0007 로 리디렉트.
 - [ ] 서버 Headless Renderer 별도 ADR 후보 (0008 또는 docs/08 §4 확장).
 - [ ] Cubism Import Viewer 를 제품 범위에 포함할지 결정 → Open Question #1 해소.

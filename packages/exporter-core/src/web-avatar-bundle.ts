@@ -20,7 +20,14 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 
-import type { Template, TemplateTextureFile } from "./loader.js";
+import type {
+  Template,
+  TemplateTextureFile,
+  TemplateAtlasDoc,
+  TemplateAtlasSlotEntry,
+  TemplateAtlasTextureEntry,
+  PartSpec,
+} from "./loader.js";
 import { canonicalJson } from "./util/canonical-json.js";
 import {
   convertWebAvatar,
@@ -41,6 +48,12 @@ export interface WebAvatarBundleManifestJson {
 }
 
 export interface AssembleWebAvatarBundleOptions extends ConvertWebAvatarOptions {
+  /**
+   * atlas.json 내용을 override (P1-S2 세션). 제공되면 `template.atlas` 대신 이 문서를
+   * 직렬화해 기록. `textureOverrides` 와 조합 가능 — 호출자는 Mock/실제 텍스처로 대체
+   * 한 뒤 새 크기에 맞춰 atlas 를 재구성한다.
+   */
+  atlasOverride?: TemplateAtlasDoc;
   /** web-avatar.json 파일 이름 override. 기본 `web-avatar.json`. */
   webAvatarFileName?: string;
   /** bundle.json 파일 이름 override. 기본 `bundle.json`. */
@@ -124,7 +137,8 @@ export function assembleWebAvatarBundle(
       });
     }
 
-    const atlasDoc = template.atlas ?? buildSyntheticAtlas(templateTextures);
+    const atlasDoc =
+      opts.atlasOverride ?? template.atlas ?? buildSyntheticAtlas(templateTextures);
     const atlasHash = writeJson(ATLAS_FILE, atlasDoc);
     atlasRef = { path: ATLAS_FILE, sha256: atlasHash };
   }
@@ -170,6 +184,77 @@ function buildSyntheticAtlas(textures: TemplateTextureFile[]) {
       premultiplied_alpha: false,
     })),
     slots: [],
+  };
+}
+
+/**
+ * 리그 템플릿의 `PartSpec.canvas_px` + `uv_box_px` 에서 atlas.slots 를 유도한다 (P1-S2).
+ *
+ * 각 part spec 에 `canvas_px: {w, h}` + `uv_box_px: {x, y, w, h}` 가 있으면
+ * `uv = [x/W, y/H, w/W, h/H]` 정규화 좌표를 계산한다. 누락되거나 형식이 다른 spec 은
+ * 조용히 건너뛴다 (옵셔널 필드).
+ *
+ * `texturePath` 는 어느 텍스처 파일에 매핑할지 — 현재 모든 템플릿이 단일 `textures/base.png`
+ * 를 쓰므로 caller 가 지정. 다수 텍스처 분할은 P3+ 확장.
+ *
+ * 반환값은 `slot_id` 알파벳 정렬. 파생 가능한 슬롯이 하나도 없으면 빈 배열.
+ */
+export function deriveSlotsFromSpecs(
+  partsById: Record<string, PartSpec>,
+  texturePath: string,
+): TemplateAtlasSlotEntry[] {
+  const slots: TemplateAtlasSlotEntry[] = [];
+  for (const slotId of Object.keys(partsById).sort()) {
+    const spec = partsById[slotId];
+    if (!spec) continue;
+    const canvas = spec["canvas_px"] as { w?: unknown; h?: unknown } | undefined;
+    const box = spec["uv_box_px"] as
+      | { x?: unknown; y?: unknown; w?: unknown; h?: unknown }
+      | undefined;
+    if (!canvas || !box) continue;
+    const W = Number(canvas.w);
+    const H = Number(canvas.h);
+    const x = Number(box.x);
+    const y = Number(box.y);
+    const w = Number(box.w);
+    const h = Number(box.h);
+    if (![W, H, x, y, w, h].every((n) => Number.isFinite(n))) continue;
+    if (W <= 0 || H <= 0) continue;
+    slots.push({
+      slot_id: slotId,
+      texture_path: texturePath,
+      uv: [x / W, y / H, w / W, h / H],
+    });
+  }
+  return slots;
+}
+
+/**
+ * 리그 템플릿 전체 → `TemplateAtlasDoc` 유도. textures 항목은 `template.textures`
+ * 의 실 파일 메타를 그대로 사용. slots 는 `deriveSlotsFromSpecs` 로 계산.
+ *
+ * `template.textures` 가 비어 있거나 유도 가능한 slot 이 하나도 없으면 `null` 을 반환.
+ * caller 는 이 값을 `opts.atlasOverride` 로 주입하거나, 필요 시 texture width/height 을
+ * Mock 생성 결과에 맞춰 덮어쓴다.
+ */
+export function deriveAtlasFromTemplate(template: Template): TemplateAtlasDoc | null {
+  if (template.textures.length === 0) return null;
+  const primary = template.textures[0];
+  if (!primary) return null;
+  const slots = deriveSlotsFromSpecs(template.partsById, primary.path);
+  if (slots.length === 0) return null;
+  const textures: TemplateAtlasTextureEntry[] = template.textures.map((t) => ({
+    path: t.path,
+    width: t.width,
+    height: t.height,
+    format: t.format,
+    premultiplied_alpha: false,
+  }));
+  return {
+    schema_version: "v1",
+    format: 1,
+    textures,
+    slots,
   };
 }
 
