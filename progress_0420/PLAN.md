@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 123+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 124+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -107,10 +107,12 @@
   세션 120 = 대안 (c) (ADR 0007 Option 별 코드 영향 범위 예상 diff 노트)  ✅ progress/notes/adr-0007-option-diffs.md 신규 (278 줄)
   세션 121 = 대안 (b) (progress_0420 메타 정합성 점검)                     ✅ 패키지 카운트 15→14 드리프트 해소 + 테스트 수 4 패키지 드리프트 해소 (ai-adapter-core/web-editor-logic/job-queue-bullmq/worker-generate). doc-only, 코드 변경 0
   세션 122 = 대안 (a) (golden step 카탈로그)                                ✅ progress/runbooks/02-golden-step-catalog.md 신규 — 30 step × (보장/실행/의존성/도입) 4-라인 색인 (1 schema + 3 CLI + 16 pkg + 8 script + 2 e2e). 인접 드리프트 해소 — INDEX §2 "29 step→30", INDEX §1 "11 패키지+5 e2e→16+2", scripts/README.md stale entries 갱신
+  세션 123 = (대안 schema 카탈로그) schema/README.md 재작성                   ✅ v1 22 스키마 실측 카탈로그 — 7 그룹 × 4-라인 (보장/소비자/Docs/도입). placeholder 2 제거(style-profile/export-job) + examples/ 언급 제거 + 누락 8 추가 (adapter-catalog/deformers/motion-pack/palette/parameters/physics/pose/test-poses). `validate-schemas.mjs` → `checked=244 failed=0` 무변동
 
-[자율 모드 후속 후보 — ADR 0007 Decision 불변 영역 (문서·분석·검증·색인 축 완결)]
-  세션 123 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행 (변동 없음).
-  세션 123 = (후보, 신중 판단, 세션 117~122 이월) renderer-observer (가칭) — ROI 낮음, 의견 필요.
+[자율 모드 후속 후보 — ADR 0007 Decision 불변 영역 (문서·분석·검증·색인·카탈로그 축 완결)]
+  세션 124 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행 (변동 없음).
+  세션 124 = (후보, 신중 판단, 세션 117~123 이월) renderer-observer (가칭) — ROI 낮음, 의견 필요.
+  세션 124 = (극저 ROI 대안) rig-template-lint C1~C14 rule 카탈로그 runbook 03 — 세션 123 §7 의 γ 안.
 
 [사용자 의사 확정 후]
   세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
@@ -183,9 +185,17 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 123)
+## 7. 다음 즉시 행동 (세션 124)
 
-세션 122 에서 **대안 (a) golden step 카탈로그** 수행 — `progress/runbooks/02-golden-step-catalog.md` (신규, ~240 줄) 작성. `scripts/test-golden.mjs` STEPS 배열의 30 단계를 §1 schema (1) / §2 CLI 번들 골든 (3) / §3 패키지 단위 (16) / §4 스크립트·infra (8) / §5 앱 e2e (2) 5 분류 × 각 step 4-라인 고정 구조 (보장 / 실행 / 의존성 / 도입) 으로 색인. §6 운영 팁 (golden 드리프트 대응 / build 필수 패키지 / bullmq-integration lane / step 추가 규약) + §7 참고 문서 포함. 인접 드리프트 해소: INDEX §2 Platform 워크스트림 "CI 29 step" → "30 step", INDEX §1 "11 패키지 테스트 + 5 e2e" → 실측 분류 "16 + 2", scripts/README.md `checked=131` + "5-step 골든" stale 수치 갱신, runbook README 에 02 entry 추가. 코드 변경 0, 테스트 영향 0, 골든 영향 0 (doc-only + 런북 색인).
+세션 123 에서 **schema/README.md 재작성** 수행 — `schema/v1/` 실측 (21 `.schema.json` + 1 `common/ids.json` = 22) 카탈로그. 기존 ASCII 트리를 7 그룹 × 4-라인 구조(세션 122 runbook 패턴 재활용)로 교체: 리그·파츠 5 / 모션·표정·포즈 4 / 번들 5 / AI 3 / 라이선스 3 / 후처리 1 / 공용 1. placeholder 2 건 완전 제거 (style-profile, export-job — git log 에 이력 없음, 세션 123 D3), 존재하지 않는 `schema/examples/` 디렉터리 언급 제거, 누락 8 스키마 추가. 검증 블록 갱신: `checked=244 failed=0` 실측 + golden step 1 pointer. `validate-schemas.mjs` 무변동 확인. 문서 전용 세션, 테스트/골든 영향 0.
+
+세션 124 자율 후보는 세 축 **거의 전부 소진**. 극저 ROI 후보로 (γ) rig-template-lint C1~C14 runbook 카탈로그 (`progress/runbooks/03-*`) 만 남음. ADR 0007 리뷰 대기가 실질 병목 — 사용자 입력 전까지는 대기가 정확.
+
+---
+
+### 과거: 세션 122 — 대안 (a) golden step 카탈로그
+
+`progress/runbooks/02-golden-step-catalog.md` (신규, ~240 줄) 작성. `scripts/test-golden.mjs` STEPS 배열의 30 단계를 §1 schema (1) / §2 CLI 번들 골든 (3) / §3 패키지 단위 (16) / §4 스크립트·infra (8) / §5 앱 e2e (2) 5 분류 × 각 step 4-라인 고정 구조 (보장 / 실행 / 의존성 / 도입) 으로 색인. §6 운영 팁 (golden 드리프트 대응 / build 필수 패키지 / bullmq-integration lane / step 추가 규약) + §7 참고 문서 포함. 인접 드리프트 해소: INDEX §2 Platform 워크스트림 "CI 29 step" → "30 step", INDEX §1 "11 패키지 테스트 + 5 e2e" → 실측 분류 "16 + 2", scripts/README.md `checked=131` + "5-step 골든" stale 수치 갱신, runbook README 에 02 entry 추가.
 
 ---
 

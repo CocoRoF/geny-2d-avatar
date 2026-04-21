@@ -23,17 +23,18 @@
 
 ---
 
-## 1. 현재 상태 (2026-04-21, 세션 122 직후)
+## 1. 현재 상태 (2026-04-21, 세션 123 직후)
 
 | 축 | 상태 | 비고 |
 |---|---|---|
-| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 + golden step 카탈로그 |
+| **단계** | Foundation (2026 Q2 초) | docs/14 §3. ADR 0007 Draft 리뷰 대기 + 렌더러 계약 패키지 + Null/Logging 구현체 + web-editor wire-through + Foundation 14 패키지 README 축 완결 + ADR 0007 Option 별 diff 노트 + progress_0420 메타 정합성 점검 + golden step 카탈로그 + schema/README 22 스키마 실측 카탈로그 |
 | **Foundation Exit 게이트** | **4/4 ✅** | E2E / CI 골든 / 관측 / 온보딩 — 모두 자동 회귀 |
 | **릴리스 게이트 (보안/성능/온콜)** | **3/3 ✅** | docs/14 §10 |
-| **누적 세션** | 122 (2026-04-17~04-21, 5일) | 자율 모드 |
+| **누적 세션** | 123 (2026-04-17~04-21, 5일) | 자율 모드 |
 | **누적 패키지** | **14** packages + 3 apps + 1 service | TypeScript ESM, pnpm workspace. 세션 119 에서 14 패키지 README 문서 축 완결 (프론트엔드 4 + 백엔드/인프라 10). 세션 120 은 코드 변경 없음 (ADR 0007 Option 별 diff 노트 — `progress/notes/adr-0007-option-diffs.md`). 세션 121 에서 "15" 드리프트 해소 — 세션 111/114 doc 의 "13→14" / "14→15" 표기가 실제 +1 변화량은 맞았으나 베이스가 12/13 이었음 (세션 89 에 들어온 `web-editor-logic` 을 당시 누적 카운트에서 빠뜨려 1 밀림) |
 | **누적 스크립트** | scripts/ 18 개 + scripts/rig-template/ 4 개 | golden 30 step + bullmq-integration CI lane |
 | **CI 게이트** | golden 30 step (schema 1 + CLI 번들 3 + 패키지 16 + 스크립트·infra 8 + 앱 e2e 2) | Foundation lane + bullmq-integration lane. 세션 116 — `web-editor e2e` 에 LoggingRenderer assertion 추가. 세션 122 `progress/runbooks/02-golden-step-catalog.md` 로 30 step 의 보장·의존성·도입 색인 고정 |
+| **스키마 카탈로그** | **22 계약** (v1 21 + common/ids 1) | `schema/README.md` — 7 그룹 × 4-라인 (보장/소비자/Docs/도입). 세션 123 재작성 — placeholder 2 제거 + examples/ 언급 제거 + 누락 8 추가. `validate-schemas.mjs checked=244 failed=0` |
 | **rig-template-lint rules** | **C1~C14** (meta/dict/params/vertex/cubism-map/family/parts↔params/deformers↔params/tree/parts↔deformers) | 34 테스트 케이스. 세션 112 C14 로 `parts↔parameters↔deformers` 사각형 완결 |
 | **migrator 인프라** | `@geny/migrator` (v1.0.0→v1.1.0→v1.2.0→v1.3.0 체인) | 세션 111 — BL-MIGRATOR 해소. 8 단위 테스트 + CLI shim |
 
@@ -70,9 +71,9 @@
 
 ---
 
-## 4. 다음 세션 진입점 (세션 123 후보)
+## 4. 다음 세션 진입점 (세션 124 후보)
 
-진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 세션 120 ADR 0007 Option diff 노트 + 세션 121 메타 정합성 점검 + 세션 122 golden step 카탈로그 로 **문서·분석·검증·색인 축 전부 소진**. 세션 123 자율 후보: 후보 J renderer-observer (ROI 낮음, 이월) / 후보 I 보류 (사용자 의사 선행) / progress_0420 2차 메타 점검 (세션 122 에서 추가 발견된 `11 패키지 테스트 + 5 e2e` 드리프트는 본 세션에서 해소 완료, 더 이상 자율 가능한 문서 축 없음).
+진입 우선순위는 [`PLAN.md §3·§7`](./PLAN.md) 참조. 세션 117~119 문서 축 + 세션 120 ADR 0007 Option diff 노트 + 세션 121 메타 정합성 점검 + 세션 122 golden step 카탈로그 + 세션 123 schema/README 카탈로그 로 **문서·분석·검증·색인·카탈로그 축 거의 전부 소진**. 세션 124 자율 후보: 후보 J renderer-observer (ROI 낮음, 이월) / 후보 I 보류 (사용자 의사 선행) / (γ) rig-template-lint C1~C14 rule 카탈로그 runbook 03 (극저 ROI). ADR 0007 Accept 까지 자율로 더 얇게 짤 의미가 약함.
 
 **보존 루트 진입점 (ADR 0007 리뷰 대기 중)**:
 
