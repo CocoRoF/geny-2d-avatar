@@ -1,6 +1,6 @@
-# SUMMARY — 세션 1~117 누적 결과 심층 정리
+# SUMMARY — 세션 1~118 누적 결과 심층 정리
 
-본 문서는 5 일간(2026-04-17~04-21) 117 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`.
+본 문서는 5 일간(2026-04-17~04-21) 118 세션의 누적 결과를 **워크스트림 + 시간순 마일스톤** 으로 재정리한다. 원문 로그는 `progress/sessions/`, ADR은 `progress/adr/`.
 
 ---
 
@@ -388,3 +388,4 @@ DB/S3 미착수 (Runtime).
 | Null/Logging 렌더러 구현체 | ✅ 완료 (세션 115) | `createNullRenderer` + `createLoggingRenderer` + 11 tests (6+5) → 패키지 총 21 tests. ADR 0007 Decision 불변 테스트 더블 |
 | `apps/web-editor` → LoggingRenderer wire-through | ✅ 완료 (세션 116) | `?debug=logger` URL 스위치 + dynamic import. e2e assertion (ready→parameterchange→destroy 스트림) halfbody+fullbody 양쪽 고정 |
 | `@geny/web-avatar-renderer` README | ✅ 완료 (세션 117) | package.json `files` 가 이미 참조하던 빈 자리를 채움 — 계약/가드/팩토리/consumer attachment pattern/ADR 0007 경로별 예상 귀결 정리. doc-only |
+| 인접 프론트엔드 3 패키지 README 점검 | ✅ 완료 (세션 118) | `@geny/web-editor-logic` (신규) + `@geny/web-editor-renderer` (신규) + `@geny/web-avatar` (세션 90/94/114 반영 갱신). 세션 117 6 블록 패턴 재사용, doc-only. 프론트엔드 4 패키지 문서 축 완결 |
