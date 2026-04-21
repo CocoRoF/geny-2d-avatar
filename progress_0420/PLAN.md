@@ -1,4 +1,4 @@
-# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 120+)
+# PLAN — 앞으로의 작업 (2026-04-21 기준, 세션 121+)
 
 본 문서는 `SUMMARY.md` 의 현재 상태를 전제로, 다음 세션부터의 **우선순위 · 의존성 · 진입 조건 · 리스크** 를 정리한다. Foundation Exit 4/4 와 릴리스 게이트 3/3 이 닫힌 이후 단계이므로, 남은 작업은 (a) self-contained lint/안전망 확장, (b) legacy 호환성 정비, (c) 외부 의존 해소, (d) Runtime phase 전환 4 축으로 수렴한다.
 
@@ -104,15 +104,15 @@
   세션 117 = 후보 K (web-avatar-renderer README)    ✅ 계약/가드/팩토리/attachment pattern
   세션 118 = 후보 L (인접 프론트엔드 3 패키지 README) ✅ web-editor-logic/-renderer 신규 + web-avatar 갱신
   세션 119 = 후보 M (나머지 10 패키지 README triage)    ✅ job-queue-bullmq 신규 + post-processing 재작성, 8 FRESH skip
+  세션 120 = 대안 (c) (ADR 0007 Option 별 코드 영향 범위 예상 diff 노트)  ✅ progress/notes/adr-0007-option-diffs.md 신규 (278 줄)
 
-[자율 모드 후속 후보 — ADR 0007 Decision 불변 영역 (문서 축 소진)]
-  세션 120 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행
-  세션 120 = (후보, 신중 판단) renderer-observer (가칭) — `createLoggingRenderer` 를 기반으로
-            이벤트 집계(ready 회수, parameterchange p50/p99 간격, destroy 감지)를
-            구조화한 통계 렌더러. `scripts/observability-*` 패턴의 소규모 적용.
-            단, 실 렌더러 전엔 시그널 노이즈, ROI 낮음 — 의견 필요.
-  세션 120 = (대안) 문서 축은 117~119 연속 3 세션으로 소진 — 다음은 코드 축 또는
-            외부 의존 해소 대기. self-contained 여지가 얕아져 자율 모드 신중 판단 필요.
+[자율 모드 후속 후보 — ADR 0007 Decision 불변 영역 (문서 축 + 옵션 분석 완결)]
+  세션 121 = (대안 a) golden step runbook / CI step 가독성 정리 — 30 step 의 설명·의도를
+            `progress/runbooks/` 또는 `scripts/README.md` 에 정리. 자율 가능, 외부 의존 없음.
+  세션 121 = (대안 b) progress_0420/ 자체 메타 정합성 점검 — 세션 번호 / 테스트 수 /
+            패키지 수 카운트가 SUMMARY/INDEX/PLAN 사이 어긋나지 않는지 교차 검증.
+  세션 121 = (보류) Server Headless Renderer 별도 ADR 초안 — 사용자 의사 선행 (변동 없음).
+  세션 121 = (후보, 신중 판단, 세션 117~120 이월) renderer-observer (가칭) — ROI 낮음, 의견 필요.
 
 [사용자 의사 확정 후]
   세션 ? = ADR 0007 Accept + docs/13 §2.2 재작성
@@ -185,25 +185,27 @@
 
 ---
 
-## 7. 다음 즉시 행동 (세션 120)
+## 7. 다음 즉시 행동 (세션 121)
 
-세션 119 에서 나머지 10 패키지 README 를 triage — FRESH 8 / PARTIAL 1 (`post-processing`, 세션 32/35 미반영) / MISSING 1 (`job-queue-bullmq`). PARTIAL/MISSING 2 건만 개입 (세션 118 D1 "정확한 부분 보존" 원칙 계승). `job-queue-bullmq` README 는 6 블록 + `bullmq`/`ioredis` 경계 규약 표 + `inline`/`producer-only` 모드 2 종 + ADR 0006 §D2 상태 매핑 표. `post-processing` 은 전면 재작성 — 기존 "미구현" 4 항목 모두 구현됨 + §6.4 Palette Lock / §6.5 Atlas Hook 누락 2 축 추가. 코드 변경 0, 테스트 영향 0, 골든 영향 0 (doc-only). **Foundation 15 패키지 README 축 완결**.
+세션 120 에서 **대안 (c) ADR 0007 Option 별 코드 영향 범위 예상 diff 노트** 작성 — `progress/notes/adr-0007-option-diffs.md` (278 줄, §0~§11). 5 옵션(A Pixi / B Three / C Cubism Viewer / D 자체 WebGL2 / E 하이브리드) 각각 (1) 신규 패키지, (2) 기존 파일 touch list, (3) golden step 변경, (4) 런타임/타입 계약 BC, (5) 리스크, (6) Critical path sequence 기록. 공통 기반 (§1, 세션 114~116 산출물) · 옵션 간 공통 touch (§7, 8 항목) · Open Questions 영향 (§8, 4 질문 × 5 옵션) 분리. 코드 변경 0, 테스트 영향 0, 골든 영향 0 (doc-only). 사용자 pick 후 즉시 Spike 진입 경로 닫힘.
 
-**자율 모드 결정 (세션 120)**: 문서 축은 117~119 연속 3 세션으로 소진. 남은 self-contained 코드 축이 얇아졌으므로 신중 판단 필요:
+**자율 모드 결정 (세션 121)**: 문서 축(117~119) + 옵션 분석(120) 까지 소진. self-contained 여지 매우 얇음:
 
-- **후보 J (후보, 신중 판단, 세션 117~119 이월)** — `renderer-observer` (가칭): `createLoggingRenderer` 를 감싸 이벤트 집계(ready 회수 / parameterchange intra-delay 히스토그램 / destroy 감지) 를 내보내는 얇은 구조화 렌더러. `scripts/observability-*` 의 exposition 포맷에 맞추면 perf-harness 가 구독 가능. 단, 실 렌더러 합류 전엔 시그널 노이즈일 수 있어 ROI 낮음 — **의견 필요**.
-- **후보 I (보류)** — Server Headless Renderer 별도 ADR. ADR 0007 Open Question #3 이 사용자 답변 없이 진입하면 위임이 뒤집힐 여지가 큼. **사용자 의사 선행**.
-- **대안 후보** — 문서 축 소진 후에도 자율 모드로 안전한 작업: (a) golden step runbook / CI step 가독성 정리, (b) `progress_0420/` 자체 메타 정합성 점검 (세션 번호 / 테스트 수 카운트 재검증), (c) ADR 0007 Option 별 **코드 영향 범위 예상 diff** 노트 (사용자 pick 후 곧장 실행 가능하도록 사전 분석).
+- **대안 (a) golden step runbook** (권장): 30 step 의 설명·의도를 `progress/runbooks/` 또는 `scripts/README.md` 에 정리. 각 step 이 "무엇을 보장하는지" 를 1~2 문장으로 색인화. Foundation → Runtime 전환 시 step 재배치 기준이 될 참조 문서. 외부 의존 0.
+- **대안 (b) progress_0420 메타 정합성** (권장): INDEX/SUMMARY/PLAN 사이 세션 번호·테스트 수·패키지 수 카운트 교차 검증. 자율 누적으로 생긴 drift 여부 확인. 외부 의존 0.
+- **후보 J (renderer-observer)**: 세션 117~120 이월. ROI 여전히 낮음 — 실 렌더러 합류 전엔 시그널 노이즈. 의견 필요.
+- **후보 I (Server Headless ADR)**: 사용자 의사 선행. 변동 없음.
 
 **2순위 (사용자 합의 후에만)**:
-- **ADR 0007 Accept 커밋**: 사용자가 A/D/E 중 선택하면 Decision 채워서 Status Accepted 로 재커밋. `docs/13-tech-stack.md §2.2` 동시 재작성.
-- **세션 97 Runtime 착수 Spike**: ADR 확정 후.
+- **ADR 0007 Accept 커밋**: 사용자가 A/D/E 중 선택하면 Decision 채워서 Status Accepted 로 재커밋. 세션 120 노트 §7 의 공통 touch 8 항목 일괄 편집 + §6 의 선택 옵션 Critical path 세션 1 번 즉시 실행.
+- **세션 97 Runtime 착수 Spike**: ADR 확정 후. 세션 120 노트 §2 (A) / §5 (D) / §6 (E) 의 Critical path sequence 를 그대로 따라갈 수 있음.
 - **v1.3.0→v1.4.0 migrator**: 리그 변경 범위 합의 후.
 
-**선행 read** (세션 120 에서):
-- 세션 119 doc 의 §5 "후속" — 대안 후보 N / J / I 선별 근거.
-- `progress/adr/0007-renderer-technology.md` — Option 별 영향 범위 재확인.
+**선행 read** (세션 121 에서):
+- 세션 120 doc 의 §7 "다음 세션 제안" — 대안 (a)/(b) 선택 근거.
+- `progress/notes/adr-0007-option-diffs.md` — 사용자 pick 시 참조.
 
-**세션 121+ 예약 후보**:
-- Option E 하이브리드 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규, NullRenderer 계약 그대로 승계).
+**세션 122+ 예약 후보**:
+- Option A/E 확정 시: PixiJS 첫 Spike (`@geny/web-avatar-renderer-pixi` 신규). 세션 120 노트 §2.6 Critical path sequence A-1~A-5 참조.
+- Option D 확정 시: 자체 WebGL2 첫 Spike (`@geny/web-avatar-renderer-webgl2` 신규). 세션 120 노트 §5.6 Critical path sequence D-1~D-8 참조.
 - legacy opt-in 복제(후보 C)는 BL-DEPRECATION-POLICY 외부 대기 유지.
