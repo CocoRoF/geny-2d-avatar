@@ -440,6 +440,8 @@
       const rendererFlag = new URLSearchParams(location.search).get("renderer") ?? "";
       const pixiEnabled = rendererFlag === "pixi";
       let pixiRenderer = null;
+      // β P1-S6 — 초기 avatar 자동 생성 플래그 (swapTemplate 에서 리셋 → TDZ 회피 위해 상단 선언).
+      let autoPreviewDone = false;
 
       const statusEl = document.querySelector("#status");
       const groupsEl = document.querySelector("#parts-groups");
@@ -799,6 +801,8 @@
       });
 
       function swapTemplate(bundleUrl) {
+        // β P1-S6 — 템플릿 스왑 시 auto-preview 재실행 허용.
+        autoPreviewDone = false;
         statusEl.className = "status";
         statusEl.textContent = "로딩 중…";
         groupsEl.replaceChildren();
@@ -1258,6 +1262,69 @@
       // 초기 상태 안내: pixi 없으면 미리 알려주기.
       if (!pixiEnabled) {
         genStatusEl.textContent = "?renderer=pixi 필요";
+      }
+
+      // β P1-S6 — 초기 로드 때 placeholder PNG (4×4) 를 바로 Mock avatar 로 교체.
+      // 사용자가 Generate 를 누르기 전에도 β 데모가 "아바타처럼 보인다".
+      // 중복 실행을 막는 플래그 autoPreviewDone 은 상단에서 선언 (swapTemplate 에서 리셋).
+      async function runAutoPreview() {
+        if (autoPreviewDone) return;
+        if (!pixiEnabled || !pixiRenderer) return;
+        const atlas = pixiRenderer.lastAtlas;
+        if (!atlas) return;
+        autoPreviewDone = true;
+        try {
+          const currentTemplate = document.querySelector("#template-picker")?.value ?? "halfbody";
+          const defaultPrompt = `default · ${currentTemplate}`;
+          const mock = await mockGenerateTexture(defaultPrompt, atlas);
+          const newAtlas = {
+            textures: [
+              {
+                path: atlas.textures[0]?.path ?? "textures/base.png",
+                width: mock.width,
+                height: mock.height,
+              },
+            ],
+            slots: atlas.slots,
+          };
+          if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
+          lastBlobUrl = mock.textureUrl;
+          await pixiRenderer.regenerate({ atlas: newAtlas, textureUrl: mock.textureUrl });
+          // gen-status 는 그대로 "준비" 유지 — Generate 버튼 결과와 시각적으로 구분.
+          console.info("[auto-preview] initial avatar painted for", currentTemplate);
+        } catch (err) {
+          console.warn("[auto-preview] failed", err);
+          autoPreviewDone = false; // 재시도 가능하게
+        }
+      }
+
+      // `<geny-avatar>` ready 이벤트에 훅 — pixi 렌더러가 같은 이벤트에서 captureBundle
+      // 로 lastAtlas 를 채우므로, 2 microtask 양보 후 실행해 순서 의존을 회피.
+      el.addEventListener("ready", () => {
+        queueMicrotask(() => {
+          queueMicrotask(() => {
+            void runAutoPreview();
+          });
+        });
+      });
+
+      // pixiRenderer 가 dynamic import 로 나중에 attach 될 수 있으므로, 로드 완료 시
+      // 이미 bundle 이 ready 상태면 즉시 auto-preview 시도. (race: 1) bundle 먼저 ready
+      // → pixi attach 뒤 captureBundle 실행됨 — 이 시점에 catch-up).
+      if (pixiEnabled) {
+        // 폴링 대신 setInterval 최대 30회(~1.5s) 만 — 이후엔 포기.
+        let tries = 0;
+        const iv = setInterval(() => {
+          tries += 1;
+          if (autoPreviewDone || tries >= 30) {
+            clearInterval(iv);
+            return;
+          }
+          if (pixiRenderer && pixiRenderer.lastAtlas) {
+            clearInterval(iv);
+            void runAutoPreview();
+          }
+        }, 50);
       }
 
       (async function bootstrap() {

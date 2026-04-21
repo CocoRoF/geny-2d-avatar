@@ -9,9 +9,9 @@
 ## 0. 현재 상태 (2026-04-21)
 
 - **Foundation**: ✅ 종료 (Exit 4/4 + 릴리스 게이트 3/3 + lint C1~C14 + migrator + 렌더러 계약 + 15 패키지 + 125+ 세션 문서)
-- **β 로드맵**: 🟢 **P1 S1+S2+S3+S4+S5 완료 + P2 🟡 S1+S2+S3 완료** (2026-04-21) — P2-S3 에서 pill timing 실측: `regenerate()` Promise 반환 계약 확장 (PixiAppHandle.rebuild + applyMeta + regenerate 전부 Promise<void>) → web-editor runGenerate 가 실 canvas swap 완료까지 await → per-phase (ingest/synth/atlas/swap/paint) ms + 총합 표시 + β §7 5000ms 예산 초록/빨강 시각화. pixi 테스트 33/33 (+2 P2-S3). P2-S2 mock 품질 개선 (16 카테고리 halfbody+fullbody). P1-S5 시각 정확성 (sprite.anchor=0.5 + Cubism 3 축 분리). P1-S4 per-part parameter binding. 데이터 배선 이미 완결. P0 Q1~Q6 사용자 승인 여전히 대기 (비차단).
+- **β 로드맵**: 🟢 **P1 S1+S2+S3+S4+S5+S6 완료 + P2 🟢 S1+S2+S3 완료** (2026-04-21) — P1-S6 에서 초기 로드 auto-preview: `<geny-avatar>` ready + pixi late-attach 두 경로 훅 → 페이지 로드 직후 `mockGenerateTexture("default · <template>", atlas)` → placeholder 4×4 PNG 대신 avatar shape 이 즉시 표시. autoPreviewDone 단일 실행 보장, swapTemplate 에서 리셋. P2-S3 pill timing 실측 + β §7 5000ms 예산 시각화. P2-S2 mock 품질 개선 (16 카테고리 halfbody+fullbody). P1-S5 시각 정확성 (sprite.anchor=0.5 + Cubism 3 축 분리). P1-S4 per-part parameter binding. 데이터 배선 이미 완결. P0 Q1~Q6 사용자 승인 여전히 대기 (비차단).
 - **자율 모드**: 🟢 β 범위 활성. SOAK/speculative doc 는 금지 (사용자 2026-04-21 correction).
-- **다음 step**: P1-S6 (sample atlas.textures[0] placeholder PNG 교체), atlas pivot_uv 확장 (hair/ahoge 실 피벗), P2-S4 텔레메트리 훅 (phase ms → console.info geny.metrics). P3 은 `BL-VENDOR-KEY` 블로커 대기.
+- **다음 step**: atlas pivot_uv 확장 (hair/ahoge 실 피벗), P2-S4 텔레메트리 훅 (phase ms → console.info geny.metrics), 또는 번들 계약 정리. P3 은 `BL-VENDOR-KEY` 블로커 대기.
 
 ## 1. β 까지의 외부 의존 3 축
 
@@ -28,7 +28,7 @@
 | Phase | 상태 | 예상 세션 | 시작 조건 | 검수 (전부 green 이어야 종료) |
 |---|---|---:|---|---|
 | **P0** UX wireframe | 🟡 산출물 완료 · 사용자 Q1~Q6 승인 대기 | 1 | ✅ 자율 세션 P0-S1 (2026-04-21) | 사용자 `docs/UX-BETA-WIREFRAME.md §9` Q1~Q6 승인 |
-| **P1** 실 픽셀 렌더 | 🟢 **S1+S2+S3+S4+S5 완료** (sprite + atlas slot + slider + motion/expression + per-part binding + sprite pivot/axis split) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
+| **P1** 실 픽셀 렌더 | 🟢 **S1+S2+S3+S4+S5+S6 완료** (sprite + atlas slot + slider + motion/expression + per-part binding + sprite pivot/axis split + mount-time auto-preview) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
 | **P2** 프롬프트 UI + Mock e2e | 🟢 **S1+S2+S3 완료** (Generate UI + Mock 생성기 + live swap + 역할별 shape 렌더링 + per-phase timing + β §7 5000ms 예산 시각화) | 2~3 | P1 완료 | Mock 벤더로 프롬프트→프리뷰 5초 내 완결 **— 측정 기반 완결** |
 | **P3** 실 nano-banana 통합 | ⚪ 대기 | 3~5 | P2 완료 + BL-VENDOR-KEY | 실 HTTP 호출 10회 중 7회 이상 성공 |
 | **P4** 5 슬롯 자동 조립 | ⚪ 대기 | 3~5 | P3 완료 | 프롬프트 1 줄 → 30초 내 5 슬롯 생성 + atlas |
