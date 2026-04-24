@@ -47,6 +47,13 @@ export interface PixiRendererOptions {
    * 스테이지 배경색. 기본 `0xf7f8fa` (editor bg-page 와 근사).
    */
   readonly backgroundColor?: number;
+  /**
+   * (β P1-S9) `?debug=pivots` dev 오버레이. true 면 각 슬롯의 `pivot_uv`
+   * 위치에 작은 crosshair 마커를 그려 P1-S8 자동 주입된 피벗을 육안 검증.
+   * pivot_uv 가 있는 슬롯은 빨간 원 + 흰 십자, 없는 슬롯(slot 중심 fallback)은
+   * 회색으로 표시해 저자가 미주입 슬롯을 구분하도록 한다.
+   */
+  readonly debugPivots?: boolean;
 }
 
 export interface PixiRenderer extends Renderer {
@@ -86,6 +93,11 @@ export type PixiRendererStage = "idle" | "initializing" | "ready" | "destroyed";
 export interface CreatePixiAppOptions {
   readonly mount: Element;
   readonly backgroundColor: number;
+  /**
+   * (β P1-S9) `PixiRendererOptions.debugPivots` pass-through. 실 `defaultCreateApp`
+   * 만 소비 — mock 은 무시. 기본 false (bundle size/렌더 비용 무증가).
+   */
+  readonly debugPivots?: boolean;
 }
 
 export type CreatePixiApp = (options: CreatePixiAppOptions) => Promise<PixiAppHandle>;
@@ -150,6 +162,7 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
     mount,
     rotationParameter = "head_angle_x",
     backgroundColor = 0xf7f8fa,
+    debugPivots = false,
   } = opts;
   const createApp: CreatePixiApp = opts.createApp ?? defaultCreateApp;
 
@@ -269,7 +282,7 @@ export function createPixiRenderer(opts: PixiRendererOptions): PixiRenderer {
     }
     if (stage === "initializing") return Promise.resolve();
     stage = "initializing";
-    return createApp({ mount, backgroundColor }).then(
+    return createApp({ mount, backgroundColor, debugPivots }).then(
       (handle) => {
         if (destroyed) {
           handle.destroy();
@@ -408,6 +421,57 @@ export function resolvePivotPlacement(params: {
 }
 
 /**
+ * (β P1-S9) 디버그 오버레이용 pivot 마커 좌표 산출. `buildSpriteScene` 과 동일한
+ * `fit/originX/originY` 공식을 재사용해 sprite 위치와 1 픽셀 어긋남 없이 겹친다.
+ *
+ * 반환 순서는 `scene.atlas.slots` 원래 순서 — 저자 저작 순서를 보존해 debug 시
+ * 특정 슬롯을 찾기 쉽게 한다. `scene.meta.parts` 에 없는 슬롯(AI 생성 variant
+ * 등)은 제외 — 실제 렌더되지 않는 슬롯에 마커를 그리면 혼란.
+ *
+ * `hasPivotUv` 는 "저작자가 명시적으로 pivot_uv 를 기록했는가" 를 알린다.
+ * 오버레이는 이 값에 따라 색상을 달리해(주입됨=빨강/미주입=회색) 미주입
+ * 슬롯을 저자에게 가시화한다.
+ */
+export interface PivotDebugMarker {
+  readonly slot_id: string;
+  readonly x: number;
+  readonly y: number;
+  readonly hasPivotUv: boolean;
+}
+
+export function computePivotMarkerPositions(
+  scene: PixiSceneInput,
+  stageW: number,
+  stageH: number,
+): PivotDebugMarker[] {
+  const atlas = scene.atlas;
+  if (!atlas || atlas.slots.length === 0 || atlas.textures.length === 0) return [];
+  const primary = atlas.textures[0];
+  if (!primary) return [];
+  const canvasW = primary.width;
+  const canvasH = primary.height;
+  if (canvasW <= 0 || canvasH <= 0) return [];
+  const fit = Math.min((stageW * 0.9) / canvasW, (stageH * 0.9) / canvasH);
+  const originX = stageW / 2 - (canvasW * fit) / 2;
+  const originY = stageH / 2 - (canvasH * fit) / 2;
+  const renderedSlots = new Set(scene.meta.parts.map((p) => p.slot_id));
+  const markers: PivotDebugMarker[] = [];
+  for (const slot of atlas.slots) {
+    if (!renderedSlots.has(slot.slot_id)) continue;
+    const [u0, v0, w, h] = slot.uv;
+    const pivotU = slot.pivot_uv?.[0] ?? u0 + w / 2;
+    const pivotV = slot.pivot_uv?.[1] ?? v0 + h / 2;
+    markers.push({
+      slot_id: slot.slot_id,
+      x: originX + pivotU * canvasW * fit,
+      y: originY + pivotV * canvasH * fit,
+      hasPivotUv: slot.pivot_uv !== undefined,
+    });
+  }
+  return markers;
+}
+
+/**
  * parts 역색인 — parameter_id → 바인드된 slot_id[]. 순서 보존 (Map iteration 순).
  * parameter_ids 가 없거나 빈 파츠는 색인 미포함.
  */
@@ -510,6 +574,13 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
 
   const root = new pixi.Container();
   app.stage.addChild(root);
+
+  // β P1-S9 — `?debug=pivots` 오버레이용 별도 컨테이너. root 의 rotation/pivot 공유
+  // (root 의 child 로 부착) — sprite 와 같은 변환 좌표에서 움직이도록. 비활성 시
+  // 컨테이너 자체를 만들지 않아 zero-cost.
+  const debugPivots = !!options.debugPivots;
+  const pivotOverlay = debugPivots ? new pixi.Container() : null;
+  if (pivotOverlay) root.addChild(pivotOverlay);
 
   let baseTexture: { readonly texture: unknown; readonly source: string } | null = null;
 
@@ -623,6 +694,34 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
     }
   }
 
+  /**
+   * β P1-S9 — pivot 마커 렌더. `pivotOverlay` 가 null 이면 no-op (debug 미활성).
+   * scene 이 바뀔 때마다 overlay 를 초기화하고 현재 슬롯 세트에 맞춰 재드로잉.
+   *
+   * 마커 스타일: pivot_uv 주입된 슬롯 = 빨간 외곽 + 흰 inner (저자 의도 피벗).
+   * 미주입(fallback slot 중심) = 회색으로 구분. 반경 5px (stage 크기 무관 — pixi
+   * stage 좌표계 사용).
+   */
+  function drawPivotOverlay(scene: PixiSceneInput, stageW: number, stageH: number): void {
+    if (!pivotOverlay) return;
+    pivotOverlay.removeChildren();
+    const markers = computePivotMarkerPositions(scene, stageW, stageH);
+    for (const m of markers) {
+      const g = new pixi.Graphics();
+      const outer = m.hasPivotUv ? 0xff3b30 : 0x8a8a8a;
+      const inner = m.hasPivotUv ? 0xffffff : 0xd0d0d0;
+      g.circle(0, 0, 5);
+      g.fill({ color: outer, alpha: 0.85 });
+      g.stroke({ color: 0x000000, width: 1, alpha: 0.35 });
+      g.circle(0, 0, 1.5);
+      g.fill({ color: inner, alpha: 0.95 });
+      g.position.set(m.x, m.y);
+      pivotOverlay.addChild(g);
+    }
+    // 항상 sprite 위에 — rebuild 가 root.removeChildren 했으므로 재부착.
+    root.addChild(pivotOverlay);
+  }
+
   // β P1-S3: idle breath. motion.loop=true 면 ticker 에 sine scale.y 를 건다.
   // 진폭 4% / 주기 = motion.duration_sec (fallback 4s). fade_in 동안 진폭이 0→max 로,
   // fade_out (해제 시) 에서 max→0 로 선형 램프. 실 motion3 curve 는 β P3+ 에서 대체.
@@ -675,13 +774,15 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
         return loadTexture(url).then((texture) => {
           if (!texture) {
             buildFallbackScene(scene.meta, stageW, stageH);
-            return;
+          } else {
+            const ok = buildSpriteScene(scene, texture, stageW, stageH);
+            if (!ok) buildFallbackScene(scene.meta, stageW, stageH);
           }
-          const ok = buildSpriteScene(scene, texture, stageW, stageH);
-          if (!ok) buildFallbackScene(scene.meta, stageW, stageH);
+          drawPivotOverlay(scene, stageW, stageH);
         });
       }
       buildFallbackScene(scene.meta, stageW, stageH);
+      drawPivotOverlay(scene, stageW, stageH);
       return Promise.resolve();
     },
     setRotation(radians) {

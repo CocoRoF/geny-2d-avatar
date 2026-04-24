@@ -1,6 +1,7 @@
 export {
   createPixiRenderer,
   resolvePivotPlacement,
+  computePivotMarkerPositions,
   type PixiRenderer,
   type PixiRendererOptions,
   type PixiRendererStage,
@@ -10,6 +11,7 @@ export {
   type PixiSceneInput,
   type RegenerateInput,
   type PixiPartTransform,
+  type PivotDebugMarker,
 } from "./pixi-renderer.js";
 
 export {

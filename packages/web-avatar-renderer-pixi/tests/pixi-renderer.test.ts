@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {
   createPixiRenderer,
   resolvePivotPlacement,
+  computePivotMarkerPositions,
   type PixiAppHandle,
   type CreatePixiApp,
   type PixiPartTransform,
@@ -915,4 +916,142 @@ test("resolvePivotPlacement: pivot_uv 가 슬롯 바깥 (머리 위) 이어도 �
   // position: origin + pivotUV * canvas * fit
   assert.ok(Math.abs(res.spriteX - (10 + 0.5 * 1000 * 0.5)) < 1e-9); // 260
   assert.ok(Math.abs(res.spriteY - (20 + 0.2 * 1000 * 0.5)) < 1e-9); // 120
+});
+
+// ---- computePivotMarkerPositions (β P1-S9) -------------------------------
+
+function buildPivotScene(opts: {
+  slots: Array<{
+    slot_id: string;
+    uv: [number, number, number, number];
+    pivot_uv?: [number, number];
+  }>;
+  parts?: string[];
+  textureW?: number;
+  textureH?: number;
+}): PixiSceneInput {
+  const partIds = opts.parts ?? opts.slots.map((s) => s.slot_id);
+  const atlas: RendererAtlas = {
+    textures: [{ path: "base.png", width: opts.textureW ?? 1000, height: opts.textureH ?? 1000 }],
+    slots: opts.slots.map((s) => ({
+      slot_id: s.slot_id,
+      texture_path: "base.png",
+      uv: s.uv,
+      ...(s.pivot_uv ? { pivot_uv: s.pivot_uv } : {}),
+    })),
+  };
+  const meta: RendererBundleMeta = {
+    parts: partIds.map((slot_id) => ({ role: slot_id, slot_id })),
+    parameters: [],
+  };
+  return { meta, atlas };
+}
+
+test("computePivotMarkerPositions: atlas 없으면 빈 배열 (P1-S9)", () => {
+  const markers = computePivotMarkerPositions(
+    { meta: { parts: [], parameters: [] }, atlas: null },
+    800,
+    600,
+  );
+  assert.deepEqual(markers, []);
+});
+
+test("computePivotMarkerPositions: slots 비어있으면 빈 배열 (P1-S9)", () => {
+  const scene = buildPivotScene({ slots: [] });
+  assert.deepEqual(computePivotMarkerPositions(scene, 800, 600), []);
+});
+
+test("computePivotMarkerPositions: pivot_uv 지정 슬롯은 그 UV 좌표에 마커 (P1-S9)", () => {
+  // canvas 1000x1000, stage 1000x1000 → fit = 0.9, origin = (50, 50)
+  // ahoge pivot_uv = [0.5, 0.02] → x = 50 + 0.5*1000*0.9 = 500, y = 50 + 0.02*1000*0.9 = 68
+  const scene = buildPivotScene({
+    slots: [
+      { slot_id: "ahoge", uv: [0.4, 0.0, 0.2, 0.1], pivot_uv: [0.5, 0.02] },
+    ],
+  });
+  const markers = computePivotMarkerPositions(scene, 1000, 1000);
+  assert.equal(markers.length, 1);
+  const m = markers[0]!;
+  assert.equal(m.slot_id, "ahoge");
+  assert.equal(m.hasPivotUv, true);
+  assert.ok(Math.abs(m.x - 500) < 1e-9, `x=${m.x}`);
+  assert.ok(Math.abs(m.y - 68) < 1e-9, `y=${m.y}`);
+});
+
+test("computePivotMarkerPositions: pivot_uv 없으면 slot 중심 + hasPivotUv=false (P1-S9)", () => {
+  // slot uv = [0.2, 0.1, 0.6, 0.5] → center = (0.5, 0.35).
+  // fit = 0.9, origin = (50, 50)
+  // x = 50 + 0.5*1000*0.9 = 500, y = 50 + 0.35*1000*0.9 = 365
+  const scene = buildPivotScene({
+    slots: [{ slot_id: "face", uv: [0.2, 0.1, 0.6, 0.5] }],
+  });
+  const markers = computePivotMarkerPositions(scene, 1000, 1000);
+  assert.equal(markers.length, 1);
+  const m = markers[0]!;
+  assert.equal(m.slot_id, "face");
+  assert.equal(m.hasPivotUv, false);
+  assert.ok(Math.abs(m.x - 500) < 1e-9);
+  assert.ok(Math.abs(m.y - 365) < 1e-9);
+});
+
+test("computePivotMarkerPositions: meta.parts 에 없는 슬롯은 제외 (P1-S9)", () => {
+  // atlas 에 3 슬롯 있지만 meta.parts 엔 2 개만 열거.
+  const scene = buildPivotScene({
+    slots: [
+      { slot_id: "face", uv: [0.2, 0.1, 0.6, 0.5], pivot_uv: [0.5, 0.35] },
+      { slot_id: "hair_variant_b", uv: [0.0, 0.0, 0.1, 0.1], pivot_uv: [0.05, 0.05] },
+      { slot_id: "ahoge", uv: [0.4, 0.0, 0.2, 0.1], pivot_uv: [0.5, 0.02] },
+    ],
+    parts: ["face", "ahoge"],
+  });
+  const markers = computePivotMarkerPositions(scene, 1000, 1000);
+  assert.deepEqual(
+    markers.map((m) => m.slot_id),
+    ["face", "ahoge"],
+    "hair_variant_b 제외, atlas.slots 원래 순서 보존",
+  );
+});
+
+test("computePivotMarkerPositions: 비정사각 canvas + 비정사각 stage 도 fit 공식 일관 (P1-S9)", () => {
+  // canvas 2048x1024, stage 1024x768.
+  // fit = min(1024*0.9 / 2048, 768*0.9 / 1024) = min(0.45, 0.675) = 0.45.
+  // scaledW = 2048 * 0.45 = 921.6, scaledH = 1024 * 0.45 = 460.8.
+  // origin = (1024/2 - 921.6/2, 768/2 - 460.8/2) = (51.2, 153.6).
+  // pivot_uv = [0.5, 0.02148...] (halfbody ahoge) → x = 51.2 + 0.5*2048*0.45 = 51.2 + 460.8 = 512,
+  // y = 153.6 + 0.021484375 * 1024 * 0.45 = 153.6 + 9.8964... = 163.4964...
+  const scene = buildPivotScene({
+    slots: [
+      { slot_id: "ahoge", uv: [0.421875, 0.015625, 0.15625, 0.1171875], pivot_uv: [0.5, 0.021484375] },
+    ],
+    textureW: 2048,
+    textureH: 1024,
+  });
+  const markers = computePivotMarkerPositions(scene, 1024, 768);
+  assert.equal(markers.length, 1);
+  const m = markers[0]!;
+  assert.ok(Math.abs(m.x - 512) < 1e-9, `x=${m.x}`);
+  const expectedY = 153.6 + 0.021484375 * 1024 * 0.45;
+  assert.ok(Math.abs(m.y - expectedY) < 1e-9, `y=${m.y} expected=${expectedY}`);
+});
+
+test("computePivotMarkerPositions: canvas 크기 0/음수 가드 (P1-S9)", () => {
+  // 비정상 texture 차원이면 fit 계산 NaN 위험 — 빈 배열로 안전 반환.
+  const scene = buildPivotScene({
+    slots: [{ slot_id: "face", uv: [0, 0, 1, 1] }],
+    textureW: 0,
+    textureH: 1024,
+  });
+  assert.deepEqual(computePivotMarkerPositions(scene, 800, 600), []);
+});
+
+test("computePivotMarkerPositions: 텍스처 항목 비었으면 빈 배열 (P1-S9)", () => {
+  const atlas: RendererAtlas = {
+    textures: [],
+    slots: [{ slot_id: "face", texture_path: "base.png", uv: [0, 0, 1, 1] }],
+  };
+  const scene: PixiSceneInput = {
+    meta: { parts: [{ role: "face", slot_id: "face" }], parameters: [] },
+    atlas,
+  };
+  assert.deepEqual(computePivotMarkerPositions(scene, 800, 600), []);
 });

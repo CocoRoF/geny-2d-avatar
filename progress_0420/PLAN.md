@@ -9,9 +9,9 @@
 ## 0. 현재 상태 (2026-04-21)
 
 - **Foundation**: ✅ 종료 (Exit 4/4 + 릴리스 게이트 3/3 + lint C1~C14 + migrator + 렌더러 계약 + 15 패키지 + 125+ 세션 문서)
-- **β 로드맵**: 🟢 **P1 S1+S2+S3+S4+S5+S6+S7+S8 완료 + P2 🟢 S1+S2+S3+S4+S5 완료** (2026-04-22) — P1-S8 에서 halfbody v1.3.0 30 파츠 + fullbody v1.0.0 38 파츠 **전 파츠의 `atlas.slots[i].pivot_uv` 자동 주입** + P1-S7 `resolvePivotPlacement` uv 포맷 회귀(`[x,y,w,h]` vs `[u0,v0,u1,v1]`) 수정. exporter `deriveSlotsFromSpecs` 가 part spec 의 `anchor.x_frac/y_frac` (slot-local) 을 캔버스 UV `(box.x + x_frac·box.w)/W` 로 환산, `apps/web-editor/scripts/prepare.mjs` 경로로 번들 자동 반영 — ahoge `[0.5, 0.021484375]` 등 실 peg 가 렌더러로 흐른다. exporter-core 107/107 + pixi 36/36 + pipeline 10/10 green. P2-S5 에서 metrics emit 스키마를 `@geny/web-editor-logic` 순수 함수 `buildGenerateMetricEvents()` 로 승격 + 14 node:test 회귀 고정. Grafana 쿼리/alert rule 이 기대하는 metric name (`geny_generate_phase_duration_ms`, `geny_generate_total_duration_ms`) + 라벨 (trigger/template/ok/phase/budget_ms/budget_ok) 이 CI 스냅샷으로 고정. P1-S7 atlas `pivot_uv` 계약. P2-S4 텔레메트리 훅. P1-S6 auto-preview. P2-S3 pill timing + 5000ms 예산 시각화. P2-S2 mock 품질 개선. P1-S5 시각 정확성. P1-S4 per-part parameter binding. P0 Q1~Q6 사용자 승인 여전히 대기 (비차단).
+- **β 로드맵**: 🟢 **P1 S1+S2+S3+S4+S5+S6+S7+S8+S9 완료 + P2 🟢 S1+S2+S3+S4+S5 완료** (2026-04-22) — P1-S9 에서 `?debug=pivots` dev 오버레이 추가. pixi 렌더러 `computePivotMarkerPositions` 순수 함수 + `defaultCreateApp` 의 조건부 Graphics 마커 레이어 (주입됨=빨강, fallback=회색) + web-editor `?debug=pivots` URL flag wire-through. P1-S8 이 주입한 halfbody/fullbody 68 파츠 pivot_uv 를 브라우저에서 육안 검증 가능 + AI 생성 variant 에서 fallback 슬롯이 가시적. 단위 테스트 8 신규 (fit/origin 공식 + halfbody ahoge 실값 회귀). 기본 경로 zero-cost (pixi.Container 조건부 생성). P1-S8 — halfbody/fullbody 68 파츠 pivot_uv 자동 주입 + P1-S7 uv 포맷 회귀 수정. P2-S5 — metrics emit 스키마 14 node:test 회귀 고정 (Grafana metric names + labels). P1-S7 atlas `pivot_uv` 계약. P2-S4 텔레메트리 훅. P1-S6 auto-preview. P2-S3 pill timing + 5000ms 예산 시각화. P2-S2 mock 품질. P1-S5 시각 정확성. P1-S4 per-part parameter binding. P0 Q1~Q6 사용자 승인 대기 (비차단).
 - **자율 모드**: 🟢 β 범위 활성. SOAK/speculative doc 는 금지 (사용자 2026-04-21 correction).
-- **다음 step**: `?debug=pivots` dev 오버레이 (pivot 육안 검증), dev metrics panel (`?debug=metrics`), 또는 pixi sprite motion/expression 실 렌더 픽셀 회귀. P3 은 `BL-VENDOR-KEY` 블로커 대기.
+- **다음 step**: dev metrics panel (`?debug=metrics`), pivot 레이블, pixi motion ticker 테스트. P3 은 `BL-VENDOR-KEY` 블로커 대기.
 
 ## 1. β 까지의 외부 의존 3 축
 
@@ -28,7 +28,7 @@
 | Phase | 상태 | 예상 세션 | 시작 조건 | 검수 (전부 green 이어야 종료) |
 |---|---|---:|---|---|
 | **P0** UX wireframe | 🟡 산출물 완료 · 사용자 Q1~Q6 승인 대기 | 1 | ✅ 자율 세션 P0-S1 (2026-04-21) | 사용자 `docs/UX-BETA-WIREFRAME.md §9` Q1~Q6 승인 |
-| **P1** 실 픽셀 렌더 | 🟢 **S1+S2+S3+S4+S5+S6+S7+S8 완료** (sprite + atlas slot + slider + motion/expression + per-part binding + sprite pivot/axis split + mount-time auto-preview + atlas pivot_uv optional contract + halfbody/fullbody 전 파츠 pivot_uv 자동 주입 + uv 포맷 회귀 수정) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
+| **P1** 실 픽셀 렌더 | 🟢 **S1+S2+S3+S4+S5+S6+S7+S8+S9 완료** (sprite + atlas slot + slider + motion/expression + per-part binding + sprite pivot/axis split + mount-time auto-preview + atlas pivot_uv optional contract + halfbody/fullbody 전 파츠 pivot_uv 자동 주입 + uv 포맷 회귀 수정 + `?debug=pivots` dev 오버레이) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
 | **P2** 프롬프트 UI + Mock e2e | 🟢 **S1+S2+S3+S4+S5 완료** (Generate UI + Mock 생성기 + live swap + 역할별 shape 렌더링 + per-phase timing + β §7 5000ms 예산 시각화 + 구조화 텔레메트리 emit + metric 스키마 14 단위테스트 고정) | 2~3 | P1 완료 | Mock 벤더로 프롬프트→프리뷰 5초 내 완결 **— 측정 기반 완결 + P5 log scraper 대비** |
 | **P3** 실 nano-banana 통합 | ⚪ 대기 | 3~5 | P2 완료 + BL-VENDOR-KEY | 실 HTTP 호출 10회 중 7회 이상 성공 |
 | **P4** 5 슬롯 자동 조립 | ⚪ 대기 | 3~5 | P3 완료 | 프롬프트 1 줄 → 30초 내 5 슬롯 생성 + atlas |
