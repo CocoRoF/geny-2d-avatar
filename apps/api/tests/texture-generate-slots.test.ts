@@ -554,3 +554,115 @@ test("atlas.json halfbody v1.3.0 은 30 slot (회귀 guard)", () => {
   const slots = loadHalfbodySlots();
   assert.equal(slots.length, 30, "P1.B 가 설정한 30 slot 유지");
 });
+
+// ---- P4.5 feather_px ----
+
+test("POST /api/texture/generate/slots: 기본 feather_px=4, 응답에 echo", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate/slots",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.halfbody",
+        preset_version: "1.3.0",
+        prompt: "feather default",
+        seed: 1,
+        slots: ["hair_front", "face_base"],
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const json = res.json() as { feather_px: number; note: string };
+    assert.equal(json.feather_px, 4, "P4.5 default feather_px=4");
+    assert.match(json.note, /edge feather/);
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});
+
+test("POST /api/texture/generate/slots: feather_px=0 은 feather off", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate/slots",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.halfbody",
+        preset_version: "1.3.0",
+        prompt: "no feather",
+        seed: 1,
+        slots: ["hair_front"],
+        feather_px: 0,
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const json = res.json() as { feather_px: number };
+    assert.equal(json.feather_px, 0);
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});
+
+test("POST /api/texture/generate/slots: feather_px 범위 초과 → 32 로 clamp", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate/slots",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.halfbody",
+        preset_version: "1.3.0",
+        prompt: "overfeather",
+        seed: 1,
+        slots: ["hair_front"],
+        feather_px: 9999,
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const json = res.json() as { feather_px: number };
+    assert.equal(json.feather_px, 32);
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});
+
+test("POST /api/texture/generate/slots: feather on/off 는 다른 sha256 을 생성", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const base = {
+      preset_id: "tpl.base.v1.halfbody",
+      preset_version: "1.3.0",
+      prompt: "feather-diff",
+      seed: 42,
+      slots: ["hair_front", "face_base"],
+    };
+    const off = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate/slots",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({ ...base, feather_px: 0 }),
+    });
+    const on = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate/slots",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({ ...base, feather_px: 8 }),
+    });
+    const jOff = off.json() as { sha256: string };
+    const jOn = on.json() as { sha256: string };
+    assert.notEqual(jOff.sha256, jOn.sha256, "feather 가 실제로 픽셀을 바꿔야 함");
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});

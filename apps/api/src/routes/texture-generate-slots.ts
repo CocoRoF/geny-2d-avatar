@@ -35,6 +35,9 @@ import {
   type AdapterAttempt,
 } from "../lib/texture-adapter.js";
 import { planSlotGenerations, type PaletteHint } from "../lib/slot-prompts.js";
+import { applySlotFeather } from "../lib/slot-feather.js";
+
+const DEFAULT_FEATHER_PX = 4;
 
 export interface SlotsRouteOptions {
   readonly rigTemplatesRoot: string;
@@ -94,6 +97,7 @@ export const textureGenerateSlotsRoute: FastifyPluginAsync<SlotsRouteOptions> = 
           slot_overrides?: Record<string, string>;
           palette_hint?: PaletteHint;
           slots?: string[];
+          feather_px?: number;
         }
       | undefined;
 
@@ -112,6 +116,9 @@ export const textureGenerateSlotsRoute: FastifyPluginAsync<SlotsRouteOptions> = 
       });
     }
     const seed = Number.isFinite(body.seed) ? (body.seed as number) : 0;
+    const featherPx = Number.isFinite(body.feather_px)
+      ? Math.max(0, Math.min(32, Math.round(body.feather_px as number)))
+      : DEFAULT_FEATHER_PX;
 
     const atlas = await readAtlas(rigTemplatesRoot, preset_id, preset_version);
     if (!atlas) {
@@ -235,9 +242,14 @@ export const textureGenerateSlotsRoute: FastifyPluginAsync<SlotsRouteOptions> = 
         });
         continue;
       }
-      // 생성 이미지를 슬롯 크기로 resize (sharp resize) 후 composite.
+      // 생성 이미지를 슬롯 크기로 resize (sharp resize) 후 edge feather 적용 → composite.
       const resized = await sharp(g.run.result.png).resize(w, h).png().toBuffer();
-      compositions.push({ input: resized, left, top });
+      const feathered = await applySlotFeather(resized, {
+        width: w,
+        height: h,
+        featherPx,
+      });
+      compositions.push({ input: feathered, left, top });
       slotResults.push({
         slot_id: g.slot.slot_id,
         adapter: g.run.adapter,
@@ -294,8 +306,11 @@ export const textureGenerateSlotsRoute: FastifyPluginAsync<SlotsRouteOptions> = 
       slot_count: slotResults.length,
       success_count: successCount,
       slot_results: slotResults,
+      feather_px: featherPx,
       note:
-        "P4.2 슬롯별 생성 완료. 실패한 슬롯은 transparent 로 남음. 자세한 내역은 slot_results[] 참조.",
+        "P4.5 슬롯별 생성 + edge feather (" +
+        featherPx +
+        "px). 실패한 슬롯은 transparent. 자세한 내역은 slot_results[] 참조.",
     };
   });
 };
