@@ -2,10 +2,16 @@
 
 ## 역할
 
-ADR 0007 Option E (hybrid) 의 **primary 브라우저 렌더러**. `<geny-avatar>` 의
-`ready` / `parameterchange` 이벤트를 구독해 **PixiJS v8** 의 `PIXI.Application`
-으로 실 픽셀을 그린다. `@geny/web-avatar-renderer` 의 duck-typed 계약에만 의존
-— 구현체 교체에도 `<geny-avatar>` 와 업스트림 패키지는 영향받지 않는다.
+`<geny-avatar>` 의 **primary 브라우저 렌더러**. `ready` / `parameterchange` 이벤트를
+구독해 **PixiJS v8** 의 `PIXI.Application` 으로 실 픽셀을 그린다.
+`@geny/web-avatar-renderer` 의 duck-typed 계약에만 의존 — 구현체 교체에도
+`<geny-avatar>` 와 업스트림 패키지는 영향받지 않는다.
+
+## 상태 (2026-04-24)
+
+- ✅ **구조 프리뷰** — 파츠를 grid 로 배치, `head_angle_x` 로 회전 (placeholder 수준)
+- ⏳ **실 `.moc3` 렌더** — Phase 1.4 에서 [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display) 통합 예정 ([`docs/adr/001-renderer-integration.md`](../../docs/adr/001-renderer-integration.md) 참조)
+- ⚠️ **Cubism Core** 런타임 의존은 P1.D 별도 ADR 에서 번들 정책 확정 후 도입
 
 ## 사용
 
