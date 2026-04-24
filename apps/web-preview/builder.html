@@ -70,6 +70,9 @@
       <p style="font-size: 0.85rem; color: #888;">
         사전 조건: <code>pnpm -F @geny/api dev</code> 로 백엔드가 기본 포트 3000 에 떠 있어야 함. 필요 시 <code>?api=http://...</code> 로 override.
       </p>
+      <div id="adapters-banner" class="status info" style="font-size: 0.85rem; margin-top: 8px;">
+        백엔드 어댑터 정보 로드 중…
+      </div>
     </header>
 
     <section>
@@ -151,6 +154,7 @@
       const qs = new URLSearchParams(location.search);
       const API = qs.get("api") ?? "http://localhost:3000";
 
+      const adaptersBanner = document.getElementById("adapters-banner");
       const presetSelect = document.getElementById("preset-select");
       const presetDetails = document.getElementById("preset-details");
       const fileInput = document.getElementById("file-input");
@@ -170,6 +174,29 @@
         el.className = "status " + cls;
         el.textContent = msg;
         el.style.display = "block";
+      }
+
+      // 0) /api/health 로 활성 어댑터 표시 (P3.5).
+      try {
+        const h = await fetch(API + "/api/health");
+        if (h.ok) {
+          const hj = await h.json();
+          const list = hj.adapters ?? [];
+          adaptersBanner.className = "status ok";
+          adaptersBanner.style.fontSize = "0.82rem";
+          adaptersBanner.innerHTML =
+            "<strong>🤖 백엔드 어댑터 (우선순위 순):</strong> " +
+            (list.length
+              ? list
+                  .map(function (n, i) {
+                    const primary = i === 0 ? " <em style='color:#2b4a8b;'>(primary)</em>" : "";
+                    return "<code style='background:#fff;'>" + n + "</code>" + primary;
+                  })
+                  .join(" · ")
+              : "(없음)");
+        }
+      } catch (e) {
+        // 배너는 실패해도 무시 (main 로직 계속).
       }
 
       // 1) 프리셋 카탈로그 로드.
@@ -286,7 +313,9 @@
             setStatus(
               statusBox,
               "info",
-              "1/2 · /api/texture/generate (mock, prompt=" + prompt + ", seed=" + seed + ") 중…",
+              "1/2 · /api/texture/generate (prompt=" + prompt + ", seed=" + seed + ") 중…\n" +
+                "  레지스트리 순서: nano-banana → openai → pollinations → mock\n" +
+                "  각 어댑터 supports()=true 일 때만 시도. 키 없는 벤더는 자동 skip.",
             );
             const r = await fetch(API + "/api/texture/generate", {
               method: "POST",
@@ -302,6 +331,28 @@
             if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
             textureId = body.texture_id;
             sha256 = body.sha256;
+            // P3.5 - 어댑터 경로 시각화
+            const attemptsLines = Array.isArray(body.attempts)
+              ? body.attempts
+                  .map((a, i) => {
+                    const marker = a.status === "success" ? "✓" : "✗";
+                    const errCode = a.error_code ? " [" + a.error_code + "]" : "";
+                    return (
+                      "    " + (i + 1) + ". " + marker + " " + a.adapter + errCode +
+                      " · " + (a.latency_ms ?? 0) + "ms"
+                    );
+                  })
+                  .join("\n")
+              : "";
+            setStatus(
+              statusBox,
+              "info",
+              "1/2 · /api/texture/generate 완료\n" +
+                "  선택된 어댑터: " + body.adapter + "\n" +
+                (attemptsLines ? "  시도:\n" + attemptsLines + "\n" : "") +
+                "  texture_id: " + textureId + "\n" +
+                "  sha256: " + sha256.slice(0, 16) + "…",
+            );
           }
           setStatus(
             statusBox,
@@ -327,10 +378,13 @@
           });
           const body = await r.json();
           if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+          const mfMsg = body.texture_manifest
+            ? "\n  texture_manifest: " + body.texture_manifest.path + " (mode=" + body.texture_manifest.mode + ")"
+            : "";
           setStatus(
             statusBox,
             "ok",
-            "✅ 빌드 성공!\n  bundle_id: " + body.bundle_id + "\n  파일 수: " + body.file_count,
+            "✅ 빌드 성공!\n  bundle_id: " + body.bundle_id + "\n  파일 수: " + body.file_count + mfMsg,
           );
           result.style.color = "inherit";
           result.innerHTML =
