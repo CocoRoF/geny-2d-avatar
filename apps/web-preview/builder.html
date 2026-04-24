@@ -149,6 +149,39 @@
       <div id="result" style="color: #999;">빌드 결과가 여기에 표시됩니다.</div>
     </section>
 
+    <section id="history-panel" style="display: none;">
+      <h2>3.5 · 히스토리 <small style="color:#999;font-weight:normal;">· P4.4</small></h2>
+      <p style="font-size: 0.85rem; color: #666; margin: 0 0 10px;">
+        upload / generate / 슬롯 재생성 으로 만들어진 텍스처 스냅샷. Undo/Redo 시 자동으로
+        해당 텍스처로 <code>/api/build</code> 재실행해 bundle 을 갱신합니다.
+      </p>
+      <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+        <button id="undo-btn" class="secondary" type="button" disabled>↶ Undo</button>
+        <button id="redo-btn" class="secondary" type="button" disabled>↷ Redo</button>
+        <span id="history-position" style="font-size: 0.85rem; color: #555;">-</span>
+      </div>
+      <ol id="history-list" style="list-style: decimal; padding-left: 22px; margin: 0; font-size: 0.85rem;"></ol>
+    </section>
+
+    <style>
+      #history-list li {
+        padding: 4px 6px;
+        border-radius: 3px;
+        margin-bottom: 2px;
+        color: #555;
+      }
+      #history-list li.current {
+        background: #eef4ff;
+        color: #2b4a8b;
+        font-weight: 600;
+      }
+      #history-list li .ts {
+        color: #999;
+        font-size: 0.85em;
+        margin-left: 6px;
+      }
+    </style>
+
     <section id="slot-panel" style="display: none;">
       <h2>4 · 슬롯 선택 재생성 <small style="color:#999;font-weight:normal;">· P4.3</small></h2>
       <p style="font-size: 0.85rem; color: #666; margin: 0 0 10px;">
@@ -356,6 +389,17 @@
             if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
             textureId = body.texture_id;
             sha256 = body.sha256;
+            window.dispatchEvent(
+              new CustomEvent("geny:texture-ready", {
+                detail: {
+                  textureId,
+                  sha256,
+                  source: "upload",
+                  preset: { id, version },
+                  filename: file.name,
+                },
+              }),
+            );
           } else {
             const prompt = promptInput.value.trim();
             if (!prompt) {
@@ -406,6 +450,18 @@
                 (attemptsLines ? "  시도:\n" + attemptsLines + "\n" : "") +
                 "  texture_id: " + textureId + "\n" +
                 "  sha256: " + sha256.slice(0, 16) + "…",
+            );
+            window.dispatchEvent(
+              new CustomEvent("geny:texture-ready", {
+                detail: {
+                  textureId,
+                  sha256,
+                  source: "generate",
+                  prompt,
+                  seed,
+                  preset: { id, version },
+                },
+              }),
             );
           }
           setStatus(
@@ -680,14 +736,185 @@
               lines.push("    … +" + (failedSlots.length - 5) + " more");
             }
           }
-          lines.push("");
-          lines.push("이 텍스처로 다시 빌드하려면 3 · 결과 영역의 빌드를 다시 실행해야 합니다 (향후 P4.4).");
           setStatus(slotStatus, failedSlots.length === 0 ? "ok" : "info", lines.join("\n"));
+          // P4.4 — 히스토리 push + 자동 재빌드.
+          pushHistory({
+            texture_id: body.texture_id,
+            sha256: body.sha256,
+            source: "slots",
+            label:
+              "슬롯 재생성 (" + selected.length + "개: " +
+              selected.slice(0, 3).join(", ") + (selected.length > 3 ? ", …" : "") +
+              ") · \"" + prompt + "\"",
+            preset: { id: slotState.preset.id, version: slotState.preset.version },
+          });
+          await rebuildWithCurrentTexture("슬롯 재생성 후 자동 rebuild");
         } catch (err) {
           setStatus(slotStatus, "err", "슬롯 재생성 실패:\n" + err.message);
         } finally {
           updateSlotCountLabel();
         }
+      });
+
+      // ===== P4.4 - 텍스처 히스토리 + Undo/Redo + 자동 재빌드 =====
+      const historyPanel = document.getElementById("history-panel");
+      const historyList = document.getElementById("history-list");
+      const historyPosition = document.getElementById("history-position");
+      const undoBtn = document.getElementById("undo-btn");
+      const redoBtn = document.getElementById("redo-btn");
+
+      /** @type {{texture_id:string, sha256:string, source:"upload"|"generate"|"slots", label:string, preset:{id:string,version:string}, ts:number}[]} */
+      const textureHistory = [];
+      let historyCursor = -1;
+      let applyingHistory = false; // undo/redo 중 재귀 push 방지 플래그
+      let lastBundleName = undefined;
+
+      function pushHistory(entry) {
+        if (applyingHistory) return;
+        const ts = Date.now();
+        // 현재 cursor 이후 엔트리 버리고 새 branch 시작 (표준 undo/redo 동작).
+        if (historyCursor < textureHistory.length - 1) {
+          textureHistory.splice(historyCursor + 1);
+        }
+        textureHistory.push({ ...entry, ts });
+        historyCursor = textureHistory.length - 1;
+        historyPanel.style.display = "block";
+        renderHistory();
+      }
+
+      function renderHistory() {
+        historyList.innerHTML = "";
+        for (let i = 0; i < textureHistory.length; i++) {
+          const h = textureHistory[i];
+          const li = document.createElement("li");
+          if (i === historyCursor) li.className = "current";
+          const tstr = new Date(h.ts).toLocaleTimeString();
+          li.innerHTML =
+            "<span>" + h.label + "</span>" +
+            "<span class='ts'>· " + h.source + " · " + h.texture_id.slice(0, 12) + "… · " + tstr + "</span>";
+          li.addEventListener("click", () => jumpToHistory(i));
+          li.style.cursor = "pointer";
+          historyList.appendChild(li);
+        }
+        historyPosition.textContent =
+          textureHistory.length === 0
+            ? "-"
+            : (historyCursor + 1) + " / " + textureHistory.length;
+        undoBtn.disabled = historyCursor <= 0;
+        redoBtn.disabled = historyCursor >= textureHistory.length - 1;
+      }
+
+      async function jumpToHistory(idx) {
+        if (idx < 0 || idx >= textureHistory.length) return;
+        if (idx === historyCursor) return;
+        historyCursor = idx;
+        applyingHistory = true;
+        try {
+          const h = textureHistory[idx];
+          // 슬롯 패널의 textureId 도 되돌림.
+          if (slotState) {
+            slotState.textureId = h.texture_id;
+            slotTextureLabel.textContent = h.texture_id;
+            drawSlotCanvasPlaceholder();
+          }
+          renderHistory();
+          await rebuildWithCurrentTexture("히스토리 점프 rebuild: " + h.label);
+        } finally {
+          applyingHistory = false;
+        }
+      }
+
+      undoBtn.addEventListener("click", () => {
+        if (historyCursor > 0) jumpToHistory(historyCursor - 1);
+      });
+      redoBtn.addEventListener("click", () => {
+        if (historyCursor < textureHistory.length - 1) jumpToHistory(historyCursor + 1);
+      });
+      window.addEventListener("keydown", (ev) => {
+        if (!(ev.metaKey || ev.ctrlKey)) return;
+        if (ev.key === "z" && !ev.shiftKey) {
+          if (!undoBtn.disabled) {
+            ev.preventDefault();
+            undoBtn.click();
+          }
+        } else if ((ev.key === "y") || (ev.key === "z" && ev.shiftKey)) {
+          if (!redoBtn.disabled) {
+            ev.preventDefault();
+            redoBtn.click();
+          }
+        }
+      });
+
+      /**
+       * 현재 cursor 의 텍스처로 /api/build 재호출. goBtn 의 하단 결과 섹션을 그대로 갱신.
+       */
+      async function rebuildWithCurrentTexture(reason) {
+        const h = textureHistory[historyCursor];
+        if (!h) return;
+        const bundleName = bundleNameInput.value.trim() || lastBundleName || undefined;
+        try {
+          const r = await fetch(API + "/api/build", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              preset_id: h.preset.id,
+              preset_version: h.preset.version,
+              texture_id: h.texture_id,
+              ...(bundleName ? { bundle_name: bundleName } : {}),
+            }),
+          });
+          const body = await r.json();
+          if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+          lastBundleName = body.bundle_name;
+          const mfMsg = body.texture_manifest
+            ? "\n  texture_manifest: " + body.texture_manifest.path + " (mode=" + body.texture_manifest.mode + ")"
+            : "";
+          setStatus(
+            statusBox,
+            "ok",
+            "✅ " + reason + "\n  bundle_id: " + body.bundle_id + "\n  파일 수: " + body.file_count + mfMsg,
+          );
+          result.style.color = "inherit";
+          result.innerHTML =
+            "<div class='result-links'>" +
+            "<a href='" + API + body.bundle_url + "' target='_blank'>bundle.json 열기</a>" +
+            "<a href='" + API + body.download_url + "' download>⬇ zip 다운로드</a>" +
+            "</div>" +
+            "<pre>" +
+            JSON.stringify(
+              {
+                bundle_id: body.bundle_id,
+                preset: body.preset,
+                bundle_name: body.bundle_name,
+                texture_id: h.texture_id,
+                file_count: body.file_count,
+              },
+              null,
+              2,
+            ) +
+            "</pre>";
+        } catch (err) {
+          setStatus(statusBox, "err", reason + " 실패:\n" + err.message);
+        }
+      }
+
+      /**
+       * goBtn 의 기존 성공 경로에서 호출 — upload/generate 결과를 히스토리에 시딩.
+       * goBtn 본 리스너는 이 이벤트를 emit 한다.
+       */
+      window.addEventListener("geny:texture-ready", (ev) => {
+        const { textureId, sha256, source, prompt, seed, preset } = ev.detail;
+        let label;
+        if (source === "upload") label = "업로드 (" + (ev.detail.filename ?? "file") + ")";
+        else if (source === "generate") label = "Mock/AI 생성 · \"" + prompt + "\" · seed=" + seed;
+        else label = source;
+        pushHistory({
+          texture_id: textureId,
+          sha256,
+          source,
+          label,
+          preset,
+        });
       });
     </script>
   </body>
