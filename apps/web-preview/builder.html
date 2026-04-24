@@ -625,6 +625,8 @@
           "→ PNG 업로드 크기는 atlas " + atlasSize + " 일치 필수 / Mock 생성은 max 2048 캡.";
         setControlsEnabled(true);
         bundleNameInput.placeholder = "기본: " + id.split(".").pop();
+        // Baseline preview: preset 선택 즉시 원본 텍스처로 렌더.
+        reloadLivePreview({ preset: { id, version }, textureId: null });
       });
 
       // 2) 텍스처 준비 (upload 또는 generate) → 빌드.
@@ -873,14 +875,34 @@
         }
       }
 
-      function drawSlotCanvasPlaceholder() {
-        // 생성된 텍스처를 썸네일로 표시 (API 에는 텍스처 파일 직접 서빙 endpoint 가
-        // 없으므로, atlas 기반 grid preview 로 대체).
+      /**
+       * slotCanvas 를 실제 텍스처 이미지로 그린다. 텍스처가 있으면 /api/texture/:id.png,
+       * 없으면 grid placeholder + atlas 정보 텍스트로 폴백.
+       */
+      async function drawSlotCanvasFromTexture() {
         const ctx = slotCanvas.getContext("2d");
         slotCanvas.width = SLOT_DISPLAY_SIZE;
         slotCanvas.height = SLOT_DISPLAY_SIZE;
         ctx.fillStyle = "#eaeaef";
         ctx.fillRect(0, 0, SLOT_DISPLAY_SIZE, SLOT_DISPLAY_SIZE);
+        const tid = slotState?.textureId;
+        if (tid) {
+          const url = API + "/api/texture/" + encodeURIComponent(tid) + ".png";
+          try {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            await new Promise((resolve, reject) => {
+              img.onload = () => resolve();
+              img.onerror = reject;
+              img.src = url;
+            });
+            ctx.drawImage(img, 0, 0, SLOT_DISPLAY_SIZE, SLOT_DISPLAY_SIZE);
+            return;
+          } catch (err) {
+            // 실패 시 grid 로 폴백.
+          }
+        }
+        // 폴백: grid + 정보 텍스트.
         ctx.strokeStyle = "#ccc";
         ctx.lineWidth = 1;
         for (let i = 0; i <= 8; i++) {
@@ -896,8 +918,21 @@
         }
         ctx.fillStyle = "#999";
         ctx.font = "12px ui-monospace, monospace";
-        ctx.fillText("atlas " + slotState.atlasWidth + "x" + slotState.atlasHeight, 10, 20);
-        ctx.fillText("texture " + (slotState.textureId ?? "-"), 10, 38);
+        ctx.fillText(
+          "atlas " + slotState.atlasWidth + "x" + slotState.atlasHeight,
+          10,
+          20,
+        );
+        ctx.fillText(
+          slotState?.textureId ? "texture " + slotState.textureId : "텍스처 준비 전",
+          10,
+          38,
+        );
+      }
+
+      function drawSlotCanvasPlaceholder() {
+        // drawSlotCanvasFromTexture 는 async 라 기존 sync 호출자에게 race 일으키지 않도록 래핑.
+        void drawSlotCanvasFromTexture();
       }
 
       async function openSlotPanel({ id, version, textureId }) {
