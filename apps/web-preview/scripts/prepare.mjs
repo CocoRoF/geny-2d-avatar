@@ -55,6 +55,30 @@ step("copy @geny/web-avatar dist → public/vendor", () => {
   cpSync(src, vendorDir, { recursive: true });
 });
 
+// P1.5 - Live2D 실 렌더 데모에 필요한 dist 추가 복사.
+step("build @geny/web-avatar-renderer", () => {
+  runPnpm(["--filter", "@geny/web-avatar-renderer", "run", "build"]);
+});
+step("build @geny/web-avatar-renderer-pixi", () => {
+  runPnpm(["--filter", "@geny/web-avatar-renderer-pixi", "run", "build"]);
+});
+step("copy @geny/web-avatar-renderer dist → public/vendor/renderer", () => {
+  const src = resolve(repoRoot, "packages/web-avatar-renderer/dist");
+  cpSync(src, join(vendorDir, "renderer"), { recursive: true });
+});
+step("copy @geny/web-avatar-renderer-pixi dist → public/vendor/renderer-pixi", () => {
+  const src = resolve(repoRoot, "packages/web-avatar-renderer-pixi/dist");
+  cpSync(src, join(vendorDir, "renderer-pixi"), { recursive: true });
+});
+step("copy mao_pro runtime_assets → public/presets/mao_pro/", () => {
+  // Live2D Framework 가 브라우저에서 model3.json 을 로드할 때 상대경로로
+  // moc3/texture/motions/expressions 에 접근하므로 전체 디렉토리 복사.
+  const src = resolve(repoRoot, "rig-templates/base/mao_pro/v1.0.0/runtime_assets");
+  const dest = join(publicDir, "presets", "mao_pro");
+  mkdirSync(join(publicDir, "presets"), { recursive: true });
+  cpSync(src, dest, { recursive: true });
+});
+
 const exporterDist = resolve(repoRoot, "packages/exporter-core/dist");
 const { assembleWebAvatarBundle } = await import(
   pathToFileURL(join(exporterDist, "web-avatar-bundle.js")).toString()

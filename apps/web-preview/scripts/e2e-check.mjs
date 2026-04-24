@@ -52,6 +52,13 @@ try {
   await checkHttp(`${base}/public/vendor/index.js`, "text/javascript");
   await runLoaderChain(`${base}/public/sample/bundle.json`);
   await runDomLifecycle(`${base}/public/sample/bundle.json`);
+  // P1.5 - Live2D demo assets (HTML + 렌더러 dist + mao_pro runtime).
+  await checkHttp(`${base}/live2d-demo.html`, "text/html");
+  await checkHttp(`${base}/public/vendor/renderer-pixi/index.js`, "text/javascript");
+  await checkHttp(
+    `${base}/public/presets/mao_pro/mao_pro.model3.json`,
+    "application/json",
+  );
   log("✅ web-preview e2e pass");
 } catch (err) {
   log(`✖ ${err?.message ?? err}`);

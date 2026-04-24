@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Geny 2D Avatar · Live2D Demo (P1.5)</title>
+    <style>
+      :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; }
+      body { margin: 0; padding: 20px; max-width: 1100px; margin-inline: auto; }
+      header h1 { margin: 0 0 4px; }
+      header p { margin: 0 0 20px; color: #666; font-size: 0.95rem; }
+      .layout { display: grid; grid-template-columns: 600px 1fr; gap: 24px; align-items: start; }
+      #stage {
+        width: 600px;
+        height: 800px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #f7f8fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #888;
+        font-size: 0.9rem;
+      }
+      .panel { display: flex; flex-direction: column; gap: 16px; }
+      .panel section {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 12px 16px;
+      }
+      .panel h2 { margin: 0 0 8px; font-size: 0.95rem; text-transform: uppercase; color: #555; letter-spacing: 0.04em; }
+      .row { display: grid; grid-template-columns: 150px 1fr 45px; align-items: center; gap: 8px; margin: 4px 0; }
+      .row label { font-size: 0.85rem; color: #444; font-family: ui-monospace, monospace; }
+      .row input[type="range"] { width: 100%; }
+      .row output { font-variant-numeric: tabular-nums; font-size: 0.85rem; text-align: right; }
+      .status { padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 12px; }
+      .status.info { background: #eef4ff; color: #2b4a8b; }
+      .status.ok { background: #e8f6ed; color: #205d38; }
+      .status.err { background: #fbe9e9; color: #7a1f1f; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+      button { padding: 5px 12px; font-size: 0.85rem; border: 1px solid #bbb; border-radius: 4px; background: #fff; cursor: pointer; }
+      button:hover { background: #f0f0f0; }
+      .btn-row { display: flex; flex-wrap: wrap; gap: 5px; }
+      pre { background: #f5f5f7; padding: 8px 10px; border-radius: 4px; font-size: 0.75rem; overflow-x: auto; margin: 0; }
+      code { background: #f5f5f7; padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Live2D Demo <small style="color: #999; font-weight: normal;">· P1.5</small></h1>
+      <p>
+        <code>createPixiLive2DRenderer</code> (P1.E) 브라우저 검증. 사전 조건:
+        <code>pnpm exec node scripts/setup-cubism-core.mjs</code> 로
+        <code>live2dcubismcore.min.js</code> 배치 + <code>pnpm -F @geny/web-preview build:public</code>.
+      </p>
+    </header>
+
+    <div id="status" class="status info">초기화 중…</div>
+
+    <div class="layout">
+      <div id="stage">PIXI canvas 대기</div>
+
+      <div class="panel">
+        <section>
+          <h2>Parameters</h2>
+          <div class="row">
+            <label for="pAngleX">ParamAngleX</label>
+            <input type="range" id="pAngleX" min="-30" max="30" value="0" step="1" disabled />
+            <output id="pAngleX-out">0</output>
+          </div>
+          <div class="row">
+            <label for="pAngleY">ParamAngleY</label>
+            <input type="range" id="pAngleY" min="-30" max="30" value="0" step="1" disabled />
+            <output id="pAngleY-out">0</output>
+          </div>
+          <div class="row">
+            <label for="pAngleZ">ParamAngleZ</label>
+            <input type="range" id="pAngleZ" min="-30" max="30" value="0" step="1" disabled />
+            <output id="pAngleZ-out">0</output>
+          </div>
+          <div class="row">
+            <label for="pBodyX">ParamBodyAngleX</label>
+            <input type="range" id="pBodyX" min="-10" max="10" value="0" step="1" disabled />
+            <output id="pBodyX-out">0</output>
+          </div>
+          <div class="row">
+            <label for="pMouth">ParamMouthOpenY</label>
+            <input type="range" id="pMouth" min="0" max="1" value="0" step="0.05" disabled />
+            <output id="pMouth-out">0</output>
+          </div>
+        </section>
+
+        <section>
+          <h2>Motions</h2>
+          <div id="motion-btns" class="btn-row">로드 대기…</div>
+        </section>
+
+        <section>
+          <h2>Expressions</h2>
+          <div id="expression-btns" class="btn-row">로드 대기…</div>
+        </section>
+
+        <section>
+          <h2>Model Info</h2>
+          <pre id="diagnostic">-</pre>
+        </section>
+      </div>
+    </div>
+
+    <script src="./public/vendor/live2dcubismcore.min.js" onerror="window.__coreLoadFailed = true;"></script>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@8.18.1/+esm",
+          "pixi-live2d-display-advanced": "https://cdn.jsdelivr.net/npm/pixi-live2d-display-advanced@2.0.0-beta.2/+esm"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import { Application } from "pixi.js";
+      import { Live2DModel } from "pixi-live2d-display-advanced";
+      import { createPixiLive2DRenderer } from "./public/vendor/renderer-pixi/index.js";
+
+      const statusEl = document.getElementById("status");
+      const stageEl = document.getElementById("stage");
+      const diagnosticEl = document.getElementById("diagnostic");
+
+      const setStatus = (cls, msg) => {
+        statusEl.className = "status " + cls;
+        statusEl.textContent = msg;
+      };
+
+      // 1) Cubism Core 확인.
+      if (window.__coreLoadFailed || typeof window.Live2DCubismCore === "undefined") {
+        setStatus(
+          "err",
+          "❌ Cubism Core 미로드.\n\n" +
+            "1. https://www.live2d.com/sdk/download/web/ 에서 Cubism SDK for Web 다운로드\n" +
+            "2. Core/live2dcubismcore.min.js 파일을 vendor/live2dcubismcore/ 에 복사\n" +
+            "3. 프로젝트 루트에서: pnpm exec node scripts/setup-cubism-core.mjs\n" +
+            "4. pnpm -F @geny/web-preview run build:public 재실행",
+        );
+        stageEl.textContent = "Cubism Core 필요";
+        throw new Error("Cubism Core not loaded");
+      }
+      setStatus("info", "Cubism Core OK. 모델 로드 중…");
+
+      // 2) <geny-avatar> 대신 간이 EventTarget 을 RendererHost 로 사용.
+      //    실 앱에선 <geny-avatar> 가 ready 이벤트 발송 — 여기선 수동 트리거.
+      const host = new EventTarget();
+
+      // 3) createPixiLive2DRenderer 생성 — 런타임 의존성 (pixi, Live2DModel) 을 직접 주입.
+      let loadedModel = null;
+      const renderer = createPixiLive2DRenderer({
+        element: host,
+        mount: stageEl,
+        hasCubismCore: () => typeof window.Live2DCubismCore !== "undefined",
+        // demo 환경 — bundleUrl 패턴이 아닌 직접 URL 반환.
+        resolveModelUrl: () => "./public/presets/mao_pro/mao_pro.model3.json",
+        createApp: async ({ mount, backgroundColor, width, height }) => {
+          const app = new Application();
+          await app.init({
+            background: backgroundColor ?? 0xf7f8fa,
+            width: width ?? 600,
+            height: height ?? 800,
+            antialias: true,
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true,
+          });
+          stageEl.textContent = "";
+          mount.appendChild(app.canvas);
+          return {
+            stage: {
+              addChild: (c) => app.stage.addChild(c),
+              removeChild: (c) => app.stage.removeChild(c),
+            },
+            destroy: () => app.destroy(),
+          };
+        },
+        loadModel: async (modelUrl) => {
+          const model = await Live2DModel.from(modelUrl);
+          // mao 원본 canvas 는 2400x3200 수준. 600x800 stage 에 맞춰 축소 + 중앙 정렬.
+          model.scale.set(0.2);
+          model.x = 300;
+          model.y = 400;
+          loadedModel = model;
+          return model;
+        },
+        backgroundColor: 0xf7f8fa,
+        width: 600,
+        height: 800,
+      });
+
+      host.addEventListener("error", (e) => {
+        setStatus("err", "❌ 렌더 에러 (" + e.detail.code + ")\n" + e.detail.error.message);
+        console.error(e.detail.error);
+      });
+
+      // 4) ready 이벤트 수동 발송 — 렌더러의 비동기 파이프라인 (createApp → loadModel → stage.addChild) 시작.
+      host.dispatchEvent(
+        new CustomEvent("ready", {
+          detail: {
+            bundle: {
+              meta: { parts: [], parameters: [] },
+              atlas: null,
+            },
+          },
+        }),
+      );
+
+      // 5) 폴링으로 renderer 상태 감시 — ready 되면 UI wiring.
+      const pollReady = setInterval(() => {
+        if (renderer.getStatus() === "ready" && loadedModel) {
+          clearInterval(pollReady);
+          wireUI(loadedModel, renderer);
+        } else if (renderer.getStatus() === "error") {
+          clearInterval(pollReady);
+        }
+      }, 50);
+
+      function wireUI(model, renderer) {
+        setStatus("ok", "✅ mao_pro 로드 성공. 슬라이더/버튼 사용 가능.");
+
+        // 모델 다이어그램.
+        diagnosticEl.textContent = JSON.stringify(
+          {
+            motionGroups: Object.keys(model.internalModel?.settings?.motions ?? {}),
+            expressions: (model.internalModel?.settings?.expressions ?? []).map(
+              (e) => e.Name ?? e.name,
+            ),
+          },
+          null,
+          2,
+        );
+
+        // 파라미터 슬라이더 — renderer.setParameter 사용 (Cubism id 직접).
+        const paramBinds = [
+          { el: "pAngleX", cubism: "ParamAngleX" },
+          { el: "pAngleY", cubism: "ParamAngleY" },
+          { el: "pAngleZ", cubism: "ParamAngleZ" },
+          { el: "pBodyX", cubism: "ParamBodyAngleX" },
+          { el: "pMouth", cubism: "ParamMouthOpenY" },
+        ];
+        for (const { el, cubism } of paramBinds) {
+          const input = document.getElementById(el);
+          const out = document.getElementById(el + "-out");
+          input.disabled = false;
+          input.addEventListener("input", () => {
+            const v = Number(input.value);
+            out.textContent = String(v);
+            renderer.setParameter(cubism, v);
+          });
+        }
+
+        // 모션 — renderer.playMotion 사용.
+        const motionBtns = document.getElementById("motion-btns");
+        motionBtns.innerHTML = "";
+        const motionGroups = Object.keys(model.internalModel?.settings?.motions ?? {});
+        if (motionGroups.length === 0) {
+          motionBtns.textContent = "(모션 그룹 없음)";
+        } else {
+          for (const group of motionGroups) {
+            const btn = document.createElement("button");
+            btn.textContent = group;
+            btn.addEventListener("click", () => renderer.playMotion(group));
+            motionBtns.appendChild(btn);
+          }
+        }
+
+        // 표정 — renderer.setExpression.
+        const expBtns = document.getElementById("expression-btns");
+        expBtns.innerHTML = "";
+        const exps = (model.internalModel?.settings?.expressions ?? []).map(
+          (e) => e.Name ?? e.name,
+        );
+        if (exps.length === 0) {
+          expBtns.textContent = "(표정 없음)";
+        } else {
+          for (const name of exps) {
+            const btn = document.createElement("button");
+            btn.textContent = name;
+            btn.addEventListener("click", () => renderer.setExpression(name));
+            expBtns.appendChild(btn);
+          }
+          const reset = document.createElement("button");
+          reset.textContent = "(reset)";
+          reset.addEventListener("click", () => renderer.setExpression(null));
+          expBtns.appendChild(reset);
+        }
+      }
+    </script>
+  </body>
+</html>
