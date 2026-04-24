@@ -447,6 +447,8 @@
         cancelCheckpoint,
         cancelStopReason,
         planSlotGenerations,
+        summarizeCategoryOutcomes,
+        hasRenderableResult,
       } from "./public/vendor/web-editor-logic/index.js";
       import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
@@ -1194,26 +1196,71 @@
           for (const slotId of plan.slots) slotsByPlan.set(slotId, plan);
         }
 
+        // β P4-S4 — dev fault injection 훅. `window.__genyInjectCategoryFault`
+        // 가 카테고리 이름 또는 이름 배열이면, 해당 카테고리 "벤더 call" 은
+        // throw 로 시뮬레이트. 실 P3 합류 후 partial failure UX 를 브라우저에서
+        // 미리 검증하기 위한 opt-in 진단 훅 — 프로덕션 UI 에 노출 X.
+        const faultRaw = globalThis?.__genyInjectCategoryFault;
+        const faultSet = new Set(
+          Array.isArray(faultRaw)
+            ? faultRaw
+            : typeof faultRaw === "string"
+              ? [faultRaw]
+              : [],
+        );
+
+        // β P4-S4 — 카테고리별 try/catch. 한 카테고리가 실패해도 나머지는
+        // 계속 그림. summarizeCategoryOutcomes 가 "부분 성공" 으로 분류.
+        const categoryOutcomes = [];
         for (const plan of plans) {
           onPlanStart?.(plan);
-          // 실제 벤더 호출을 시뮬레이트하는 작은 지연. β §7 5000ms 안에서
-          // 4 카테고리 × ~20ms ≈ 80ms 추가 — 예산에 영향 없음.
-          await new Promise((r) => setTimeout(r, 20));
-          const theme = mockThemeFromPrompt(plan.prompt);
-          for (const slotId of plan.slots) {
-            const slot = atlas.slots.find((s) => s.slot_id === slotId);
-            if (!slot) continue;
-            const [ux, uy, uw, uh] = slot.uv;
-            const x = Math.round(ux * MOCK_CANVAS_SIZE);
-            const y = Math.round(uy * MOCK_CANVAS_SIZE);
-            const w = Math.max(2, Math.round(uw * MOCK_CANVAS_SIZE));
-            const h = Math.max(2, Math.round(uh * MOCK_CANVAS_SIZE));
-            const key = `${plan.prompt}::${slotId}`;
-            const hue = mockHashHue(key);
-            const category = mockCategoryOf(slotId);
-            ctx.save();
-            mockDrawPartShape(ctx, category, x, y, w, h, hue, theme);
-            ctx.restore();
+          try {
+            // 실제 벤더 호출을 시뮬레이트하는 작은 지연. β §7 5000ms 안에서
+            // 4 카테고리 × ~20ms ≈ 80ms 추가 — 예산에 영향 없음.
+            await new Promise((r) => setTimeout(r, 20));
+            if (faultSet.has(plan.category)) {
+              throw new Error(`[fault-inject] ${plan.category} 카테고리 강제 실패`);
+            }
+            const theme = mockThemeFromPrompt(plan.prompt);
+            for (const slotId of plan.slots) {
+              const slot = atlas.slots.find((s) => s.slot_id === slotId);
+              if (!slot) continue;
+              const [ux, uy, uw, uh] = slot.uv;
+              const x = Math.round(ux * MOCK_CANVAS_SIZE);
+              const y = Math.round(uy * MOCK_CANVAS_SIZE);
+              const w = Math.max(2, Math.round(uw * MOCK_CANVAS_SIZE));
+              const h = Math.max(2, Math.round(uh * MOCK_CANVAS_SIZE));
+              const key = `${plan.prompt}::${slotId}`;
+              const hue = mockHashHue(key);
+              const category = mockCategoryOf(slotId);
+              ctx.save();
+              mockDrawPartShape(ctx, category, x, y, w, h, hue, theme);
+              ctx.restore();
+            }
+            categoryOutcomes.push({ category: plan.category, ok: true });
+          } catch (err) {
+            // 카테고리 실패 시 슬롯을 비워두지 않고 fallback 경로로 그려
+            // "Hair 만 placeholder" 같은 시각적 단서를 남긴다.
+            for (const slotId of plan.slots) {
+              const slot = atlas.slots.find((s) => s.slot_id === slotId);
+              if (!slot) continue;
+              const [ux, uy, uw, uh] = slot.uv;
+              const x = Math.round(ux * MOCK_CANVAS_SIZE);
+              const y = Math.round(uy * MOCK_CANVAS_SIZE);
+              const w = Math.max(2, Math.round(uw * MOCK_CANVAS_SIZE));
+              const h = Math.max(2, Math.round(uh * MOCK_CANVAS_SIZE));
+              const theme = mockThemeFromPrompt("fallback");
+              const hue = mockHashHue(`fallback::${slotId}`);
+              const category = mockCategoryOf(slotId);
+              ctx.save();
+              mockDrawPartShape(ctx, category, x, y, w, h, hue, theme);
+              ctx.restore();
+            }
+            categoryOutcomes.push({
+              category: plan.category,
+              ok: false,
+              error: err?.message ?? String(err),
+            });
           }
           onPlanEnd?.(plan);
         }
@@ -1241,7 +1288,12 @@
           }, "image/png");
         });
         const url = URL.createObjectURL(blob);
-        return { textureUrl: url, width: MOCK_CANVAS_SIZE, height: MOCK_CANVAS_SIZE };
+        return {
+          textureUrl: url,
+          width: MOCK_CANVAS_SIZE,
+          height: MOCK_CANVAS_SIZE,
+          categoryOutcomes,
+        };
       }
 
       // β P2-S1+S3 — Generate 버튼 wiring + phase timing 측정.
@@ -1455,7 +1507,7 @@
       // β P2-S8 — phase 경계마다 cancelCheckpoint(getCancelState()) 로 취소 상태 확인.
       // 취소 요청 시 AbortError throw → classifyGenerateFailure → shouldRetry
       // 가 canceled_by_user 로 즉시 종료.
-      async function runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState, categoryMetrics) {
+      async function runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState, categoryMetrics, outcomeRef) {
         let tPhase = t0;
         const markPhaseDone = (idx) => {
           const now = performance.now();
@@ -1504,6 +1556,31 @@
           },
         );
         checkpoint();
+        // β P4-S4 — mock.categoryOutcomes 와 categoryMetrics 를 cross-reference
+        // 해 각 metric entry 의 ok 플래그를 카테고리 실제 결과로 보정. partial
+        // failure 일 때 metric `category_ok=false` 이 정확히 실패한 카테고리만
+        // 지목하도록.
+        const outcomes = mock.categoryOutcomes ?? [];
+        if (categoryMetrics) {
+          const failedSet = new Set(
+            outcomes.filter((o) => !o.ok).map((o) => o.category),
+          );
+          for (const entry of categoryMetrics) {
+            if (failedSet.has(entry.category)) entry.ok = false;
+          }
+        }
+        const summary = summarizeCategoryOutcomes(outcomes);
+        if (outcomeRef) outcomeRef.summary = summary;
+        // 모든 카테고리 실패 → attempt 자체 실패로 throw. 재시도 루프가 처리.
+        // (Mock 에선 실제로는 fallback placeholder 가 그려져 있어도, 운영 의미론적
+        // 으로 "아무 카테고리도 벤더에서 못 받았다" 면 새 attempt 가 더 나을 수 있음.)
+        if (summary.status === "failed") {
+          const err = new Error(
+            `all ${summary.failedCount} categories failed: ${summary.failedCategories.join(", ")}`,
+          );
+          err.name = "CategoryRunFailedError";
+          throw err;
+        }
         markPhaseDone(2);
 
         setPillPhase(3, "active");
@@ -1571,6 +1648,9 @@
         // 에서 push. 재시도 attempt 에서는 이전 데이터 버림 (성공한 attempt 의
         // latency 가 실 SLO 축이므로).
         let categoryMetrics = [];
+        // β P4-S4 — attempt 의 category outcome summary 를 runGenerate 로
+        // 전달해 UI 문구 (success / ⚠ partial) 와 metric `ok` 플래그를 분기.
+        const outcomeRef = { summary: null };
         const t0 = performance.now();
         let attemptIndex = 0;
         let lastFailureKind = undefined;
@@ -1583,9 +1663,10 @@
               resetPills();
               for (let i = 0; i < phaseMs.length; i += 1) phaseMs[i] = 0;
               categoryMetrics = [];
+              outcomeRef.summary = null;
             }
             try {
-              await runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState, categoryMetrics);
+              await runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState, categoryMetrics, outcomeRef);
               break; // 성공
             } catch (err) {
               // 취소로 인한 throw 면 state 를 aborted 로 전이 (metric 보존용).
@@ -1631,14 +1712,20 @@
               attemptIndex = decision.nextAttemptIndex;
             }
           }
-          // 성공 경로.
+          // 성공 경로 (success 또는 partial — 둘 다 atlas 교체는 됨).
           const total = performance.now() - t0;
           const budget = total <= BETA_BUDGET_MS ? "ok" : "over";
           const attempts = attemptIndex + 1;
           const attemptLabel = attempts > 1 ? ` (${attempts} attempts)` : "";
+          // β P4-S4 — partial 은 UI 에 한 줄 warning, metric ok=false 로 분리.
+          const isPartial = outcomeRef.summary?.status === "partial";
+          const partialLabel = isPartial
+            ? ` · ${outcomeRef.summary.displayMessage}`
+            : "";
+          const budgetIcon = budget === "ok" ? "✓" : "⚠";
           genStatusEl.textContent = budget === "ok"
-            ? `✓ ${Math.round(total)}ms${attemptLabel}`
-            : `⚠ ${Math.round(total)}ms (>${BETA_BUDGET_MS})${attemptLabel}`;
+            ? `${budgetIcon} ${Math.round(total)}ms${attemptLabel}${partialLabel}`
+            : `${budgetIcon} ${Math.round(total)}ms (>${BETA_BUDGET_MS})${attemptLabel}${partialLabel}`;
           renderTimings(phaseMs, total);
           emitGenerateMetrics({
             trigger: "user",
@@ -1646,8 +1733,10 @@
             phaseMs,
             totalMs: total,
             budgetMs: BETA_BUDGET_MS,
-            ok: true,
-            outcome: { attempts, ok: true, stopReason: "success" },
+            // partial 은 run 레벨 ok=false — Grafana 에서 "avatar 는 나왔지만
+            // 벤더 실패 있음" 을 ok=true success 와 분리해 보는 축.
+            ok: !isPartial,
+            outcome: { attempts, ok: !isPartial, stopReason: isPartial ? "partial_success" : "success" },
             categories: categoryMetrics,
           });
         } catch (err) {
@@ -1792,6 +1881,21 @@
             },
           );
           phaseMs[1] = performance.now() - tPhase;
+          // β P4-S4 — auto-preview 에서도 카테고리 outcome 반영. 실패한
+          // 카테고리의 metric ok 을 false 로 보정 + partial 이면 ok=false.
+          const autoOutcomes = mock.categoryOutcomes ?? [];
+          const autoFailedSet = new Set(
+            autoOutcomes.filter((o) => !o.ok).map((o) => o.category),
+          );
+          for (const entry of autoCategoryMetrics) {
+            if (autoFailedSet.has(entry.category)) entry.ok = false;
+          }
+          const autoSummary = summarizeCategoryOutcomes(autoOutcomes);
+          if (autoSummary.status === "failed") {
+            throw new Error(
+              `auto-preview: all ${autoSummary.failedCount} categories failed`,
+            );
+          }
           tPhase = performance.now();
           const newAtlas = {
             textures: [
@@ -1813,14 +1917,19 @@
           await (regenPromise ?? Promise.resolve());
           phaseMs[4] = performance.now() - tPhase;
           const total = performance.now() - t0;
-          console.info("[auto-preview] initial avatar painted for", currentTemplate, `${Math.round(total)}ms`);
+          const autoPartial = autoSummary.status === "partial";
+          console.info(
+            "[auto-preview] initial avatar painted for",
+            currentTemplate,
+            `${Math.round(total)}ms${autoPartial ? ` · ${autoSummary.displayMessage}` : ""}`,
+          );
           emitGenerateMetrics({
             trigger: "auto",
             prompt: defaultPrompt,
             phaseMs,
             totalMs: total,
             budgetMs: BETA_BUDGET_MS,
-            ok: true,
+            ok: !autoPartial,
             categories: autoCategoryMetrics,
           });
         } catch (err) {

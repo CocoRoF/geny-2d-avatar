@@ -15,11 +15,22 @@ export {
 } from "./metrics.js";
 export type {
   BuildGenerateMetricsInput,
+  GenerateCategoryMetric,
   GenerateMetricEvent,
   GenerateMetricKind,
   MetricHistorySnapshot,
   MetricRunSummary,
 } from "./metrics.js";
+
+export {
+  hasRenderableResult,
+  summarizeCategoryOutcomes,
+} from "./category-outcome.js";
+export type {
+  CategoryOutcome,
+  CategoryOutcomeSummary,
+  CategoryRunStatus,
+} from "./category-outcome.js";
 
 export {
   attemptOutcomeLabels,
