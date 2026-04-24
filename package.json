@@ -2,7 +2,7 @@
   "name": "geny-2d-avatar",
   "version": "0.0.0",
   "private": true,
-  "description": "표준화된 2D 리그 위에 AI가 재설계한 파츠를 얹어 캐릭터를 찍어내는 반자동 생산·커스터마이징·배포 플랫폼",
+  "description": "Live2D 프리셋 뼈대 + 새 텍스처 (AI 생성 또는 업로드) = 완성된 Live2D 모델. Web UI 기반 아바타 생성 파이프라인",
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": ">=22.11.0"
