@@ -17,7 +17,7 @@
 
 export const METRIC_PHASE_LABELS = ["ingest", "synth", "atlas", "swap", "paint"] as const;
 
-export type GenerateMetricKind = "generate.phase" | "generate.total";
+export type GenerateMetricKind = "generate.phase" | "generate.total" | "generate.category";
 
 export interface GenerateMetricEvent {
   readonly ts: number;
@@ -26,6 +26,20 @@ export interface GenerateMetricEvent {
   readonly value: number;
   readonly labels: Readonly<Record<string, string>>;
   readonly prompt_len?: number;
+}
+
+/**
+ * (β P4-S3) 한 Generate run 안에서 카테고리별 vendor call 에 걸린 시간.
+ * planSlotGenerations 로 분해된 각 카테고리가 하나의 metric 단위 — 실 벤더
+ * 합류 후 "Hair 만 느림" 같은 분포를 Grafana 로 보기 위한 축.
+ */
+export interface GenerateCategoryMetric {
+  readonly category: string;
+  readonly ms: number;
+  /** 이 카테고리가 한 번의 벤더 호출로 커버한 슬롯 수 (예: hair_front/hair_back/ahoge = 3). */
+  readonly slotCount: number;
+  /** 이 카테고리 call 이 성공했는지. 실 벤더에선 한 카테고리만 실패할 수도. */
+  readonly ok: boolean;
 }
 
 export interface BuildGenerateMetricsInput {
@@ -44,6 +58,12 @@ export interface BuildGenerateMetricsInput {
   readonly budgetMs: number;
   /** 성공/실패 플래그. error 경로에선 false 로 emit 해 p95 failure histogram 분리 가능. */
   readonly ok: boolean;
+  /**
+   * (β P4-S3 신규) 카테고리별 vendor call 측정. 지정되면 N 개의
+   * `generate.category` 이벤트가 추가로 emit 된다. 생략 가능 — 기존 호출자는
+   * 변경 없이 phase + total 6 이벤트만 받음.
+   */
+  readonly categories?: readonly GenerateCategoryMetric[];
 }
 
 /**
@@ -85,6 +105,22 @@ export function buildGenerateMetricEvents(
     },
     prompt_len: input.prompt.length,
   });
+  if (input.categories && input.categories.length > 0) {
+    for (const c of input.categories) {
+      events.push({
+        ts: input.ts,
+        kind: "generate.category",
+        name: "geny_generate_category_duration_ms",
+        value: Math.round(c.ms),
+        labels: {
+          ...baseLabels,
+          category: c.category,
+          slot_count: String(c.slotCount),
+          category_ok: c.ok ? "true" : "false",
+        },
+      });
+    }
+  }
   return events;
 }
 
@@ -125,12 +161,22 @@ export interface MetricHistorySnapshot {
   readonly avgTotalMs: number | null;
   readonly p95TotalMs: number | null;
   readonly lastRun: MetricRunSummary | null;
+  /**
+   * (β P4-S3) 카테고리 → 평균 ms. 관측되지 않은 카테고리는 키 자체 없음.
+   * Grafana 의 "Hair 카테고리만 SLO 넘김" 축을 로컬 패널에서 미리 보기 위해.
+   */
+  readonly categoryAverages: Readonly<Record<string, number>>;
+  /** 카테고리 → 관측된 이벤트 수. 분모 복구용. */
+  readonly categoryCounts: Readonly<Record<string, number>>;
+  /** 카테고리 → 성공 이벤트 수 (`category_ok=true`). 실패율 계산에 사용. */
+  readonly categoryOkCounts: Readonly<Record<string, number>>;
 }
 
 export function summarizeMetricHistory(
   events: readonly GenerateMetricEvent[],
 ): MetricHistorySnapshot {
   const phaseSums: Record<string, { sum: number; count: number }> = {};
+  const categorySums: Record<string, { sum: number; count: number; okCount: number }> = {};
   const totals: number[] = [];
   let budgetOkCount = 0;
   let budgetOverCount = 0;
@@ -144,6 +190,14 @@ export function summarizeMetricHistory(
       entry.sum += e.value;
       entry.count += 1;
       phaseSums[phase] = entry;
+    } else if (e.kind === "generate.category") {
+      const category = e.labels["category"];
+      if (typeof category !== "string") continue;
+      const entry = categorySums[category] ?? { sum: 0, count: 0, okCount: 0 };
+      entry.sum += e.value;
+      entry.count += 1;
+      if (e.labels["category_ok"] === "true") entry.okCount += 1;
+      categorySums[category] = entry;
     } else if (e.kind === "generate.total") {
       totals.push(e.value);
       const okStr = e.labels["budget_ok"];
@@ -170,6 +224,15 @@ export function summarizeMetricHistory(
     phaseAverages[phase] = entry.count > 0 ? entry.sum / entry.count : 0;
   }
 
+  const categoryAverages: Record<string, number> = {};
+  const categoryCounts: Record<string, number> = {};
+  const categoryOkCounts: Record<string, number> = {};
+  for (const [category, entry] of Object.entries(categorySums)) {
+    categoryAverages[category] = entry.count > 0 ? entry.sum / entry.count : 0;
+    categoryCounts[category] = entry.count;
+    categoryOkCounts[category] = entry.okCount;
+  }
+
   const runCount = totals.length;
   const avgTotalMs = runCount > 0 ? totals.reduce((s, v) => s + v, 0) / runCount : null;
   let p95TotalMs: number | null = null;
@@ -189,5 +252,8 @@ export function summarizeMetricHistory(
     avgTotalMs,
     p95TotalMs,
     lastRun,
+    categoryAverages,
+    categoryCounts,
+    categoryOkCounts,
   };
 }

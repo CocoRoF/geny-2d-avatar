@@ -1272,7 +1272,7 @@
         }
       }
 
-      function emitGenerateMetrics({ trigger, prompt, phaseMs, totalMs, budgetMs, ok, outcome }) {
+      function emitGenerateMetrics({ trigger, prompt, phaseMs, totalMs, budgetMs, ok, outcome, categories }) {
         const events = buildGenerateMetricEvents({
           ts: Date.now(),
           trigger,
@@ -1282,6 +1282,10 @@
           totalMs,
           budgetMs,
           ok,
+          // β P4-S3 — 카테고리별 vendor latency. undefined 전달은 builder 가
+          // no-op (guard) 이므로 기존 호출자 (auto-preview 등 categories 미전달)
+          // 는 변경 없음.
+          ...(categories && categories.length > 0 ? { categories } : {}),
         });
         // β P2-S7 — attempts / stop_reason / last_failure_kind 라벨을 total 이벤트에 병합.
         // buildGenerateMetricEvents 는 base labels 만 만들므로 여기서 얹는다.
@@ -1342,6 +1346,7 @@
           <div data-debug="budget" style="margin-bottom:6px;">budget: —</div>
           <div data-debug="avg" style="margin-bottom:6px;">avg: — · p95: —</div>
           <div data-debug="phases" style="margin-bottom:6px;">phases: —</div>
+          <div data-debug="categories" style="margin-bottom:6px;">cats: —</div>
           <div data-debug="last-run" style="margin-bottom:6px;color:#9aa1ad;">last: —</div>
         `;
         document.body.appendChild(panel);
@@ -1352,6 +1357,7 @@
           budget: panel.querySelector('[data-debug="budget"]'),
           avg: panel.querySelector('[data-debug="avg"]'),
           phases: panel.querySelector('[data-debug="phases"]'),
+          categories: panel.querySelector('[data-debug="categories"]'),
           lastRun: panel.querySelector('[data-debug="last-run"]'),
         };
 
@@ -1373,6 +1379,21 @@
             .map((k) => `${k} ${fmtMs(snap.phaseAverages[k])}`)
             .join(" · ");
           nodes.phases.textContent = `phases: ${phaseParts}`;
+          // β P4-S3 — 카테고리별 평균 ms 표시. Face / Hair / Body / Accessory 순 (PROMPT_CATEGORY_ORDER 와 동일).
+          const catKeys = ["Face", "Hair", "Body", "Accessory"];
+          const observedCats = catKeys.filter((k) => k in snap.categoryAverages);
+          if (observedCats.length === 0) {
+            nodes.categories.textContent = "cats: —";
+          } else {
+            const catParts = observedCats.map((k) => {
+              const count = snap.categoryCounts[k] ?? 0;
+              const okCount = snap.categoryOkCounts[k] ?? 0;
+              const fail = count - okCount;
+              const failLabel = fail > 0 ? `!${fail}` : "";
+              return `${k} ${fmtMs(snap.categoryAverages[k])}${failLabel}`;
+            });
+            nodes.categories.textContent = `cats: ${catParts.join(" · ")}`;
+          }
           if (snap.lastRun) {
             const ok = snap.lastRun.budgetOk ? "ok" : "over";
             nodes.lastRun.textContent = `last: ${fmtMs(snap.lastRun.totalMs)} ${ok} · ${snap.lastRun.trigger} · ${snap.lastRun.template} · prompt=${snap.lastRun.promptLen}`;
@@ -1434,7 +1455,7 @@
       // β P2-S8 — phase 경계마다 cancelCheckpoint(getCancelState()) 로 취소 상태 확인.
       // 취소 요청 시 AbortError throw → classifyGenerateFailure → shouldRetry
       // 가 canceled_by_user 로 즉시 종료.
-      async function runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState) {
+      async function runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState, categoryMetrics) {
         let tPhase = t0;
         const markPhaseDone = (idx) => {
           const now = performance.now();
@@ -1455,17 +1476,31 @@
         // β P4-S2 — 카테고리별 벤더 호출 시뮬레이션. planSlotGenerations 가
         // 반환한 카테고리 포커스 prompt 로 각 카테고리의 슬롯을 그려 1 prompt →
         // N 벤더 call 구조를 Mock 에서도 재현.
+        // β P4-S3 — onPlanStart/onPlanEnd 경계에서 ms 를 재 categoryMetrics 에
+        // 누적. 실 벤더에선 category latency 가 phase_ms 보다 훨씬 정확한 SLO
+        // 축이므로 metric 을 분리해 보내야 Hair 만 느린 케이스를 잡을 수 있다.
         const slotPlans = planSlotGenerations(prompt, atlas.slots);
+        const planStartAt = new Map();
         const mock = await mockGenerateTextureFromPlans(
           slotPlans,
           atlas,
           (plan) => {
             checkpoint();
+            planStartAt.set(plan.category, performance.now());
             const n = plan.slots.length;
             genStatusEl.textContent = `${plan.category} 합성 (${n} 슬롯)`;
           },
-          () => {
+          (plan) => {
             checkpoint();
+            const startedAt = planStartAt.get(plan.category);
+            if (categoryMetrics && typeof startedAt === "number") {
+              categoryMetrics.push({
+                category: plan.category,
+                ms: performance.now() - startedAt,
+                slotCount: plan.slots.length,
+                ok: true,
+              });
+            }
           },
         );
         checkpoint();
@@ -1532,6 +1567,10 @@
         const getCancelState = () => currentCancelState;
 
         const phaseMs = [0, 0, 0, 0, 0];
+        // β P4-S3 — 카테고리별 vendor ms 누적. runGenerateAttempt 가 plan hook
+        // 에서 push. 재시도 attempt 에서는 이전 데이터 버림 (성공한 attempt 의
+        // latency 가 실 SLO 축이므로).
+        let categoryMetrics = [];
         const t0 = performance.now();
         let attemptIndex = 0;
         let lastFailureKind = undefined;
@@ -1543,9 +1582,10 @@
             if (attemptIndex > 0) {
               resetPills();
               for (let i = 0; i < phaseMs.length; i += 1) phaseMs[i] = 0;
+              categoryMetrics = [];
             }
             try {
-              await runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState);
+              await runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState, categoryMetrics);
               break; // 성공
             } catch (err) {
               // 취소로 인한 throw 면 state 를 aborted 로 전이 (metric 보존용).
@@ -1608,6 +1648,7 @@
             budgetMs: BETA_BUDGET_MS,
             ok: true,
             outcome: { attempts, ok: true, stopReason: "success" },
+            categories: categoryMetrics,
           });
         } catch (err) {
           const total = performance.now() - t0;
@@ -1638,6 +1679,8 @@
                 lastFailureKind: "canceled",
                 stopReason: reasonLabel,
               },
+              // 취소 시 이미 완료된 카테고리까지는 시간 측정 포함 — 진단에 유용.
+              categories: categoryMetrics,
             });
           } else {
             console.error("[generate] failed", err);
@@ -1663,6 +1706,9 @@
                 lastFailureKind,
                 stopReason,
               },
+              // 카테고리 실패 시 어느 카테고리까지 진행됐는지 metric 으로 보존.
+              // 실 벤더에서 "항상 Body 에서 실패" 같은 분포 파악용.
+              categories: categoryMetrics.map((c) => ({ ...c, ok: false })),
             });
           }
         } finally {
@@ -1719,11 +1765,32 @@
         let tPhase = t0;
         const currentTemplate = document.querySelector("#template-picker")?.value ?? "halfbody";
         const defaultPrompt = `default · ${currentTemplate}`;
+        // β P4-S3 — auto-preview 도 카테고리별 ms 측정. "첫 화면 렌더" 경로의
+        // 카테고리 분포를 로컬 패널에서 미리 확인.
+        const autoCategoryMetrics = [];
         try {
           phaseMs[0] = 0; // auto 에는 사용자 입력 대기 없음
           tPhase = performance.now();
           const autoPlans = planSlotGenerations(defaultPrompt, atlas.slots);
-          const mock = await mockGenerateTextureFromPlans(autoPlans, atlas);
+          const autoPlanStartAt = new Map();
+          const mock = await mockGenerateTextureFromPlans(
+            autoPlans,
+            atlas,
+            (plan) => {
+              autoPlanStartAt.set(plan.category, performance.now());
+            },
+            (plan) => {
+              const startedAt = autoPlanStartAt.get(plan.category);
+              if (typeof startedAt === "number") {
+                autoCategoryMetrics.push({
+                  category: plan.category,
+                  ms: performance.now() - startedAt,
+                  slotCount: plan.slots.length,
+                  ok: true,
+                });
+              }
+            },
+          );
           phaseMs[1] = performance.now() - tPhase;
           tPhase = performance.now();
           const newAtlas = {
@@ -1754,6 +1821,7 @@
             totalMs: total,
             budgetMs: BETA_BUDGET_MS,
             ok: true,
+            categories: autoCategoryMetrics,
           });
         } catch (err) {
           const total = performance.now() - t0;
@@ -1766,6 +1834,7 @@
             totalMs: total,
             budgetMs: BETA_BUDGET_MS,
             ok: false,
+            categories: autoCategoryMetrics.map((c) => ({ ...c, ok: false })),
           });
         }
       }

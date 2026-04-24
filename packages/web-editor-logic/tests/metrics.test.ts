@@ -499,3 +499,246 @@ describe("summarizeMetricHistory — 이상치 방어", () => {
     assert.deepEqual(snap.phaseAverages, {});
   });
 });
+
+/**
+ * (β P4-S3) 카테고리별 vendor latency 이벤트. `planSlotGenerations` 로 분해된
+ * Face / Hair / Body / Accessory 각각이 하나의 `generate.category` 이벤트로
+ * emit 된다. 기존 phase + total 경로는 영향 없음 (6 이벤트는 그대로).
+ */
+describe("buildGenerateMetricEvents — categories (β P4-S3)", () => {
+  test("categories 생략 → 기존 6 이벤트만 (역호환)", () => {
+    const events = buildGenerateMetricEvents({
+      ts: 0,
+      trigger: "user",
+      template: "halfbody",
+      prompt: "",
+      phaseMs: [1, 1, 1, 1, 1],
+      totalMs: 5,
+      budgetMs: 5000,
+      ok: true,
+    });
+    assert.equal(events.length, 6);
+    for (const e of events) {
+      assert.notEqual(e.kind, "generate.category");
+    }
+  });
+
+  test("categories 빈 배열 → category event 0개 (빈 배열 guard)", () => {
+    const events = buildGenerateMetricEvents({
+      ts: 0,
+      trigger: "user",
+      template: "halfbody",
+      prompt: "",
+      phaseMs: [1, 1, 1, 1, 1],
+      totalMs: 5,
+      budgetMs: 5000,
+      ok: true,
+      categories: [],
+    });
+    assert.equal(events.length, 6);
+  });
+
+  test("4 카테고리 → 6 + 4 = 10 이벤트, 각각 올바른 name/kind/labels", () => {
+    const events = buildGenerateMetricEvents({
+      ts: 1_700_000_000_000,
+      trigger: "user",
+      template: "halfbody",
+      prompt: "blue hair red outfit",
+      phaseMs: [10, 20, 30, 40, 50],
+      totalMs: 150,
+      budgetMs: 5000,
+      ok: true,
+      categories: [
+        { category: "Face", ms: 22.4, slotCount: 3, ok: true },
+        { category: "Hair", ms: 31.6, slotCount: 5, ok: true },
+        { category: "Body", ms: 18.0, slotCount: 2, ok: true },
+        { category: "Accessory", ms: 9.5, slotCount: 1, ok: false },
+      ],
+    });
+    assert.equal(events.length, 10);
+    const cats = events.filter((e) => e.kind === "generate.category");
+    assert.equal(cats.length, 4);
+    for (const e of cats) {
+      assert.equal(e.name, "geny_generate_category_duration_ms");
+      assert.equal(e.labels.trigger, "user");
+      assert.equal(e.labels.template, "halfbody");
+      assert.equal(e.labels.ok, "true");
+    }
+    const face = cats.find((e) => e.labels.category === "Face")!;
+    assert.equal(face.value, 22, "Math.round(22.4) = 22");
+    assert.equal(face.labels.slot_count, "3");
+    assert.equal(face.labels.category_ok, "true");
+
+    const accessory = cats.find((e) => e.labels.category === "Accessory")!;
+    assert.equal(accessory.value, 10, "Math.round(9.5) = 10");
+    assert.equal(accessory.labels.slot_count, "1");
+    assert.equal(accessory.labels.category_ok, "false", "카테고리 실패 → category_ok=false");
+  });
+
+  test("category event 에는 prompt_len / budget_* 없음 (total 전용 라벨)", () => {
+    const events = buildGenerateMetricEvents({
+      ts: 0,
+      trigger: "user",
+      template: "halfbody",
+      prompt: "x",
+      phaseMs: [1, 1, 1, 1, 1],
+      totalMs: 5,
+      budgetMs: 5000,
+      ok: true,
+      categories: [{ category: "Hair", ms: 10, slotCount: 5, ok: true }],
+    });
+    const cat = events.find((e) => e.kind === "generate.category")!;
+    assert.equal(cat.prompt_len, undefined);
+    assert.equal(cat.labels.budget_ms, undefined);
+    assert.equal(cat.labels.budget_ok, undefined);
+    assert.equal(cat.labels.phase, undefined);
+  });
+
+  test("category event 순서는 input 배열 순서 보존", () => {
+    const events = buildGenerateMetricEvents({
+      ts: 0,
+      trigger: "user",
+      template: "halfbody",
+      prompt: "",
+      phaseMs: [1, 1, 1, 1, 1],
+      totalMs: 5,
+      budgetMs: 5000,
+      ok: true,
+      categories: [
+        { category: "Body", ms: 1, slotCount: 2, ok: true },
+        { category: "Face", ms: 2, slotCount: 3, ok: true },
+        { category: "Hair", ms: 3, slotCount: 5, ok: true },
+      ],
+    });
+    const cats = events.filter((e) => e.kind === "generate.category");
+    assert.deepEqual(
+      cats.map((e) => e.labels.category),
+      ["Body", "Face", "Hair"],
+    );
+  });
+});
+
+describe("summarizeMetricHistory — categories (β P4-S3)", () => {
+  test("category 이벤트 없음 → categoryAverages/Counts/OkCounts 모두 빈 객체", () => {
+    const events = buildGenerateMetricEvents({
+      ts: 0,
+      trigger: "user",
+      template: "halfbody",
+      prompt: "",
+      phaseMs: [1, 1, 1, 1, 1],
+      totalMs: 5,
+      budgetMs: 5000,
+      ok: true,
+    });
+    const snap = summarizeMetricHistory(events);
+    assert.deepEqual(snap.categoryAverages, {});
+    assert.deepEqual(snap.categoryCounts, {});
+    assert.deepEqual(snap.categoryOkCounts, {});
+  });
+
+  test("단일 run 의 4 카테고리 → 각 평균 = 단일값, count=1, okCount 분리", () => {
+    const events = buildGenerateMetricEvents({
+      ts: 0,
+      trigger: "user",
+      template: "halfbody",
+      prompt: "",
+      phaseMs: [1, 1, 1, 1, 1],
+      totalMs: 5,
+      budgetMs: 5000,
+      ok: true,
+      categories: [
+        { category: "Face", ms: 22, slotCount: 3, ok: true },
+        { category: "Hair", ms: 40, slotCount: 5, ok: true },
+        { category: "Body", ms: 18, slotCount: 2, ok: true },
+        { category: "Accessory", ms: 10, slotCount: 1, ok: false },
+      ],
+    });
+    const snap = summarizeMetricHistory(events);
+    assert.equal(snap.categoryAverages["Face"], 22);
+    assert.equal(snap.categoryAverages["Hair"], 40);
+    assert.equal(snap.categoryAverages["Body"], 18);
+    assert.equal(snap.categoryAverages["Accessory"], 10);
+    assert.equal(snap.categoryCounts["Face"], 1);
+    assert.equal(snap.categoryCounts["Accessory"], 1);
+    assert.equal(snap.categoryOkCounts["Face"], 1);
+    assert.equal(snap.categoryOkCounts["Accessory"], 0, "ok=false → okCount=0");
+  });
+
+  test("3 runs × 동일 카테고리 → 평균 = sum/3, count=3, okCount = 성공 회수", () => {
+    const runs = [
+      buildGenerateMetricEvents({
+        ts: 1,
+        trigger: "user",
+        template: "halfbody",
+        prompt: "",
+        phaseMs: [1, 1, 1, 1, 1],
+        totalMs: 5,
+        budgetMs: 5000,
+        ok: true,
+        categories: [{ category: "Hair", ms: 10, slotCount: 5, ok: true }],
+      }),
+      buildGenerateMetricEvents({
+        ts: 2,
+        trigger: "user",
+        template: "halfbody",
+        prompt: "",
+        phaseMs: [1, 1, 1, 1, 1],
+        totalMs: 5,
+        budgetMs: 5000,
+        ok: true,
+        categories: [{ category: "Hair", ms: 20, slotCount: 5, ok: false }],
+      }),
+      buildGenerateMetricEvents({
+        ts: 3,
+        trigger: "user",
+        template: "halfbody",
+        prompt: "",
+        phaseMs: [1, 1, 1, 1, 1],
+        totalMs: 5,
+        budgetMs: 5000,
+        ok: true,
+        categories: [{ category: "Hair", ms: 60, slotCount: 5, ok: true }],
+      }),
+    ];
+    const snap = summarizeMetricHistory(runs.flat());
+    assert.equal(snap.categoryCounts["Hair"], 3);
+    assert.equal(snap.categoryAverages["Hair"], (10 + 20 + 60) / 3);
+    assert.equal(snap.categoryOkCounts["Hair"], 2);
+  });
+
+  test("category label 누락된 이벤트는 집계 제외", () => {
+    const events: GenerateMetricEvent[] = [
+      {
+        ts: 0,
+        kind: "generate.category",
+        name: "geny_generate_category_duration_ms",
+        value: 999,
+        labels: { trigger: "user", template: "halfbody", ok: "true" },
+      },
+    ];
+    const snap = summarizeMetricHistory(events);
+    assert.deepEqual(snap.categoryAverages, {}, "label 누락 → 집계 제외");
+    assert.deepEqual(snap.categoryCounts, {});
+  });
+
+  test("category 이벤트는 runCount/budget 집계에 영향 없음", () => {
+    const events = buildGenerateMetricEvents({
+      ts: 0,
+      trigger: "user",
+      template: "halfbody",
+      prompt: "",
+      phaseMs: [1, 1, 1, 1, 1],
+      totalMs: 5,
+      budgetMs: 5000,
+      ok: true,
+      categories: [
+        { category: "Face", ms: 22, slotCount: 3, ok: true },
+        { category: "Hair", ms: 40, slotCount: 5, ok: true },
+      ],
+    });
+    const snap = summarizeMetricHistory(events);
+    assert.equal(snap.runCount, 1, "category 추가돼도 runCount = total 개수");
+    assert.equal(snap.budgetOkCount, 1);
+    assert.equal(snap.eventCount, 8, "6 + 2 category = 8");
+  });
+});
