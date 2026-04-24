@@ -103,6 +103,10 @@ test-results/
 # === Build artifacts / Binary ===
 *.moc3
 !rig-templates/base/**/runtime_assets/*.moc3
+# Cubism Core (proprietary, ADR 002) — redistribution 금지 → 앱 public/vendor/ 에 복사된 것 포함 모두 ignore.
+**/vendor/live2dcubismcore*.js
+**/vendor/live2dcubismcore*.js.map
+**/vendor/live2dcubismcore*.wasm
 *.cmo3
 *.can3
 *.psd

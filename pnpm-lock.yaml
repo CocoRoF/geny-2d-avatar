@@ -135,8 +135,11 @@ importers:
       '@geny/web-avatar-renderer':
         specifier: workspace:*
         version: link:../web-avatar-renderer
+      pixi-live2d-display-advanced:
+        specifier: 2.0.0-beta.2
+        version: 2.0.0-beta.2(@pixi/sound@6.0.1(pixi.js@8.18.1))(pixi.js@8.18.1)
       pixi.js:
-        specifier: ^8.6.0
+        specifier: ^8.18.1
         version: 8.18.1
     devDependencies:
       '@types/node':
@@ -178,6 +181,11 @@ packages:
 
   '@pixi/colord@2.9.6':
     resolution: {integrity: sha512-nezytU2pw587fQstUu1AsJZDVEynjskwOL+kibwcdxsMBFqPsFFNA7xl0ii/gXuDi6M0xj3mfRJj8pBSc2jCfA==}
+
+  '@pixi/sound@6.0.1':
+    resolution: {integrity: sha512-hpFlQSScAR2L/CsEoIvDi7s1oGsu8y9Zd742Vd3982N+q3IF2vFuIfV9HN4ryjlGnhCT8yBlEgs1gp4G9Rt9TA==}
+    peerDependencies:
+      pixi.js: ^8.0.0
 
   '@types/earcut@3.0.0':
     resolution: {integrity: sha512-k/9fOUGO39yd2sCjrbAJvGDEQvRwRnQIZlBz43roGwUZo5SHAmyVvSFyaVVZkicRVCaDXPKlbxrUcBuJoSWunQ==}
@@ -272,6 +280,13 @@ packages:
   parse-svg-path@0.1.2:
     resolution: {integrity: sha512-JyPSBnkTJ0AI8GGJLfMXvKq42cj5c006fnLz6fXy6zfoVjJizi8BNTpu8on8ziI1cKy9d9DGNuY17Ce7wuejpQ==}
 
+  pixi-live2d-display-advanced@2.0.0-beta.2:
+    resolution: {integrity: sha512-Em7hJvn/Izl4I00alIC5yGpaDOf5xs/a5iEzE3uVMeXMdyYGOaLjrXOT4wNqcx2Ly+EzAoZ0yN09qoX1wq9Zdg==}
+    deprecated: This prerelease version has moved to 'untitled-pixi-live2d-engine'. Please upgrade.
+    peerDependencies:
+      '@pixi/sound': ^6.0.1
+      pixi.js: ^8.13.1
+
   pixi.js@8.18.1:
     resolution: {integrity: sha512-6LUPWYgulZhp/w4kam2XHXB0QedISZIqrJbRdHLLQ3csn5a38uzKxAp6B5j6s89QFYaIJbg95kvgTRcbgpO1ow==}
 
@@ -315,6 +330,10 @@ snapshots:
   '@ioredis/commands@1.5.1': {}
 
   '@pixi/colord@2.9.6': {}
+
+  '@pixi/sound@6.0.1(pixi.js@8.18.1)':
+    dependencies:
+      pixi.js: 8.18.1
 
   '@types/earcut@3.0.0': {}
 
@@ -398,6 +417,11 @@ snapshots:
   ms@2.1.3: {}
 
   parse-svg-path@0.1.2: {}
+
+  pixi-live2d-display-advanced@2.0.0-beta.2(@pixi/sound@6.0.1(pixi.js@8.18.1))(pixi.js@8.18.1):
+    dependencies:
+      '@pixi/sound': 6.0.1(pixi.js@8.18.1)
+      pixi.js: 8.18.1
 
   pixi.js@8.18.1:
     dependencies:

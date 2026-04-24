@@ -1,0 +1,5 @@
+# Live2D Cubism Core (proprietary) — 재배포 금지 (ADR 002).
+# 사용자가 수동 다운로드 후 이 디렉토리에 배치.
+live2dcubismcore*.js
+live2dcubismcore*.js.map
+live2dcubismcore*.wasm
