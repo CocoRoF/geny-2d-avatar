@@ -24,6 +24,7 @@
 
 import { createHash } from "node:crypto";
 import type { TextureAdapter, TextureTask } from "../texture-adapter.js";
+import { normalizeToPng } from "../image-post.js";
 
 const BASE_URL = "https://image.pollinations.ai/prompt";
 const MAX_DIMENSION = 2048;
@@ -93,33 +94,22 @@ export function createPollinationsAdapter(opts: PollinationsAdapterOptions = {})
         err.code = code;
         throw err;
       }
-      const contentType = res.headers.get("content-type") ?? "";
       const buf = Buffer.from(await res.arrayBuffer());
-      // PNG 시그니처 확인 — Pollinations 가 format=png 무시하고 JPEG 반환할 수 있음.
-      const isPng =
-        buf.length >= 8 &&
-        buf[0] === 0x89 &&
-        buf[1] === 0x50 &&
-        buf[2] === 0x4e &&
-        buf[3] === 0x47 &&
-        buf[4] === 0x0d &&
-        buf[5] === 0x0a &&
-        buf[6] === 0x1a &&
-        buf[7] === 0x0a;
-      if (!isPng) {
+      if (buf.length < 16) {
         const err = new Error(
-          "pollinations 반환 이미지가 PNG 아님 (content-type=" +
-            contentType +
-            ", bytes=" +
-            buf.length +
-            "). JPEG→PNG 변환은 P3.5 이후.",
+          "pollinations 응답이 너무 짧음 (" + buf.length + " bytes)",
         ) as Error & { code?: string };
         err.code = "INVALID_OUTPUT";
         throw err;
       }
+      // sharp normalize - JPEG/WebP 반환도 PNG 로 수렴.
+      const png = await normalizeToPng(buf, {
+        targetWidth: task.width,
+        targetHeight: task.height,
+      });
       return {
-        png: buf,
-        sha256: createHash("sha256").update(buf).digest("hex"),
+        png,
+        sha256: createHash("sha256").update(png).digest("hex"),
         width: task.width,
         height: task.height,
       };

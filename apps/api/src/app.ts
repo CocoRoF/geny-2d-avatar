@@ -21,6 +21,8 @@ import { bundleRoute } from "./routes/bundle.js";
 import { TextureAdapterRegistry } from "./lib/texture-adapter.js";
 import { createMockAdapter } from "./lib/adapters/mock-adapter.js";
 import { createPollinationsAdapter } from "./lib/adapters/pollinations-adapter.js";
+import { createNanoBananaAdapter } from "./lib/adapters/nano-banana-adapter.js";
+import { createOpenAIImageAdapter } from "./lib/adapters/openai-image-adapter.js";
 
 export interface AppOptions {
   readonly rigTemplatesRoot: string;
@@ -33,14 +35,24 @@ export interface AppOptions {
 }
 
 /**
- * 기본 레지스트리:
- *   1. pollinations@flux  (공개 HTTP, key 불필요) — primary
- *   2. mock               (결정론, 항상 fallback)
+ * 기본 레지스트리 우선순위 (앞=primary):
+ *   1. nano-banana (Google Gemini 2.5 Flash Image) — GEMINI_API_KEY 있을 때 supports=true
+ *   2. openai-image (gpt-image-1 / dall-e-3)      — OPENAI_API_KEY 있을 때 supports=true
+ *   3. pollinations@flux                          — 공개 HTTP, key 불필요
+ *   4. mock                                       — 결정론 placeholder, 항상 fallback
  *
- * GENY_POLLINATIONS_DISABLED=true 환경에서는 pollinations 가 supports=false 라 사실상 mock 만.
+ * supports() 에 의해 key 없는 벤더는 자동 skip → 다음 어댑터 시도. 그래서 실 키 없는
+ * 환경에서도 pollinations/mock 이 성공하는 한 /api/texture/generate 는 동작한다.
+ *
+ * 개별 disable:
+ *   GENY_NANO_BANANA_DISABLED=true
+ *   GENY_OPENAI_IMAGE_DISABLED=true
+ *   GENY_POLLINATIONS_DISABLED=true
  */
 export function createDefaultAdapterRegistry(): TextureAdapterRegistry {
   const r = new TextureAdapterRegistry();
+  r.register(createNanoBananaAdapter());
+  r.register(createOpenAIImageAdapter());
   r.register(createPollinationsAdapter());
   r.register(createMockAdapter());
   return r;

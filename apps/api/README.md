@@ -11,7 +11,34 @@ Geny 2D Avatar 백엔드 API. Phase 2 — docs/03-ARCHITECTURE.md §3.2.
 - **P3.2** ✅ — `texture-manifest` 스키마 + 번들 첨부
 - **P3.3** ✅ — `TextureAdapterRegistry` + `runTextureGenerate` + `attempts[]`
 - **P3.4** ✅ — Pollinations.ai 벤더 어댑터 (키 불필요, 무료 공개 API)
+- **P3.4b** ✅ — nano-banana (Google Gemini 2.5 Flash Image) + OpenAI Image (gpt-image-1 / dall-e-3) 어댑터 + sharp 이미지 정규화
 - **P3.5** ⏳ — UI 에 adapter/attempts 시각화
+
+## 환경변수 (AI 벤더 키)
+
+어댑터는 다음 환경변수가 설정됐을 때만 활성화 됩니다. 없으면 자동으로 다음 어댑터로 폴백.
+
+| 변수 | 용도 |
+|---|---|
+| `GEMINI_API_KEY` 또는 `GOOGLE_API_KEY` | nano-banana (Google Gemini 2.5 Flash Image) |
+| `OPENAI_API_KEY` | OpenAI Image (gpt-image-1 / dall-e-3) |
+| (없음) | Pollinations.ai 는 키 불필요 |
+
+### 개별 비활성화
+- `GENY_NANO_BANANA_DISABLED=true` / `GENY_OPENAI_IMAGE_DISABLED=true` / `GENY_POLLINATIONS_DISABLED=true`
+
+### 모델 오버라이드
+- `GENY_NANO_BANANA_MODEL` (기본: `gemini-2.5-flash-image`)
+- `GENY_OPENAI_IMAGE_MODEL` (기본: `gpt-image-1`)
+- `GENY_OPENAI_IMAGE_SIZE` (기본: `1024x1024`)
+- `GENY_POLLINATIONS_MODEL` (기본: `flux`)
+
+### 레지스트리 순서
+
+1. **nano-banana** — primary (키 있으면)
+2. **openai-image** — secondary
+3. **pollinations** — tertiary (키 없이 공개 접근)
+4. **mock** — 항상 성공하는 최종 fallback
 
 ## 엔드포인트
 
