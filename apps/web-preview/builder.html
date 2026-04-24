@@ -197,6 +197,10 @@
         <label class="block" for="slot-seed-input">seed</label>
         <input type="text" id="slot-seed-input" placeholder="기본: 0" />
       </div>
+      <div class="form-row inline">
+        <label class="block" for="slot-feather-input">feather_px <small style="color:#999;font-weight:normal;">· P4.5</small></label>
+        <input type="text" id="slot-feather-input" placeholder="기본: 4 · 0=끄기 · 최대 32" />
+      </div>
       <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; align-items: center;">
         <button id="slot-select-all" class="secondary" type="button">모두 선택</button>
         <button id="slot-clear" class="secondary" type="button">해제</button>
@@ -536,6 +540,7 @@
       const slotTextureLabel = document.getElementById("slot-texture-label");
       const slotPromptInput = document.getElementById("slot-prompt-input");
       const slotSeedInput = document.getElementById("slot-seed-input");
+      const slotFeatherInput = document.getElementById("slot-feather-input");
       const slotSelectAll = document.getElementById("slot-select-all");
       const slotClear = document.getElementById("slot-clear");
       const slotCountLabel = document.getElementById("slot-count-label");
@@ -697,11 +702,14 @@
           return;
         }
         const seed = Number(slotSeedInput.value) || 0;
+        const featherRaw = slotFeatherInput.value.trim();
+        const featherPx = featherRaw === "" ? undefined : Number(featherRaw);
         slotRegenBtn.disabled = true;
         setStatus(
           slotStatus,
           "info",
-          "/api/texture/generate/slots 호출 중… (" + selected.length + " slot)",
+          "/api/texture/generate/slots 호출 중… (" + selected.length + " slot, feather=" +
+            (featherPx ?? "default 4") + ")",
         );
         try {
           const r = await fetch(API + "/api/texture/generate/slots", {
@@ -713,6 +721,7 @@
               prompt,
               seed,
               slots: selected,
+              ...(Number.isFinite(featherPx) ? { feather_px: featherPx } : {}),
             }),
           });
           const body = await r.json();
@@ -726,6 +735,7 @@
             "  texture_id: " + body.texture_id,
             "  sha256: " + body.sha256.slice(0, 16) + "…",
             "  성공: " + body.success_count + " / " + body.slot_count,
+            "  feather_px: " + body.feather_px,
           ];
           if (failedSlots.length > 0) {
             lines.push("  실패:");
