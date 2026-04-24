@@ -1,0 +1,156 @@
+{
+  "schema_version": "v1",
+  "expression_id": "expression.exp_03",
+  "version": "1.0.0",
+  "format": 3,
+  "name": {
+    "en": "exp_03",
+    "ko": "exp_03",
+    "ja": "exp_03"
+  },
+  "notes": "Imported from Live2D Inc./Nijiiro Mao Pro (exp_03.exp3.json).",
+  "fade_in_sec": 0.5,
+  "fade_out_sec": 0.5,
+  "blends": [
+    {
+      "target_id": "cheek",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "eye_l_open",
+      "value": 0,
+      "blend": "Multiply"
+    },
+    {
+      "target_id": "eye_l_smile",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "eye_l_form",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "eye_r_open",
+      "value": 0,
+      "blend": "Multiply"
+    },
+    {
+      "target_id": "eye_r_smile",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "eye_r_form",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "eye_ball_x",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "eye_ball_y",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "eye_ball_form",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "eye_effect",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "brow_l_y",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "brow_r_y",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "brow_l_x",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "brow_r_x",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "brow_l_angle",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "brow_r_angle",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "brow_l_form",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "brow_r_form",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "phoneme_a",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "phoneme_i",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "phoneme_u",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "phoneme_e",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "phoneme_o",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "mouth_up",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "mouth_down",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "mouth_angry",
+      "value": 0,
+      "blend": "Add"
+    },
+    {
+      "target_id": "mouth_angry_line",
+      "value": 0,
+      "blend": "Add"
+    }
+  ]
+}

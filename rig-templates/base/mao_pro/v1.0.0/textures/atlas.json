@@ -1,0 +1,14 @@
+{
+  "schema_version": "v1",
+  "format": 1,
+  "textures": [
+    {
+      "path": "textures/base.png",
+      "width": 4096,
+      "height": 4096,
+      "format": "png",
+      "premultiplied_alpha": false
+    }
+  ],
+  "slots": []
+}

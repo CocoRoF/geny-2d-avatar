@@ -1,0 +1,13 @@
+{
+  "schema_version": "v1",
+  "root_id": "root",
+  "nodes": [
+    {
+      "id": "root",
+      "type": "warp",
+      "parent": null,
+      "params_in": [],
+      "notes": "3rd-party wrapper — drawable 단위 디포머 계층은 .moc3 에 내재."
+    }
+  ]
+}

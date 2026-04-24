@@ -2,7 +2,8 @@
 # Live2D 공식 샘플·3rd-party 프리셋은 저장소에 포함하지 않는다.
 # 용도는 명세 확인/회귀 테스트 입력 한정. 재배포 금지.
 mao_pro_ko/
-mao_pro/
+# 2026-04-24 P1.A — rig-templates/base/mao_pro/ 는 Live2D 샘플의 wrapper preset.
+# 라이선스(mao_pro_ko/ReadMe.txt) 준수 하에 저장소 포함. 원본 디렉토리 (mao_pro_ko/) 와 별개.
 **/samples/live2d/
 **/samples/cubism/
 **/samples/spine/
@@ -101,6 +102,7 @@ test-results/
 
 # === Build artifacts / Binary ===
 *.moc3
+!rig-templates/base/**/runtime_assets/*.moc3
 *.cmo3
 *.can3
 *.psd

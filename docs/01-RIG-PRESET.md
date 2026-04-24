@@ -65,7 +65,7 @@ rig-templates/base/<id>/<version>/
 
 | 프리셋 ID | 종류 | 경로 | 상태 | 비고 |
 |---|---|---|---|---|
-| `tpl.base.mao_pro@1.0.0` | 3rd-party | `rig-templates/base/mao_pro/v1.0.0/` | **계획 — Phase 1 에서 등재** | `mao_pro_ko/runtime/` 의 moc3 · model3 · physics3 · pose3 · cdi3 · motions · expressions · texture_00.png 을 규격에 맞춰 분해·등재. `.moc3` 는 `runtime_assets/` 에 보존. |
+| `tpl.base.v1.mao_pro@1.0.0` | 3rd-party | `rig-templates/base/mao_pro/v1.0.0/` | **활성 (P1.A 2026-04-24)** | `scripts/rig-template/import-cubism-preset.mjs` 로 `mao_pro_ko/runtime/` → wrapper 변환. 130 params + 32 parts + 16 physics settings + 7 motions + 8 expressions. `.moc3` + 원본 JSON 은 `runtime_assets/`. |
 | `tpl.base.halfbody@1.3.0` | derived | `rig-templates/base/halfbody/v1.3.0/` | 존재 (atlas 슬롯 비어 있음) | Phase 1 에서 `atlas.json slots[]` 채움. mao_pro 에서 12/16 PhysicsSetting 차용. |
 | `tpl.base.halfbody@1.0.0 ~ 1.2.0` | derived (구버전) | `archive/rig-templates/halfbody/v1.0.0 ~ v1.2.0/` | **archive (P0.3.3)** | 이전 iteration. 2026-04-24 P0.3.3 에서 archive 이동. 레퍼런스로만 유지. |
 | `tpl.base.fullbody@1.0.0` | derived | `rig-templates/base/fullbody/v1.0.0/` | 후속 스코프 (Phase 5) | 전신 프리셋 초기안. 카탈로그 확장 검증용. |

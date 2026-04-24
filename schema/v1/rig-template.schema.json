@@ -176,6 +176,30 @@
           "bound_to_part": { "$ref": "common/ids.json#/$defs/slotId" }
         }
       }
+    },
+    "origin": {
+      "type": "object",
+      "description": "2026-04-24 P1.A — 3rd-party preset wrapper 메타 (docs/01-RIG-PRESET.md §2). derived preset 에서는 생략.",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["third-party", "derived", "user"],
+          "description": "third-party: 외부 완성 프리셋을 감싼 wrapper / derived: 우리가 저작 / user: 사용자 업로드."
+        },
+        "vendor": { "type": "string", "description": "외부 공급사 이름. 예: 'Live2D Inc.'." },
+        "product": { "type": "string", "description": "원본 제품명. 예: 'Nijiiro Mao Pro'." },
+        "source_path": { "type": "string", "description": "원본 디렉토리 상대 경로. 예: 'mao_pro_ko/runtime'." },
+        "license_ref": {
+          "type": ["string", "null"],
+          "description": "라이선스 문서 상대 경로 (원본 ReadMe 등)."
+        },
+        "runtime_assets_dir": {
+          "type": "string",
+          "description": "Cubism 런타임이 직접 로드할 원본 파일 디렉토리. 예: 'runtime_assets/'."
+        }
+      }
     }
   }
 }

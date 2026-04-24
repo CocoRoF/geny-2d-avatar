@@ -276,6 +276,10 @@ async function main() {
 
     // 2c-bis. physics/physics.json (if present)
     // docs/03 §6.2: input ⊂ {head_angle_*, body_angle_*, body_breath} (physics_input=true), output ⊂ *_sway / *_phys (physics_output=true).
+    // 2026-04-24 P1.A — 3rd-party wrapper preset (manifest.origin.kind === "third-party") 는
+    // Cubism 네이티브 ID 를 그대로 보존하므로 docs/03 §6.2 input allowlist + output suffix 규칙 적용 제외.
+    // 구조 스키마 검증 (schema.physics) 은 그대로 수행.
+    const isThirdParty = manifest?.origin?.kind === "third-party";
     const physicsPath = join(dir, manifest.physics_file || "physics/physics.json");
     const physicsInputAllowed = new Set(
       (params.parameters || []).filter((p) => p.physics_input === true).map((p) => p.id),
@@ -340,7 +344,7 @@ async function main() {
             if (!paramIds.has(inp.source_param)) {
               failed += 1;
               console.error(`[rig] physics.json: setting '${s.id}' input source_param '${inp.source_param}' not in parameters.json`);
-            } else if (!physicsInputAllowed.has(inp.source_param)) {
+            } else if (!isThirdParty && !physicsInputAllowed.has(inp.source_param)) {
               failed += 1;
               console.error(`[rig] physics.json: setting '${s.id}' input '${inp.source_param}' is not marked physics_input=true (docs/03 §6.2)`);
             }
@@ -350,13 +354,14 @@ async function main() {
             if (!paramIds.has(out.destination_param)) {
               failed += 1;
               console.error(`[rig] physics.json: setting '${s.id}' output destination_param '${out.destination_param}' not in parameters.json`);
-            } else if (!physicsOutputAllowed.has(out.destination_param)) {
+            } else if (!isThirdParty && !physicsOutputAllowed.has(out.destination_param)) {
               failed += 1;
               console.error(`[rig] physics.json: setting '${s.id}' output '${out.destination_param}' is not marked physics_output=true`);
             }
             // docs/03 §6.2 — *_sway / *_phys / *_fuwa 접미사. 좌우 분리 시 _l / _r 뒤붙임 허용.
             // `_fuwa` 는 세션 07 에서 볼륨 팽창용 물리 출력으로 정식 도입 (docs/03 §12.1 #1).
-            if (!/_(sway|phys|fuwa)(_[lr])?$/.test(out.destination_param)) {
+            // 3rd-party wrapper 는 Cubism 네이티브 ID 보존이므로 suffix 규칙 제외 (P1.A).
+            if (!isThirdParty && !/_(sway|phys|fuwa)(_[lr])?$/.test(out.destination_param)) {
               failed += 1;
               console.error(`[rig] physics.json: setting '${s.id}' output '${out.destination_param}' must end in _sway / _phys / _fuwa (optionally + _l/_r) — docs/03 §6.2`);
             }
