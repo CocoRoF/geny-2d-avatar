@@ -16,6 +16,7 @@ import type { FastifyInstance } from "fastify";
 import { presetsRoute } from "./routes/presets.js";
 import { textureUploadRoute } from "./routes/texture-upload.js";
 import { textureGenerateRoute } from "./routes/texture-generate.js";
+import { textureGenerateSlotsRoute } from "./routes/texture-generate-slots.js";
 import { buildRoute } from "./routes/build.js";
 import { bundleRoute } from "./routes/bundle.js";
 import { TextureAdapterRegistry } from "./lib/texture-adapter.js";
@@ -78,6 +79,11 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     maxFileSize,
   });
   await fastify.register(textureGenerateRoute, {
+    rigTemplatesRoot: opts.rigTemplatesRoot,
+    texturesDir,
+    adapters,
+  });
+  await fastify.register(textureGenerateSlotsRoute, {
     rigTemplatesRoot: opts.rigTemplatesRoot,
     texturesDir,
     adapters,
