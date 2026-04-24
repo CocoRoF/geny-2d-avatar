@@ -446,6 +446,7 @@
         isCancelRequested,
         cancelCheckpoint,
         cancelStopReason,
+        planSlotGenerations,
       } from "./public/vendor/web-editor-logic/index.js";
       import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
@@ -1170,6 +1171,79 @@
         return { textureUrl: url, width: MOCK_CANVAS_SIZE, height: MOCK_CANVAS_SIZE };
       }
 
+      // β P4-S2 — 슬롯 분배 플랜 기반 Mock 생성기.
+      // `planSlotGenerations` (P4-S1 순수 모듈) 이 반환한 카테고리별 포커스된
+      // prompt 를 사용해 카테고리마다 **별개의** Mock "vendor call" 을 흉내낸다.
+      // 한 canvas 에 카테고리 순서대로 슬롯을 그리되, 각 카테고리의 slot hue 는
+      // 그 카테고리의 focused prompt 로부터 파생 — 벤더 호출이 실제로 나뉘었을
+      // 때 예상되는 결과와 동일한 모양을 재현. onPlanStart/onPlanEnd 훅은 UX
+      // progress 표시 / metric emit / cancel checkpoint 용.
+      async function mockGenerateTextureFromPlans(plans, atlas, onPlanStart, onPlanEnd) {
+        const canvas = document.createElement("canvas");
+        canvas.width = MOCK_CANVAS_SIZE;
+        canvas.height = MOCK_CANVAS_SIZE;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas 2D context unavailable");
+        ctx.clearRect(0, 0, MOCK_CANVAS_SIZE, MOCK_CANVAS_SIZE);
+
+        // 플랜 밖의 슬롯은 어떤 카테고리에도 속하지 않음 (Other). 이들은 user
+        // prompt raw 로 그려 "plan 에 포함 안 된 slot 도 비워두지 않음" 을 보장.
+        // 하지만 plan.slots 에 있는 것들은 플랜 prompt 를 우선시.
+        const slotsByPlan = new Map();
+        for (const plan of plans) {
+          for (const slotId of plan.slots) slotsByPlan.set(slotId, plan);
+        }
+
+        for (const plan of plans) {
+          onPlanStart?.(plan);
+          // 실제 벤더 호출을 시뮬레이트하는 작은 지연. β §7 5000ms 안에서
+          // 4 카테고리 × ~20ms ≈ 80ms 추가 — 예산에 영향 없음.
+          await new Promise((r) => setTimeout(r, 20));
+          const theme = mockThemeFromPrompt(plan.prompt);
+          for (const slotId of plan.slots) {
+            const slot = atlas.slots.find((s) => s.slot_id === slotId);
+            if (!slot) continue;
+            const [ux, uy, uw, uh] = slot.uv;
+            const x = Math.round(ux * MOCK_CANVAS_SIZE);
+            const y = Math.round(uy * MOCK_CANVAS_SIZE);
+            const w = Math.max(2, Math.round(uw * MOCK_CANVAS_SIZE));
+            const h = Math.max(2, Math.round(uh * MOCK_CANVAS_SIZE));
+            const key = `${plan.prompt}::${slotId}`;
+            const hue = mockHashHue(key);
+            const category = mockCategoryOf(slotId);
+            ctx.save();
+            mockDrawPartShape(ctx, category, x, y, w, h, hue, theme);
+            ctx.restore();
+          }
+          onPlanEnd?.(plan);
+        }
+
+        // 플랜에 속하지 않은 슬롯 (role='unknown' 등) 은 vanilla 경로.
+        for (const slot of atlas.slots) {
+          if (slotsByPlan.has(slot.slot_id)) continue;
+          const [ux, uy, uw, uh] = slot.uv;
+          const x = Math.round(ux * MOCK_CANVAS_SIZE);
+          const y = Math.round(uy * MOCK_CANVAS_SIZE);
+          const w = Math.max(2, Math.round(uw * MOCK_CANVAS_SIZE));
+          const h = Math.max(2, Math.round(uh * MOCK_CANVAS_SIZE));
+          const theme = mockThemeFromPrompt("fallback");
+          const hue = mockHashHue(`fallback::${slot.slot_id}`);
+          const category = mockCategoryOf(slot.slot_id);
+          ctx.save();
+          mockDrawPartShape(ctx, category, x, y, w, h, hue, theme);
+          ctx.restore();
+        }
+
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((b) => {
+            if (b) resolve(b);
+            else reject(new Error("canvas.toBlob returned null"));
+          }, "image/png");
+        });
+        const url = URL.createObjectURL(blob);
+        return { textureUrl: url, width: MOCK_CANVAS_SIZE, height: MOCK_CANVAS_SIZE };
+      }
+
       // β P2-S1+S3 — Generate 버튼 wiring + phase timing 측정.
       const promptInput = document.querySelector("#prompt-input");
       const generateBtn = document.querySelector("#generate-btn");
@@ -1378,7 +1452,22 @@
 
         setPillPhase(2, "active");
         genStatusEl.textContent = "텍스처 합성";
-        const mock = await mockGenerateTexture(prompt, atlas);
+        // β P4-S2 — 카테고리별 벤더 호출 시뮬레이션. planSlotGenerations 가
+        // 반환한 카테고리 포커스 prompt 로 각 카테고리의 슬롯을 그려 1 prompt →
+        // N 벤더 call 구조를 Mock 에서도 재현.
+        const slotPlans = planSlotGenerations(prompt, atlas.slots);
+        const mock = await mockGenerateTextureFromPlans(
+          slotPlans,
+          atlas,
+          (plan) => {
+            checkpoint();
+            const n = plan.slots.length;
+            genStatusEl.textContent = `${plan.category} 합성 (${n} 슬롯)`;
+          },
+          () => {
+            checkpoint();
+          },
+        );
         checkpoint();
         markPhaseDone(2);
 
@@ -1633,7 +1722,8 @@
         try {
           phaseMs[0] = 0; // auto 에는 사용자 입력 대기 없음
           tPhase = performance.now();
-          const mock = await mockGenerateTexture(defaultPrompt, atlas);
+          const autoPlans = planSlotGenerations(defaultPrompt, atlas.slots);
+          const mock = await mockGenerateTextureFromPlans(autoPlans, atlas);
           phaseMs[1] = performance.now() - tPhase;
           tPhase = performance.now();
           const newAtlas = {
