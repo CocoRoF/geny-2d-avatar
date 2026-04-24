@@ -251,6 +251,23 @@
       <div class="preview-layout">
         <div id="preview-stage" class="preview-stage">프리셋 선택 + 텍스처 준비 후 렌더</div>
         <div class="preview-controls">
+          <div id="iterate-panel" style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 8px;">
+            <div style="font-size: 0.82rem; font-weight: 600; color: #444; margin-bottom: 6px;">🔁 반복 생성</div>
+            <div class="form-row" style="margin-bottom: 6px;">
+              <input type="text" id="iter-prompt" placeholder="프롬프트 (예: silver short hair)" style="font-size: 0.85rem;" />
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center;">
+              <input type="text" id="iter-seed" placeholder="seed (빈값: 자동)" style="font-size: 0.85rem;" />
+              <select id="iter-mode" style="font-size: 0.85rem;">
+                <option value="full">전체 atlas</option>
+                <option value="slots">선택 슬롯만</option>
+              </select>
+              <button id="iter-btn" type="button" disabled style="padding: 6px 12px; font-size: 0.85rem;">생성 ⏎</button>
+            </div>
+            <div style="font-size: 0.75rem; color: #888; margin-top: 4px;">
+              seed 빈값 = 랜덤 / 슬롯 모드는 4 · 슬롯 재생성 패널의 선택 따라감
+            </div>
+          </div>
           <div class="preview-row">
             <label>ParamAngleX</label>
             <input type="range" id="pvAngleX" min="-30" max="30" value="0" step="1" disabled />
@@ -1479,6 +1496,127 @@
           preset: ev.detail.preset,
           textureId: ev.detail.textureId,
         });
+      });
+
+      // ===== Inline Iterate 패널 (P-RT.5) =====
+      const iterPromptInput = document.getElementById("iter-prompt");
+      const iterSeedInput = document.getElementById("iter-seed");
+      const iterModeSelect = document.getElementById("iter-mode");
+      const iterBtn = document.getElementById("iter-btn");
+
+      // preset 선택되거나 generate 탭 prompt 가 채워지면 iterBtn 활성화.
+      function updateIterateState() {
+        const hasPreset = !!presetSelect.value;
+        iterBtn.disabled = !hasPreset;
+      }
+      presetSelect.addEventListener("change", updateIterateState);
+      iterPromptInput.addEventListener("input", updateIterateState);
+
+      // 페이지 초기화 시 generate 탭 prompt 를 iterPrompt 와 동기화 (편의).
+      if (promptInput && promptInput.value) {
+        iterPromptInput.value = promptInput.value;
+      }
+
+      iterPromptInput.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && !iterBtn.disabled) {
+          ev.preventDefault();
+          iterBtn.click();
+        }
+      });
+      iterSeedInput.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && !iterBtn.disabled) {
+          ev.preventDefault();
+          iterBtn.click();
+        }
+      });
+
+      iterBtn.addEventListener("click", async () => {
+        const v = presetSelect.value;
+        if (!v) return;
+        const [id, version] = v.split("@");
+        const prompt = iterPromptInput.value.trim() || promptInput.value.trim();
+        if (!prompt) {
+          setStatus(previewStatus, "err", "프롬프트가 비어있음. (section 2 B 탭의 prompt 도 사용 가능)");
+          return;
+        }
+        const seedRaw = iterSeedInput.value.trim();
+        const seed = seedRaw === "" ? Math.floor(Math.random() * 1000000) : Number(seedRaw) || 0;
+        const mode = iterModeSelect.value;
+
+        iterBtn.disabled = true;
+        setStatus(previewStatus, "info", "반복 생성 중… mode=" + mode + " seed=" + seed);
+        try {
+          if (mode === "slots") {
+            // 슬롯 모드: slotState 가 없거나 선택된 슬롯이 없으면 경고.
+            if (!slotState || slotState.slots.every((s) => !s.selected)) {
+              setStatus(
+                previewStatus,
+                "err",
+                "슬롯 모드는 '4 · 슬롯 선택 재생성' 패널에서 슬롯을 먼저 선택해야 합니다.",
+              );
+              return;
+            }
+            const selected = slotState.slots
+              .filter((s) => s.selected)
+              .map((s) => s.slot_id);
+            const r = await fetch(API + "/api/texture/generate/slots", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                preset_id: id,
+                preset_version: version,
+                prompt,
+                seed,
+                slots: selected,
+              }),
+            });
+            const body = await r.json();
+            if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+            slotState.textureId = body.texture_id;
+            slotTextureLabel.textContent = body.texture_id;
+            drawSlotCanvasFromTexture();
+            pushHistory({
+              texture_id: body.texture_id,
+              sha256: body.sha256,
+              source: "slots",
+              label:
+                "반복 슬롯 (" + selected.length + "개) · \"" + prompt + "\" · seed=" + seed,
+              preset: { id, version },
+            });
+            await rebuildWithCurrentTexture("반복 슬롯 생성");
+            reloadLivePreview({ preset: { id, version }, textureId: body.texture_id });
+          } else {
+            // full atlas 모드.
+            const r = await fetch(API + "/api/texture/generate", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                preset_id: id,
+                preset_version: version,
+                prompt,
+                seed,
+              }),
+            });
+            const body = await r.json();
+            if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+            pushHistory({
+              texture_id: body.texture_id,
+              sha256: body.sha256,
+              source: "generate",
+              label: "반복 생성 · \"" + prompt + "\" · seed=" + seed,
+              preset: { id, version },
+            });
+            await rebuildWithCurrentTexture("반복 생성");
+            reloadLivePreview({ preset: { id, version }, textureId: body.texture_id });
+          }
+          setStatus(previewStatus, "ok", "✅ 반복 생성 완료 (seed=" + seed + ")");
+          // 다음 iteration 을 위해 seed 필드를 비워두면 자동 랜덤.
+          if (seedRaw === "") iterSeedInput.value = "";
+        } catch (err) {
+          setStatus(previewStatus, "err", "반복 생성 실패: " + err.message);
+        } finally {
+          iterBtn.disabled = !presetSelect.value;
+        }
       });
     </script>
   </body>
