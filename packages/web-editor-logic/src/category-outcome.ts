@@ -21,11 +21,15 @@ export type CategoryRunStatus = "success" | "partial" | "failed" | "empty";
 /**
  * 한 카테고리의 vendor call 결과. 실패 시 `error` 에 사람이 읽을 수 있는
  * 메시지를 담는다 — stack trace 는 metric cardinality 를 늘리므로 지양.
+ *
+ * `retried` 는 P4-S5 에서 추가 — 이 outcome 이 partial retry 경로로 확정된
+ * 결과임을 표시. partial-retry.ts 의 `mergeCategoryOutcomes` 만 설정한다.
  */
 export interface CategoryOutcome {
   readonly category: string;
   readonly ok: boolean;
   readonly error?: string;
+  readonly retried?: boolean;
 }
 
 export interface CategoryOutcomeSummary {

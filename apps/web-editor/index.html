@@ -449,6 +449,8 @@
         planSlotGenerations,
         summarizeCategoryOutcomes,
         hasRenderableResult,
+        selectPlansForRetry,
+        mergeCategoryOutcomes,
       } from "./public/vendor/web-editor-logic/index.js";
       import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
@@ -1180,13 +1182,20 @@
       // 그 카테고리의 focused prompt 로부터 파생 — 벤더 호출이 실제로 나뉘었을
       // 때 예상되는 결과와 동일한 모양을 재현. onPlanStart/onPlanEnd 훅은 UX
       // progress 표시 / metric emit / cancel checkpoint 용.
-      async function mockGenerateTextureFromPlans(plans, atlas, onPlanStart, onPlanEnd) {
-        const canvas = document.createElement("canvas");
-        canvas.width = MOCK_CANVAS_SIZE;
-        canvas.height = MOCK_CANVAS_SIZE;
+      async function mockGenerateTextureFromPlans(plans, atlas, onPlanStart, onPlanEnd, options) {
+        // β P4-S5 — retry 모드에선 first attempt 의 canvas 를 재사용해 성공
+        // 카테고리의 픽셀을 보존. options.retryAttempt > 0 이면 해당 plans 의
+        // 카테고리만 덧그리고 나머지 슬롯은 건드리지 않는다.
+        const retryAttempt = options?.retryAttempt ?? 0;
+        const isRetry = retryAttempt > 0;
+        const canvas = options?.canvas ?? document.createElement("canvas");
+        if (!isRetry) {
+          canvas.width = MOCK_CANVAS_SIZE;
+          canvas.height = MOCK_CANVAS_SIZE;
+        }
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("Canvas 2D context unavailable");
-        ctx.clearRect(0, 0, MOCK_CANVAS_SIZE, MOCK_CANVAS_SIZE);
+        if (!isRetry) ctx.clearRect(0, 0, MOCK_CANVAS_SIZE, MOCK_CANVAS_SIZE);
 
         // 플랜 밖의 슬롯은 어떤 카테고리에도 속하지 않음 (Other). 이들은 user
         // prompt raw 로 그려 "plan 에 포함 안 된 slot 도 비워두지 않음" 을 보장.
@@ -1196,18 +1205,24 @@
           for (const slotId of plan.slots) slotsByPlan.set(slotId, plan);
         }
 
-        // β P4-S4 — dev fault injection 훅. `window.__genyInjectCategoryFault`
-        // 가 카테고리 이름 또는 이름 배열이면, 해당 카테고리 "벤더 call" 은
-        // throw 로 시뮬레이트. 실 P3 합류 후 partial failure UX 를 브라우저에서
-        // 미리 검증하기 위한 opt-in 진단 훅 — 프로덕션 UI 에 노출 X.
+        // β P4-S4 + P4-S5 — dev fault injection 훅. 지원 형식:
+        //   - "Hair" / ["Hair", "Body"]  — 항상 실패 (backward compat)
+        //   - { always: [...], firstOnly: [...] }  — firstOnly 는 첫 시도에만
+        //     실패, retry 에선 성공 시뮬레이션 (selective retry UX 검증용).
+        // 프로덕션 UI 에 노출 X — DevTools console 에서 직접 설정해야 작동.
         const faultRaw = globalThis?.__genyInjectCategoryFault;
-        const faultSet = new Set(
-          Array.isArray(faultRaw)
-            ? faultRaw
-            : typeof faultRaw === "string"
-              ? [faultRaw]
-              : [],
-        );
+        const alwaysFail = new Set();
+        const firstOnlyFail = new Set();
+        if (typeof faultRaw === "string") {
+          alwaysFail.add(faultRaw);
+        } else if (Array.isArray(faultRaw)) {
+          for (const c of faultRaw) alwaysFail.add(c);
+        } else if (faultRaw && typeof faultRaw === "object") {
+          if (Array.isArray(faultRaw.always)) for (const c of faultRaw.always) alwaysFail.add(c);
+          if (Array.isArray(faultRaw.firstOnly)) for (const c of faultRaw.firstOnly) firstOnlyFail.add(c);
+        }
+        const faultSet = new Set(alwaysFail);
+        if (!isRetry) for (const c of firstOnlyFail) faultSet.add(c);
 
         // β P4-S4 — 카테고리별 try/catch. 한 카테고리가 실패해도 나머지는
         // 계속 그림. summarizeCategoryOutcomes 가 "부분 성공" 으로 분류.
@@ -1266,19 +1281,22 @@
         }
 
         // 플랜에 속하지 않은 슬롯 (role='unknown' 등) 은 vanilla 경로.
-        for (const slot of atlas.slots) {
-          if (slotsByPlan.has(slot.slot_id)) continue;
-          const [ux, uy, uw, uh] = slot.uv;
-          const x = Math.round(ux * MOCK_CANVAS_SIZE);
-          const y = Math.round(uy * MOCK_CANVAS_SIZE);
-          const w = Math.max(2, Math.round(uw * MOCK_CANVAS_SIZE));
-          const h = Math.max(2, Math.round(uh * MOCK_CANVAS_SIZE));
-          const theme = mockThemeFromPrompt("fallback");
-          const hue = mockHashHue(`fallback::${slot.slot_id}`);
-          const category = mockCategoryOf(slot.slot_id);
-          ctx.save();
-          mockDrawPartShape(ctx, category, x, y, w, h, hue, theme);
-          ctx.restore();
+        // retry 모드에선 first attempt 에서 이미 그려졌으므로 건너뛴다.
+        if (!isRetry) {
+          for (const slot of atlas.slots) {
+            if (slotsByPlan.has(slot.slot_id)) continue;
+            const [ux, uy, uw, uh] = slot.uv;
+            const x = Math.round(ux * MOCK_CANVAS_SIZE);
+            const y = Math.round(uy * MOCK_CANVAS_SIZE);
+            const w = Math.max(2, Math.round(uw * MOCK_CANVAS_SIZE));
+            const h = Math.max(2, Math.round(uh * MOCK_CANVAS_SIZE));
+            const theme = mockThemeFromPrompt("fallback");
+            const hue = mockHashHue(`fallback::${slot.slot_id}`);
+            const category = mockCategoryOf(slot.slot_id);
+            ctx.save();
+            mockDrawPartShape(ctx, category, x, y, w, h, hue, theme);
+            ctx.restore();
+          }
         }
 
         const blob = await new Promise((resolve, reject) => {
@@ -1293,6 +1311,10 @@
           width: MOCK_CANVAS_SIZE,
           height: MOCK_CANVAS_SIZE,
           categoryOutcomes,
+          // β P4-S5 — retry 경로가 동일 canvas 에 덧그릴 수 있도록 참조 노출.
+          // 일반 호출자는 textureUrl 만 사용; runGenerateAttempt 가 partial
+          // 복구 경로에서만 canvas 를 두번째 mock call 의 options 로 넘긴다.
+          canvas,
         };
       }
 
@@ -1560,20 +1582,91 @@
         // 해 각 metric entry 의 ok 플래그를 카테고리 실제 결과로 보정. partial
         // failure 일 때 metric `category_ok=false` 이 정확히 실패한 카테고리만
         // 지목하도록.
-        const outcomes = mock.categoryOutcomes ?? [];
+        const firstOutcomes = mock.categoryOutcomes ?? [];
         if (categoryMetrics) {
           const failedSet = new Set(
-            outcomes.filter((o) => !o.ok).map((o) => o.category),
+            firstOutcomes.filter((o) => !o.ok).map((o) => o.category),
           );
           for (const entry of categoryMetrics) {
             if (failedSet.has(entry.category)) entry.ok = false;
           }
         }
-        const summary = summarizeCategoryOutcomes(outcomes);
-        if (outcomeRef) outcomeRef.summary = summary;
+        const firstSummary = summarizeCategoryOutcomes(firstOutcomes);
+
+        // β P4-S5 — partial failure 면 실패한 카테고리만 **선택적 재시도**.
+        // 성공한 카테고리의 벤더 비용과 픽셀 결과는 보존 (canvas 재사용). 한
+        // run 당 partial 재시도는 최대 1회 — 2회 이상 실패하면 accept partial.
+        let mockResult = mock;
+        let outcomes = firstOutcomes;
+        let summary = firstSummary;
+        if (firstSummary.status === "partial") {
+          genStatusEl.textContent = `${firstSummary.failedCategories.join(", ")} 재시도…`;
+          const retryPlans = selectPlansForRetry(slotPlans, firstOutcomes);
+          const retryStartAt = new Map();
+          const retryMetrics = [];
+          const retryMock = await mockGenerateTextureFromPlans(
+            retryPlans,
+            atlas,
+            (plan) => {
+              checkpoint();
+              retryStartAt.set(plan.category, performance.now());
+              genStatusEl.textContent = `${plan.category} 재시도 (${plan.slots.length} 슬롯)`;
+            },
+            (plan) => {
+              checkpoint();
+              const startedAt = retryStartAt.get(plan.category);
+              if (typeof startedAt === "number") {
+                retryMetrics.push({
+                  category: plan.category,
+                  ms: performance.now() - startedAt,
+                  slotCount: plan.slots.length,
+                  ok: true,
+                });
+              }
+            },
+            { canvas: mock.canvas, retryAttempt: 1 },
+          );
+          checkpoint();
+          // retryMetrics 는 onPlanEnd 시점엔 ok=true 였지만, mock 이 카테고리
+          // 실패로 판정했을 수 있으므로 categoryOutcomes 로 보정.
+          const retryFailedSet = new Set(
+            retryMock.categoryOutcomes.filter((o) => !o.ok).map((o) => o.category),
+          );
+          for (const entry of retryMetrics) {
+            if (retryFailedSet.has(entry.category)) entry.ok = false;
+          }
+          // 기존 categoryMetrics 엔트리를 retry 결과로 덮어쓴다 — ms 는 retry
+          // 의 실 latency, ok 는 최종 결과. Grafana 에선 run 당 카테고리 1개
+          // 가 유지돼 double-count 회피.
+          if (categoryMetrics) {
+            const retryByCat = new Map(retryMetrics.map((e) => [e.category, e]));
+            for (let i = 0; i < categoryMetrics.length; i += 1) {
+              const entry = categoryMetrics[i];
+              const r = retryByCat.get(entry.category);
+              if (r) {
+                categoryMetrics[i] = { ...r };
+              }
+            }
+          }
+          // textureUrl 교체 — retry canvas 는 first canvas 에 덧그려졌으므로
+          // retry 의 blob URL 이 최종 합성 결과.
+          URL.revokeObjectURL(mock.textureUrl);
+          mockResult = retryMock;
+          outcomes = mergeCategoryOutcomes(firstOutcomes, retryMock.categoryOutcomes);
+          summary = summarizeCategoryOutcomes(outcomes);
+        }
+        if (outcomeRef) {
+          outcomeRef.summary = summary;
+          // β P4-S5 — retried=true 인 카테고리 목록을 UI + metric 분기용으로
+          // 별도 저장. partial→success 복구 경로에서 "🔄 재시도 복구 (Hair)"
+          // 문구 표시 + Grafana 필드 emit 시 사용.
+          outcomeRef.retriedCategories = outcomes
+            .filter((o) => o.retried)
+            .map((o) => o.category);
+        }
         // 모든 카테고리 실패 → attempt 자체 실패로 throw. 재시도 루프가 처리.
-        // (Mock 에선 실제로는 fallback placeholder 가 그려져 있어도, 운영 의미론적
-        // 으로 "아무 카테고리도 벤더에서 못 받았다" 면 새 attempt 가 더 나을 수 있음.)
+        // P4-S5 이후엔 "first 에서 전부 실패" OR "retry 후에도 전부 실패" 두
+        // 경우 모두 포함. summary 가 merged 결과라 failed 판정은 최종 기준.
         if (summary.status === "failed") {
           const err = new Error(
             `all ${summary.failedCount} categories failed: ${summary.failedCategories.join(", ")}`,
@@ -1586,7 +1679,7 @@
         setPillPhase(3, "active");
         genStatusEl.textContent = "atlas 재구성";
         const newAtlas = {
-          textures: [{ path: atlas.textures[0]?.path ?? "textures/base.png", width: mock.width, height: mock.height }],
+          textures: [{ path: atlas.textures[0]?.path ?? "textures/base.png", width: mockResult.width, height: mockResult.height }],
           slots: atlas.slots,
         };
         checkpoint();
@@ -1595,10 +1688,10 @@
         setPillPhase(4, "active");
         genStatusEl.textContent = "번들 교체";
         if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
-        lastBlobUrl = mock.textureUrl;
+        lastBlobUrl = mockResult.textureUrl;
         const regenPromise = pixiRenderer.regenerate({
           atlas: newAtlas,
-          textureUrl: mock.textureUrl,
+          textureUrl: mockResult.textureUrl,
         });
         markPhaseDone(4);
 
@@ -1650,7 +1743,9 @@
         let categoryMetrics = [];
         // β P4-S4 — attempt 의 category outcome summary 를 runGenerate 로
         // 전달해 UI 문구 (success / ⚠ partial) 와 metric `ok` 플래그를 분기.
-        const outcomeRef = { summary: null };
+        // β P4-S5 — retriedCategories 는 partial → success 복구 경로에서
+        // UI 문구 / metric stopReason 분기용.
+        const outcomeRef = { summary: null, retriedCategories: [] };
         const t0 = performance.now();
         let attemptIndex = 0;
         let lastFailureKind = undefined;
@@ -1664,6 +1759,7 @@
               for (let i = 0; i < phaseMs.length; i += 1) phaseMs[i] = 0;
               categoryMetrics = [];
               outcomeRef.summary = null;
+              outcomeRef.retriedCategories = [];
             }
             try {
               await runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState, categoryMetrics, outcomeRef);
@@ -1718,15 +1814,36 @@
           const attempts = attemptIndex + 1;
           const attemptLabel = attempts > 1 ? ` (${attempts} attempts)` : "";
           // β P4-S4 — partial 은 UI 에 한 줄 warning, metric ok=false 로 분리.
+          // β P4-S5 — partial 재시도가 success 로 복구한 경우 "🔄 재시도 복구
+          // (Hair)" suffix 를 표시. silently retry 는 SLO 해석 왜곡이므로 UX
+          // 에도 보이게. outcomeRef.retriedCategories 는 runGenerateAttempt
+          // 가 merged outcomes 에서 retried=true 인 카테고리를 추출해 세팅.
           const isPartial = outcomeRef.summary?.status === "partial";
+          const retriedOk = outcomeRef.summary?.status === "success"
+            && Array.isArray(outcomeRef.retriedCategories)
+            && outcomeRef.retriedCategories.length > 0;
+          const retrySuffix = retriedOk
+            ? ` · 🔄 재시도 복구 (${outcomeRef.retriedCategories.join(", ")})`
+            : "";
           const partialLabel = isPartial
             ? ` · ${outcomeRef.summary.displayMessage}`
-            : "";
+            : retrySuffix;
           const budgetIcon = budget === "ok" ? "✓" : "⚠";
           genStatusEl.textContent = budget === "ok"
             ? `${budgetIcon} ${Math.round(total)}ms${attemptLabel}${partialLabel}`
             : `${budgetIcon} ${Math.round(total)}ms (>${BETA_BUDGET_MS})${attemptLabel}${partialLabel}`;
           renderTimings(phaseMs, total);
+          // β P4-S5 — stopReason 3분기:
+          //   - partial_success: retry 후에도 partial (avatar 교체 + 실패 슬롯 placeholder)
+          //   - partial_recovered: retry 로 success 복구 (avatar 완전 성공 but 첫 시도는 실패)
+          //   - success: 첫 시도부터 성공
+          // ok 축도 동일: partial 만 ok=false, partial_recovered 는 ok=true
+          // (최종 avatar 는 완전 성공이고 metric `category_ok` 축이 retry 내역 보존).
+          const stopReasonSuccess = isPartial
+            ? "partial_success"
+            : retriedOk
+              ? "partial_recovered"
+              : "success";
           emitGenerateMetrics({
             trigger: "user",
             prompt,
@@ -1736,7 +1853,7 @@
             // partial 은 run 레벨 ok=false — Grafana 에서 "avatar 는 나왔지만
             // 벤더 실패 있음" 을 ok=true success 와 분리해 보는 축.
             ok: !isPartial,
-            outcome: { attempts, ok: !isPartial, stopReason: isPartial ? "partial_success" : "success" },
+            outcome: { attempts, ok: !isPartial, stopReason: stopReasonSuccess },
             categories: categoryMetrics,
           });
         } catch (err) {
@@ -1880,17 +1997,65 @@
               }
             },
           );
-          phaseMs[1] = performance.now() - tPhase;
           // β P4-S4 — auto-preview 에서도 카테고리 outcome 반영. 실패한
           // 카테고리의 metric ok 을 false 로 보정 + partial 이면 ok=false.
-          const autoOutcomes = mock.categoryOutcomes ?? [];
-          const autoFailedSet = new Set(
-            autoOutcomes.filter((o) => !o.ok).map((o) => o.category),
+          const autoFirstOutcomes = mock.categoryOutcomes ?? [];
+          const autoFirstFailedSet = new Set(
+            autoFirstOutcomes.filter((o) => !o.ok).map((o) => o.category),
           );
           for (const entry of autoCategoryMetrics) {
-            if (autoFailedSet.has(entry.category)) entry.ok = false;
+            if (autoFirstFailedSet.has(entry.category)) entry.ok = false;
           }
-          const autoSummary = summarizeCategoryOutcomes(autoOutcomes);
+          const autoFirstSummary = summarizeCategoryOutcomes(autoFirstOutcomes);
+
+          // β P4-S5 — auto-preview 도 partial 시 selective retry. UX 가 "첫
+          // 화면에 Hair 만 placeholder" 인 상태를 최소화하기 위한 경로.
+          let autoMockResult = mock;
+          let autoOutcomes = autoFirstOutcomes;
+          let autoSummary = autoFirstSummary;
+          let autoRetriedCategories = [];
+          if (autoFirstSummary.status === "partial") {
+            const retryPlans = selectPlansForRetry(autoPlans, autoFirstOutcomes);
+            const retryStartAt = new Map();
+            const retryMetrics = [];
+            const retryMock = await mockGenerateTextureFromPlans(
+              retryPlans,
+              atlas,
+              (plan) => retryStartAt.set(plan.category, performance.now()),
+              (plan) => {
+                const startedAt = retryStartAt.get(plan.category);
+                if (typeof startedAt === "number") {
+                  retryMetrics.push({
+                    category: plan.category,
+                    ms: performance.now() - startedAt,
+                    slotCount: plan.slots.length,
+                    ok: true,
+                  });
+                }
+              },
+              { canvas: mock.canvas, retryAttempt: 1 },
+            );
+            const retryFailedSet = new Set(
+              retryMock.categoryOutcomes.filter((o) => !o.ok).map((o) => o.category),
+            );
+            for (const entry of retryMetrics) {
+              if (retryFailedSet.has(entry.category)) entry.ok = false;
+            }
+            const retryByCat = new Map(retryMetrics.map((e) => [e.category, e]));
+            for (let i = 0; i < autoCategoryMetrics.length; i += 1) {
+              const entry = autoCategoryMetrics[i];
+              const r = retryByCat.get(entry.category);
+              if (r) autoCategoryMetrics[i] = { ...r };
+            }
+            URL.revokeObjectURL(mock.textureUrl);
+            autoMockResult = retryMock;
+            autoOutcomes = mergeCategoryOutcomes(autoFirstOutcomes, retryMock.categoryOutcomes);
+            autoSummary = summarizeCategoryOutcomes(autoOutcomes);
+            autoRetriedCategories = autoOutcomes
+              .filter((o) => o.retried)
+              .map((o) => o.category);
+          }
+          phaseMs[1] = performance.now() - tPhase;
           if (autoSummary.status === "failed") {
             throw new Error(
               `auto-preview: all ${autoSummary.failedCount} categories failed`,
@@ -1901,8 +2066,8 @@
             textures: [
               {
                 path: atlas.textures[0]?.path ?? "textures/base.png",
-                width: mock.width,
-                height: mock.height,
+                width: autoMockResult.width,
+                height: autoMockResult.height,
               },
             ],
             slots: atlas.slots,
@@ -1910,18 +2075,24 @@
           phaseMs[2] = performance.now() - tPhase;
           tPhase = performance.now();
           if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
-          lastBlobUrl = mock.textureUrl;
-          const regenPromise = pixiRenderer.regenerate({ atlas: newAtlas, textureUrl: mock.textureUrl });
+          lastBlobUrl = autoMockResult.textureUrl;
+          const regenPromise = pixiRenderer.regenerate({ atlas: newAtlas, textureUrl: autoMockResult.textureUrl });
           phaseMs[3] = performance.now() - tPhase;
           tPhase = performance.now();
           await (regenPromise ?? Promise.resolve());
           phaseMs[4] = performance.now() - tPhase;
           const total = performance.now() - t0;
           const autoPartial = autoSummary.status === "partial";
+          const autoRetriedOk = autoSummary.status === "success" && autoRetriedCategories.length > 0;
+          const autoSuffix = autoPartial
+            ? ` · ${autoSummary.displayMessage}`
+            : autoRetriedOk
+              ? ` · 🔄 재시도 복구 (${autoRetriedCategories.join(", ")})`
+              : "";
           console.info(
             "[auto-preview] initial avatar painted for",
             currentTemplate,
-            `${Math.round(total)}ms${autoPartial ? ` · ${autoSummary.displayMessage}` : ""}`,
+            `${Math.round(total)}ms${autoSuffix}`,
           );
           emitGenerateMetrics({
             trigger: "auto",

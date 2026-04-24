@@ -33,6 +33,11 @@ export type {
 } from "./category-outcome.js";
 
 export {
+  mergeCategoryOutcomes,
+  selectPlansForRetry,
+} from "./partial-retry.js";
+
+export {
   attemptOutcomeLabels,
   classifyGenerateFailure,
   nextAttemptBackoffMs,
