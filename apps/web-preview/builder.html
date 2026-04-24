@@ -149,6 +149,60 @@
       <div id="result" style="color: #999;">빌드 결과가 여기에 표시됩니다.</div>
     </section>
 
+    <section id="slot-panel" style="display: none;">
+      <h2>4 · 슬롯 선택 재생성 <small style="color:#999;font-weight:normal;">· P4.3</small></h2>
+      <p style="font-size: 0.85rem; color: #666; margin: 0 0 10px;">
+        현재 텍스처 <code id="slot-texture-label">-</code> 위에 atlas 슬롯 경계를 오버레이.
+        클릭 → 선택 → 선택된 슬롯만 <code>/api/texture/generate/slots</code> 로 재생성.
+        결과 텍스처로 교체되고 3 · 결과 섹션의 빌드에서 사용됩니다.
+      </p>
+      <div class="form-row inline">
+        <label class="block" for="slot-prompt-input">재생성 프롬프트</label>
+        <input type="text" id="slot-prompt-input" placeholder="예: silver short hair" />
+      </div>
+      <div class="form-row inline">
+        <label class="block" for="slot-seed-input">seed</label>
+        <input type="text" id="slot-seed-input" placeholder="기본: 0" />
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; align-items: center;">
+        <button id="slot-select-all" class="secondary" type="button">모두 선택</button>
+        <button id="slot-clear" class="secondary" type="button">해제</button>
+        <span id="slot-count-label" style="font-size: 0.85rem; color: #555;">선택 없음</span>
+        <span style="flex: 1;"></span>
+        <button id="slot-regen-btn" type="button" disabled>선택 슬롯 재생성</button>
+      </div>
+      <div id="slot-canvas-wrap" style="position: relative; display: inline-block; border: 1px solid #ddd; background: #f7f7f9; max-width: 100%; overflow: auto;">
+        <canvas id="slot-canvas" width="512" height="512" style="display: block; image-rendering: pixelated;"></canvas>
+        <svg id="slot-overlay" style="position: absolute; inset: 0; pointer-events: auto;"></svg>
+      </div>
+      <div id="slot-status" class="status info" style="display: none;"></div>
+    </section>
+
+    <style>
+      #slot-overlay rect.slot-box {
+        fill: rgba(255, 255, 255, 0.04);
+        stroke: rgba(30, 80, 194, 0.55);
+        stroke-width: 1;
+        cursor: pointer;
+        transition: fill 120ms, stroke 120ms;
+      }
+      #slot-overlay rect.slot-box:hover { fill: rgba(42, 109, 244, 0.18); }
+      #slot-overlay rect.slot-box.selected {
+        fill: rgba(42, 109, 244, 0.28);
+        stroke: #2a6df4;
+        stroke-width: 2;
+      }
+      #slot-overlay text.slot-label {
+        fill: #fff;
+        font-size: 10px;
+        font-family: ui-monospace, monospace;
+        paint-order: stroke;
+        stroke: rgba(0,0,0,0.6);
+        stroke-width: 2;
+        pointer-events: none;
+      }
+    </style>
+
     <script type="module">
       // API base - ?api=... 쿼리로 override 가능.
       const qs = new URLSearchParams(location.search);
@@ -413,6 +467,226 @@
           setStatus(statusBox, "err", "빌드 실패:\n" + err.message);
         } finally {
           goBtn.disabled = false;
+        }
+
+        // P4.3 — 빌드 성공 직후 슬롯 선택 패널 활성화.
+        if (textureId) {
+          openSlotPanel({ id, version, textureId });
+        }
+      });
+
+      // ===== P4.3 - 슬롯 선택 UI =====
+      const slotPanel = document.getElementById("slot-panel");
+      const slotTextureLabel = document.getElementById("slot-texture-label");
+      const slotPromptInput = document.getElementById("slot-prompt-input");
+      const slotSeedInput = document.getElementById("slot-seed-input");
+      const slotSelectAll = document.getElementById("slot-select-all");
+      const slotClear = document.getElementById("slot-clear");
+      const slotCountLabel = document.getElementById("slot-count-label");
+      const slotRegenBtn = document.getElementById("slot-regen-btn");
+      const slotCanvas = document.getElementById("slot-canvas");
+      const slotOverlay = document.getElementById("slot-overlay");
+      const slotStatus = document.getElementById("slot-status");
+
+      // 오버레이/캔버스 렌더 크기 (atlas 크기와 무관하게 표시용 고정).
+      const SLOT_DISPLAY_SIZE = 512;
+
+      // 상태.
+      let slotState = null; // { preset: {id, version}, atlasWidth, atlasHeight, slots: [{slot_id, uv, selected}], textureId }
+
+      function updateSlotCountLabel() {
+        if (!slotState) return;
+        const sel = slotState.slots.filter((s) => s.selected);
+        if (sel.length === 0) {
+          slotCountLabel.textContent = "선택 없음 (" + slotState.slots.length + " slot 중)";
+          slotRegenBtn.disabled = true;
+        } else {
+          slotCountLabel.textContent = sel.length + " / " + slotState.slots.length + " slot 선택됨";
+          slotRegenBtn.disabled = false;
+        }
+      }
+
+      function redrawSlotOverlay() {
+        if (!slotState) return;
+        slotOverlay.setAttribute("width", SLOT_DISPLAY_SIZE);
+        slotOverlay.setAttribute("height", SLOT_DISPLAY_SIZE);
+        slotOverlay.setAttribute("viewBox", "0 0 " + SLOT_DISPLAY_SIZE + " " + SLOT_DISPLAY_SIZE);
+        slotOverlay.style.width = SLOT_DISPLAY_SIZE + "px";
+        slotOverlay.style.height = SLOT_DISPLAY_SIZE + "px";
+        // innerHTML reset.
+        while (slotOverlay.firstChild) slotOverlay.removeChild(slotOverlay.firstChild);
+        const svgNS = "http://www.w3.org/2000/svg";
+        for (let i = 0; i < slotState.slots.length; i++) {
+          const s = slotState.slots[i];
+          const [u0, v0, u1, v1] = s.uv;
+          const x = u0 * SLOT_DISPLAY_SIZE;
+          const y = v0 * SLOT_DISPLAY_SIZE;
+          const w = Math.max(2, (u1 - u0) * SLOT_DISPLAY_SIZE);
+          const h = Math.max(2, (v1 - v0) * SLOT_DISPLAY_SIZE);
+          const rect = document.createElementNS(svgNS, "rect");
+          rect.setAttribute("class", "slot-box" + (s.selected ? " selected" : ""));
+          rect.setAttribute("x", x);
+          rect.setAttribute("y", y);
+          rect.setAttribute("width", w);
+          rect.setAttribute("height", h);
+          rect.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            s.selected = !s.selected;
+            redrawSlotOverlay();
+            updateSlotCountLabel();
+          });
+          slotOverlay.appendChild(rect);
+          // 라벨은 적당한 위치에 (좌상).
+          if (w > 28 && h > 14) {
+            const label = document.createElementNS(svgNS, "text");
+            label.setAttribute("class", "slot-label");
+            label.setAttribute("x", x + 3);
+            label.setAttribute("y", y + 11);
+            label.textContent = s.slot_id;
+            slotOverlay.appendChild(label);
+          }
+        }
+      }
+
+      function drawSlotCanvasPlaceholder() {
+        // 생성된 텍스처를 썸네일로 표시 (API 에는 텍스처 파일 직접 서빙 endpoint 가
+        // 없으므로, atlas 기반 grid preview 로 대체).
+        const ctx = slotCanvas.getContext("2d");
+        slotCanvas.width = SLOT_DISPLAY_SIZE;
+        slotCanvas.height = SLOT_DISPLAY_SIZE;
+        ctx.fillStyle = "#eaeaef";
+        ctx.fillRect(0, 0, SLOT_DISPLAY_SIZE, SLOT_DISPLAY_SIZE);
+        ctx.strokeStyle = "#ccc";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 8; i++) {
+          const p = (i / 8) * SLOT_DISPLAY_SIZE;
+          ctx.beginPath();
+          ctx.moveTo(p, 0);
+          ctx.lineTo(p, SLOT_DISPLAY_SIZE);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, p);
+          ctx.lineTo(SLOT_DISPLAY_SIZE, p);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#999";
+        ctx.font = "12px ui-monospace, monospace";
+        ctx.fillText("atlas " + slotState.atlasWidth + "x" + slotState.atlasHeight, 10, 20);
+        ctx.fillText("texture " + (slotState.textureId ?? "-"), 10, 38);
+      }
+
+      async function openSlotPanel({ id, version, textureId }) {
+        slotStatus.style.display = "none";
+        slotTextureLabel.textContent = textureId;
+        try {
+          const r = await fetch(
+            API + "/api/presets/" + encodeURIComponent(id) + "/" + encodeURIComponent(version) + "/atlas",
+          );
+          const body = await r.json();
+          if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+          if (!body.slots || body.slots.length === 0) {
+            setStatus(
+              slotStatus,
+              "info",
+              "이 프리셋 (" + id + "@" + version + ") 은 atlas.slots[] 가 비어있어 슬롯별 재생성을 지원하지 않습니다. (drawable 추출 Phase 3+ 필요)",
+            );
+            slotPanel.style.display = "block";
+            slotOverlay.innerHTML = "";
+            slotRegenBtn.disabled = true;
+            slotCountLabel.textContent = "슬롯 없음";
+            return;
+          }
+          slotState = {
+            preset: { id, version },
+            atlasWidth: body.width,
+            atlasHeight: body.height,
+            slots: body.slots.map((s) => ({ slot_id: s.slot_id, uv: s.uv, selected: false })),
+            textureId,
+          };
+          slotPanel.style.display = "block";
+          drawSlotCanvasPlaceholder();
+          redrawSlotOverlay();
+          updateSlotCountLabel();
+          // 기본 prompt 는 Generate 탭의 prompt 와 같이 시작.
+          if (!slotPromptInput.value && promptInput.value) {
+            slotPromptInput.value = promptInput.value;
+          }
+        } catch (err) {
+          slotPanel.style.display = "block";
+          setStatus(slotStatus, "err", "atlas 로드 실패: " + err.message);
+        }
+      }
+
+      slotSelectAll.addEventListener("click", () => {
+        if (!slotState) return;
+        for (const s of slotState.slots) s.selected = true;
+        redrawSlotOverlay();
+        updateSlotCountLabel();
+      });
+
+      slotClear.addEventListener("click", () => {
+        if (!slotState) return;
+        for (const s of slotState.slots) s.selected = false;
+        redrawSlotOverlay();
+        updateSlotCountLabel();
+      });
+
+      slotRegenBtn.addEventListener("click", async () => {
+        if (!slotState) return;
+        const selected = slotState.slots.filter((s) => s.selected).map((s) => s.slot_id);
+        if (selected.length === 0) return;
+        const prompt = slotPromptInput.value.trim();
+        if (!prompt) {
+          setStatus(slotStatus, "err", "재생성 프롬프트가 비어있음.");
+          return;
+        }
+        const seed = Number(slotSeedInput.value) || 0;
+        slotRegenBtn.disabled = true;
+        setStatus(
+          slotStatus,
+          "info",
+          "/api/texture/generate/slots 호출 중… (" + selected.length + " slot)",
+        );
+        try {
+          const r = await fetch(API + "/api/texture/generate/slots", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              preset_id: slotState.preset.id,
+              preset_version: slotState.preset.version,
+              prompt,
+              seed,
+              slots: selected,
+            }),
+          });
+          const body = await r.json();
+          if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+          slotState.textureId = body.texture_id;
+          slotTextureLabel.textContent = body.texture_id;
+          drawSlotCanvasPlaceholder();
+          const failedSlots = body.slot_results.filter((sr) => !sr.success);
+          const lines = [
+            "✅ 슬롯 재생성 완료",
+            "  texture_id: " + body.texture_id,
+            "  sha256: " + body.sha256.slice(0, 16) + "…",
+            "  성공: " + body.success_count + " / " + body.slot_count,
+          ];
+          if (failedSlots.length > 0) {
+            lines.push("  실패:");
+            for (const sr of failedSlots.slice(0, 5)) {
+              lines.push("    ✗ " + sr.slot_id + " [" + (sr.error_code ?? "UNKNOWN") + "] " + (sr.error ?? ""));
+            }
+            if (failedSlots.length > 5) {
+              lines.push("    … +" + (failedSlots.length - 5) + " more");
+            }
+          }
+          lines.push("");
+          lines.push("이 텍스처로 다시 빌드하려면 3 · 결과 영역의 빌드를 다시 실행해야 합니다 (향후 P4.4).");
+          setStatus(slotStatus, failedSlots.length === 0 ? "ok" : "info", lines.join("\n"));
+        } catch (err) {
+          setStatus(slotStatus, "err", "슬롯 재생성 실패:\n" + err.message);
+        } finally {
+          updateSlotCountLabel();
         }
       });
     </script>
