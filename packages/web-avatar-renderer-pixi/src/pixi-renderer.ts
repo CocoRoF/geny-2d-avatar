@@ -390,16 +390,17 @@ export function resolvePivotPlacement(params: {
   originX: number;
   originY: number;
 }): { anchorX: number; anchorY: number; spriteX: number; spriteY: number } {
-  const [u0, v0, u1, v1] = params.slot.uv;
-  const centerU = (u0 + u1) / 2;
-  const centerV = (v0 + v1) / 2;
+  // atlas.json slot uv 형식은 `[x, y, w, h]` (정규화 0..1, x/y 가 좌상단, w/h 가 크기).
+  // P1-S7 초판이 `[u0, v0, u1, v1]` 로 잘못 해석해 fallback center 가 어긋났던 것을
+  // P1-S8 에서 교정 — pivot_uv 지정 경로의 공식은 폭/높이 기반이 원래 맞아 결과 동일.
+  const [u0, v0, w, h] = params.slot.uv;
+  const centerU = u0 + w / 2;
+  const centerV = v0 + h / 2;
   const pivotU = params.slot.pivot_uv?.[0] ?? centerU;
   const pivotV = params.slot.pivot_uv?.[1] ?? centerV;
-  // slot 내 정규화 좌표 — clamp 로 slot 바깥 pivot 도 안전히 처리.
-  const du = u1 - u0;
-  const dv = v1 - v0;
-  const anchorX = du > 0 ? (pivotU - u0) / du : 0.5;
-  const anchorY = dv > 0 ? (pivotV - v0) / dv : 0.5;
+  // slot 내 정규화 좌표 — slot 바깥 pivot 도 외삽 허용 (ahoge 머리 위 피벗 케이스).
+  const anchorX = w > 0 ? (pivotU - u0) / w : 0.5;
+  const anchorY = h > 0 ? (pivotV - v0) / h : 0.5;
   // sprite position: pivot 이 실제로 그려질 stage 좌표 = origin + pivotUV * canvas * fit.
   const spriteX = params.originX + pivotU * params.canvasW * params.fit;
   const spriteY = params.originY + pivotV * params.canvasH * params.fit;

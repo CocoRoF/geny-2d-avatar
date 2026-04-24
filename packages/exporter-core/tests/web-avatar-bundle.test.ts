@@ -303,9 +303,53 @@ test("deriveSlotsFromSpecs: canvas_px + uv_box_px 있는 spec 만 정규화 UV �
   assert.equal(slots[0]!.slot_id, "ahoge");
   assert.equal(slots[0]!.texture_path, "textures/base.png");
   assert.deepEqual(slots[0]!.uv, [864 / 2048, 32 / 2048, 320 / 2048, 240 / 2048]);
+  // P1-S8 — ahoge spec 에 anchor 가 없으므로 pivot_uv 도 없어야 (backward-compatible).
+  assert.equal(slots[0]!.pivot_uv, undefined, "anchor 없으면 pivot_uv 생략");
 });
 
-test("deriveAtlasFromTemplate: halfbody v1.3.0 → 30 slots 정규화", () => {
+test("deriveSlotsFromSpecs: anchor.x_frac/y_frac 가 있으면 캔버스 UV 로 환산해 pivot_uv 생성 (P1-S8)", () => {
+  const slots = deriveSlotsFromSpecs(
+    {
+      ahoge: {
+        schema_version: "v1",
+        slot_id: "ahoge",
+        role: "hair",
+        cubism_part_id: "PartAhoge",
+        canvas_px: { w: 2048, h: 2048 },
+        uv_box_px: { x: 864, y: 32, w: 320, h: 240 },
+        anchor: { type: "head_top_center", x_frac: 0.5, y_frac: 0.05 },
+      },
+      no_anchor: {
+        schema_version: "v1",
+        slot_id: "no_anchor",
+        role: "body",
+        cubism_part_id: "PartNoAnchor",
+        canvas_px: { w: 2048, h: 2048 },
+        uv_box_px: { x: 0, y: 0, w: 100, h: 100 },
+      },
+      partial: {
+        schema_version: "v1",
+        slot_id: "partial",
+        role: "hair",
+        cubism_part_id: "PartPartial",
+        canvas_px: { w: 2048, h: 2048 },
+        uv_box_px: { x: 0, y: 0, w: 100, h: 100 },
+        anchor: { type: "head_top_center" }, // x_frac/y_frac missing
+      },
+    },
+    "textures/base.png",
+  );
+  assert.equal(slots.length, 3);
+  const byId = Object.fromEntries(slots.map((s) => [s.slot_id, s]));
+  // ahoge: pivot UV = ((864 + 0.5*320)/2048, (32 + 0.05*240)/2048) = (1024/2048, 44/2048)
+  assert.ok(byId.ahoge!.pivot_uv, "ahoge has pivot_uv");
+  assert.equal(byId.ahoge!.pivot_uv![0], 1024 / 2048);
+  assert.equal(byId.ahoge!.pivot_uv![1], 44 / 2048);
+  assert.equal(byId.no_anchor!.pivot_uv, undefined, "anchor 필드 자체가 없으면 생략");
+  assert.equal(byId.partial!.pivot_uv, undefined, "anchor 는 있지만 x_frac/y_frac 수치 아니면 생략");
+});
+
+test("deriveAtlasFromTemplate: halfbody v1.3.0 → 30 slots 정규화 + 전 파츠 pivot_uv (P1-S8)", () => {
   const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const atlas = deriveAtlasFromTemplate(tpl);
   assert.ok(atlas, "derived atlas must exist");
@@ -322,14 +366,25 @@ test("deriveAtlasFromTemplate: halfbody v1.3.0 → 30 slots 정규화", () => {
     for (const v of slot.uv) {
       assert.ok(v >= 0 && v <= 1, `uv ${v} in [0,1]`);
     }
+    // P1-S8 — halfbody 30 파츠 모두 anchor.x_frac/y_frac 을 가지므로 pivot_uv 주입.
+    assert.ok(slot.pivot_uv, `${slot.slot_id} has pivot_uv`);
+    assert.equal(slot.pivot_uv!.length, 2);
   }
+  // ahoge 는 x_frac=0.5, y_frac=0.05 — 머리 정수리.
+  const ahoge = atlas.slots.find((s) => s.slot_id === "ahoge");
+  assert.ok(ahoge?.pivot_uv);
+  assert.equal(ahoge!.pivot_uv![0], (864 + 0.5 * 320) / 2048);
+  assert.equal(ahoge!.pivot_uv![1], (32 + 0.05 * 240) / 2048);
 });
 
-test("deriveAtlasFromTemplate: fullbody v1.0.0 → 38 slots", () => {
+test("deriveAtlasFromTemplate: fullbody v1.0.0 → 38 slots + 전 파츠 pivot_uv (P1-S8)", () => {
   const tpl = loadTemplate(join(repoRoot, "rig-templates/base/fullbody/v1.0.0"));
   const atlas = deriveAtlasFromTemplate(tpl);
   assert.ok(atlas, "derived atlas must exist");
   assert.equal(atlas.slots.length, 38);
+  for (const slot of atlas.slots) {
+    assert.ok(slot.pivot_uv, `${slot.slot_id} has pivot_uv`);
+  }
 });
 
 test("assembleWebAvatarBundle: atlasOverride 가 template.atlas 를 대체 + 정규화 slots 직렬화 (P1-S2)", () => {

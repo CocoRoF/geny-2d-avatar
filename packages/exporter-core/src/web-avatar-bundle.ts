@@ -220,11 +220,28 @@ export function deriveSlotsFromSpecs(
     const h = Number(box.h);
     if (![W, H, x, y, w, h].every((n) => Number.isFinite(n))) continue;
     if (W <= 0 || H <= 0) continue;
-    slots.push({
+
+    const entry: TemplateAtlasSlotEntry = {
       slot_id: slotId,
       texture_path: texturePath,
       uv: [x / W, y / H, w / W, h / H],
-    });
+    };
+
+    // β P1-S8 — part spec 의 `anchor.x_frac / y_frac` (slot-local 0..1) 를 캔버스
+    // UV 로 변환해 `pivot_uv` 에 실음. 렌더러는 이 좌표를 sprite.anchor + position
+    // 계산에 사용해 hair/ahoge 가 저작자 의도대로 scalp/머리 정수리를 축으로 회전한다.
+    // anchor 가 없거나 x_frac/y_frac 이 숫자가 아닌 경우 필드 생략(렌더러는 slot 중심 fallback).
+    // x_frac/y_frac 값은 slot 바깥(음수 / >1) 도 허용.
+    const anchor = spec["anchor"] as { x_frac?: unknown; y_frac?: unknown } | undefined;
+    if (anchor) {
+      const xFrac = Number(anchor.x_frac);
+      const yFrac = Number(anchor.y_frac);
+      if (Number.isFinite(xFrac) && Number.isFinite(yFrac)) {
+        entry.pivot_uv = [(x + xFrac * w) / W, (y + yFrac * h) / H];
+      }
+    }
+
+    slots.push(entry);
   }
   return slots;
 }
