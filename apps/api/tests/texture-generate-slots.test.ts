@@ -555,6 +555,92 @@ test("atlas.json halfbody v1.3.0 은 30 slot (회귀 guard)", () => {
   assert.equal(slots.length, 30, "P1.B 가 설정한 30 slot 유지");
 });
 
+// ---- P5.3 fullbody 프리셋 회귀 (derived + 38 slot) ----
+
+test("POST /api/texture/generate/slots: fullbody v1.0.0 는 38 slot 모두 성공", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate/slots",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.fullbody",
+        preset_version: "1.0.0",
+        prompt: "fullbody pastel girl",
+        seed: 7,
+      }),
+    });
+    assert.equal(res.statusCode, 200, "body=" + res.body);
+    const json = res.json() as {
+      slot_count: number;
+      success_count: number;
+      width: number;
+      height: number;
+    };
+    assert.equal(json.slot_count, 38, "P1.B 가 설정한 fullbody 38 slot");
+    assert.equal(json.success_count, 38, "모든 slot 이 mock 으로 성공");
+    // fullbody atlas base.png 는 4x4 placeholder → floor 256 적용
+    assert.equal(json.width, 256);
+    assert.equal(json.height, 256);
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});
+
+test("POST /api/texture/generate/slots: fullbody 슬롯 subset (leg/foot) 재생성", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate/slots",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.fullbody",
+        preset_version: "1.0.0",
+        prompt: "fullbody legs",
+        seed: 1,
+        slots: ["leg_l", "leg_r", "foot_l", "foot_r"],
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const json = res.json() as { slot_count: number; success_count: number };
+    assert.equal(json.slot_count, 4);
+    assert.equal(json.success_count, 4);
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});
+
+test("GET /api/presets/tpl.base.v1.fullbody/1.0.0/atlas: 38 slot + 각 uv 0..1", async () => {
+  const app = await buildApp({ rigTemplatesRoot });
+  try {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/presets/tpl.base.v1.fullbody/1.0.0/atlas",
+    });
+    assert.equal(res.statusCode, 200);
+    const json = res.json() as {
+      slots: Array<{ slot_id: string; uv: [number, number, number, number] }>;
+    };
+    assert.equal(json.slots.length, 38);
+    // fullbody 전용 슬롯 확인.
+    const names = json.slots.map((s) => s.slot_id);
+    for (const expected of ["leg_l", "leg_r", "foot_l", "foot_r"]) {
+      assert.ok(names.includes(expected), "fullbody 슬롯 " + expected + " 포함");
+    }
+    for (const s of json.slots) {
+      for (const v of s.uv) assert.ok(v >= 0 && v <= 1);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
 // ---- P4.5 feather_px ----
 
 test("POST /api/texture/generate/slots: 기본 feather_px=4, 응답에 echo", async () => {
