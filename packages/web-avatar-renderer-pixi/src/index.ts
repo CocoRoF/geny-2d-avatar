@@ -43,3 +43,11 @@ export {
   type ExpressionState,
   type ExpressionFrame,
 } from "./expression-ticker.js";
+
+export {
+  createPixiLive2DRenderer,
+  defaultResolveModelUrl,
+  type PixiLive2DRendererOptions,
+  type PixiLive2DRendererHandle,
+  type PixiLive2DRendererStatus,
+} from "./pixi-live2d-renderer.js";
