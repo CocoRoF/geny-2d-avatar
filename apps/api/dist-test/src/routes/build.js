@@ -24,6 +24,8 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { assembleAvatarBundle, } from "@geny/exporter-core/avatar-bundle";
+import { readTextureManifest } from "../lib/texture-manifest.js";
+import { writeFile } from "node:fs/promises";
 async function readManifest(rigTemplatesRoot, id, version) {
     const m = /^tpl\.(base|community|custom)\.v[0-9]+\.([a-z][a-z0-9_]{1,40})$/.exec(id);
     if (!m || !m[1] || !m[2])
@@ -120,6 +122,14 @@ export const buildRoute = async (fastify, opts) => {
             await mkdir(dirname(textureDest), { recursive: true });
             await copyFile(texturePath, textureDest);
         }
+        // P3.2 - texture.manifest.json 을 bundle 에 첨부 (texture 의 provenance 보존).
+        const textureManifest = await readTextureManifest(texturesDir, texture_id);
+        let textureManifestWritten = false;
+        if (textureManifest) {
+            const manifestPath = join(bundleOutDir, "texture.manifest.json");
+            await writeFile(manifestPath, JSON.stringify(textureManifest, null, 2) + "\n");
+            textureManifestWritten = true;
+        }
         return {
             bundle_id: bundleId,
             bundle_url: "/api/bundle/" + bundleId + "/bundle.json",
@@ -129,6 +139,9 @@ export const buildRoute = async (fastify, opts) => {
             bundle_name: bundleName,
             file_count: result.files.length,
             files: result.files.map((f) => ({ path: f.path, bytes: f.bytes })),
+            texture_manifest: textureManifestWritten
+                ? { path: "texture.manifest.json", mode: textureManifest?.generated_by.mode }
+                : null,
         };
     });
 };

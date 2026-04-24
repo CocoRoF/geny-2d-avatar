@@ -23,6 +23,7 @@ import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { generateMockTexture } from "../lib/mock-generator.js";
+import { writeTextureManifest } from "../lib/texture-manifest.js";
 async function readAtlas(rigTemplatesRoot, id, version) {
     const m = /^tpl\.(base|community|custom)\.v[0-9]+\.([a-z][a-z0-9_]{1,40})$/.exec(id);
     if (!m || !m[1] || !m[2])
@@ -93,6 +94,20 @@ export const textureGenerateRoute = async (fastify, opts) => {
         const textureId = "tex_" + randomUUID().replace(/-/g, "");
         const outPath = join(texturesDir, textureId + ".png");
         await writeFile(outPath, pngBuf);
+        await writeTextureManifest({
+            texturesDir,
+            textureId,
+            atlasSha256: sha256,
+            width,
+            height,
+            bytes: pngBuf.length,
+            preset: { id: preset_id, version: preset_version },
+            mode: "mock_generate",
+            adapter: "mock",
+            prompt: prompt.trim(),
+            seed,
+            notes: "P3.1 결정론적 mock 생성기 — 실 AI 벤더 아님.",
+        });
         return {
             texture_id: textureId,
             sha256,

@@ -29,6 +29,8 @@ import {
   assembleAvatarBundle,
   type AvatarExportSpec,
 } from "@geny/exporter-core/avatar-bundle";
+import { readTextureManifest } from "../lib/texture-manifest.js";
+import { writeFile } from "node:fs/promises";
 
 export interface BuildRouteOptions {
   readonly rigTemplatesRoot: string;
@@ -152,6 +154,15 @@ export const buildRoute: FastifyPluginAsync<BuildRouteOptions> = async (fastify,
       await copyFile(texturePath, textureDest);
     }
 
+    // P3.2 - texture.manifest.json 을 bundle 에 첨부 (texture 의 provenance 보존).
+    const textureManifest = await readTextureManifest(texturesDir, texture_id);
+    let textureManifestWritten = false;
+    if (textureManifest) {
+      const manifestPath = join(bundleOutDir, "texture.manifest.json");
+      await writeFile(manifestPath, JSON.stringify(textureManifest, null, 2) + "\n");
+      textureManifestWritten = true;
+    }
+
     return {
       bundle_id: bundleId,
       bundle_url: "/api/bundle/" + bundleId + "/bundle.json",
@@ -161,6 +172,9 @@ export const buildRoute: FastifyPluginAsync<BuildRouteOptions> = async (fastify,
       bundle_name: bundleName,
       file_count: result.files.length,
       files: result.files.map((f) => ({ path: f.path, bytes: f.bytes })),
+      texture_manifest: textureManifestWritten
+        ? { path: "texture.manifest.json", mode: textureManifest?.generated_by.mode }
+        : null,
     };
   });
 };
