@@ -83,18 +83,63 @@
     </section>
 
     <section>
-      <h2>2 · Texture 업로드</h2>
-      <div class="form-row">
-        <label class="block" for="file-input">PNG 파일 (프리셋 atlas 와 크기 일치 필수)</label>
-        <input type="file" id="file-input" accept="image/png" disabled />
+      <h2>2 · Texture 소스</h2>
+      <div class="tabs" style="display: flex; gap: 2px; margin-bottom: 12px; border-bottom: 1px solid #ddd;">
+        <button class="tab-btn active" data-tab="upload" disabled>A · PNG 업로드</button>
+        <button class="tab-btn" data-tab="generate" disabled>B · Mock 생성 (P3.1)</button>
       </div>
+
+      <div class="tab-panel" data-panel="upload">
+        <div class="form-row">
+          <label class="block" for="file-input">PNG 파일 (프리셋 atlas 와 크기 일치 필수)</label>
+          <input type="file" id="file-input" accept="image/png" disabled />
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="generate" style="display: none;">
+        <div class="form-row">
+          <label class="block" for="prompt-input">프롬프트</label>
+          <input type="text" id="prompt-input" placeholder="예: blue-haired anime girl, pastel hoodie" disabled />
+        </div>
+        <div class="form-row inline">
+          <label class="block" for="seed-input">seed (옵션, 정수)</label>
+          <input type="text" id="seed-input" placeholder="기본: 0" disabled />
+        </div>
+        <p style="font-size: 0.82rem; color: #888; margin: 4px 0 10px;">
+          ⚠️ P3.1 Mock 생성기 — 결정론적이지만 실 AI 는 아님. 시각적 variation 확인 + 파이프라인 검증용.
+          실 벤더 통합은 P3.3 이후.
+        </p>
+      </div>
+
       <div class="form-row inline">
         <label class="block" for="bundle-name-input">bundle_name (옵션)</label>
         <input type="text" id="bundle-name-input" placeholder="기본: preset slug" disabled />
       </div>
-      <button id="upload-btn" disabled>업로드 + 빌드</button>
-      <div id="upload-status" class="status info" style="display: none;"></div>
+
+      <button id="go-btn" disabled>텍스처 준비 + 빌드</button>
+      <div id="status-box" class="status info" style="display: none;"></div>
     </section>
+    <style>
+      .tab-btn {
+        padding: 6px 14px;
+        background: #fff;
+        color: #555;
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 5px 5px 0 0;
+        cursor: pointer;
+        font-size: 0.88rem;
+      }
+      .tab-btn.active {
+        background: #eef4ff;
+        color: #2b4a8b;
+        border-color: #ddd;
+        border-bottom: 1px solid #eef4ff;
+        margin-bottom: -1px;
+        font-weight: 600;
+      }
+      .tab-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    </style>
 
     <section>
       <h2>3 · 결과</h2>
@@ -109,10 +154,15 @@
       const presetSelect = document.getElementById("preset-select");
       const presetDetails = document.getElementById("preset-details");
       const fileInput = document.getElementById("file-input");
+      const promptInput = document.getElementById("prompt-input");
+      const seedInput = document.getElementById("seed-input");
       const bundleNameInput = document.getElementById("bundle-name-input");
-      const uploadBtn = document.getElementById("upload-btn");
-      const uploadStatus = document.getElementById("upload-status");
+      const goBtn = document.getElementById("go-btn");
+      const statusBox = document.getElementById("status-box");
       const result = document.getElementById("result");
+      const tabBtns = [...document.querySelectorAll(".tab-btn")];
+      const panels = [...document.querySelectorAll(".tab-panel")];
+      let activeTab = "upload"; // "upload" | "generate"
 
       let presets = [];
 
@@ -150,13 +200,32 @@
         );
       }
 
+      function setControlsEnabled(enabled) {
+        fileInput.disabled = !enabled;
+        promptInput.disabled = !enabled;
+        seedInput.disabled = !enabled;
+        bundleNameInput.disabled = !enabled;
+        goBtn.disabled = !enabled;
+        for (const b of tabBtns) b.disabled = !enabled;
+      }
+
+      function setActiveTab(name) {
+        activeTab = name;
+        for (const b of tabBtns) b.classList.toggle("active", b.dataset.tab === name);
+        for (const p of panels) p.style.display = p.dataset.panel === name ? "" : "none";
+        goBtn.textContent =
+          name === "upload" ? "업로드 + 빌드" : "Mock 생성 + 빌드";
+      }
+      for (const b of tabBtns) {
+        b.addEventListener("click", () => setActiveTab(b.dataset.tab));
+      }
+      setActiveTab("upload");
+
       presetSelect.addEventListener("change", () => {
         const v = presetSelect.value;
         if (!v) {
           presetDetails.style.display = "none";
-          fileInput.disabled = true;
-          bundleNameInput.disabled = true;
-          uploadBtn.disabled = true;
+          setControlsEnabled(false);
           return;
         }
         const [id, version] = v.split("@");
@@ -171,49 +240,77 @@
           "  canvas: " + p.canvas.width + "x" + p.canvas.height + "\n" +
           "  atlas texture: " + atlasSize + " (slots: " + (p.atlas?.slot_count ?? 0) + ")\n" +
           "  motions: " + p.motion_count + " · expressions: " + p.expression_count + "\n\n" +
-          "→ PNG 업로드 크기는 atlas " + atlasSize + " 와 일치해야 합니다.";
-        fileInput.disabled = false;
-        bundleNameInput.disabled = false;
+          "→ PNG 업로드 크기는 atlas " + atlasSize + " 일치 필수 / Mock 생성은 max 2048 캡.";
+        setControlsEnabled(true);
         bundleNameInput.placeholder = "기본: " + id.split(".").pop();
-        uploadBtn.disabled = false;
       });
 
-      // 2) 업로드 + 빌드.
-      uploadBtn.addEventListener("click", async () => {
+      // 2) 텍스처 준비 (upload 또는 generate) → 빌드.
+      goBtn.addEventListener("click", async () => {
         const v = presetSelect.value;
         if (!v) return;
         const [id, version] = v.split("@");
-        const file = fileInput.files?.[0];
-        if (!file) {
-          setStatus(uploadStatus, "err", "PNG 파일을 선택하세요.");
-          return;
-        }
         const bundleName = bundleNameInput.value.trim() || undefined;
-        uploadBtn.disabled = true;
-        setStatus(uploadStatus, "info", "1/2 · /api/texture/upload 중…");
+        goBtn.disabled = true;
         result.textContent = "";
         result.style.color = "#999";
 
         let textureId = "";
+        let sha256 = "";
         try {
-          const fd = new FormData();
-          fd.append("preset_id", id);
-          fd.append("preset_version", version);
-          fd.append("file", file, file.name);
-          const r = await fetch(API + "/api/texture/upload", { method: "POST", body: fd });
-          const body = await r.json();
-          if (!r.ok) {
-            throw new Error(body.error?.code + ": " + body.error?.message);
+          if (activeTab === "upload") {
+            const file = fileInput.files?.[0];
+            if (!file) {
+              setStatus(statusBox, "err", "PNG 파일을 선택하세요.");
+              goBtn.disabled = false;
+              return;
+            }
+            setStatus(statusBox, "info", "1/2 · /api/texture/upload 중…");
+            const fd = new FormData();
+            fd.append("preset_id", id);
+            fd.append("preset_version", version);
+            fd.append("file", file, file.name);
+            const r = await fetch(API + "/api/texture/upload", { method: "POST", body: fd });
+            const body = await r.json();
+            if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+            textureId = body.texture_id;
+            sha256 = body.sha256;
+          } else {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+              setStatus(statusBox, "err", "프롬프트를 입력하세요.");
+              goBtn.disabled = false;
+              return;
+            }
+            const seed = Number(seedInput.value) || 0;
+            setStatus(
+              statusBox,
+              "info",
+              "1/2 · /api/texture/generate (mock, prompt=" + prompt + ", seed=" + seed + ") 중…",
+            );
+            const r = await fetch(API + "/api/texture/generate", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                preset_id: id,
+                preset_version: version,
+                prompt,
+                seed,
+              }),
+            });
+            const body = await r.json();
+            if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+            textureId = body.texture_id;
+            sha256 = body.sha256;
           }
-          textureId = body.texture_id;
           setStatus(
-            uploadStatus,
+            statusBox,
             "info",
-            "2/2 · /api/build 중…\n  texture_id: " + textureId + "\n  sha256: " + body.sha256,
+            "2/2 · /api/build 중…\n  texture_id: " + textureId + "\n  sha256: " + sha256,
           );
         } catch (err) {
-          setStatus(uploadStatus, "err", "업로드 실패:\n" + err.message);
-          uploadBtn.disabled = false;
+          setStatus(statusBox, "err", "텍스처 준비 실패:\n" + err.message);
+          goBtn.disabled = false;
           return;
         }
 
@@ -229,16 +326,11 @@
             }),
           });
           const body = await r.json();
-          if (!r.ok) {
-            throw new Error(body.error?.code + ": " + body.error?.message);
-          }
+          if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
           setStatus(
-            uploadStatus,
+            statusBox,
             "ok",
-            "✅ 빌드 성공!\n  bundle_id: " +
-              body.bundle_id +
-              "\n  파일 수: " +
-              body.file_count,
+            "✅ 빌드 성공!\n  bundle_id: " + body.bundle_id + "\n  파일 수: " + body.file_count,
           );
           result.style.color = "inherit";
           result.innerHTML =
@@ -254,7 +346,9 @@
                 bundle_name: body.bundle_name,
                 file_count: body.file_count,
                 files: body.files.slice(0, 8).concat(
-                  body.files.length > 8 ? [{ path: "… +" + (body.files.length - 8) + " more" }] : [],
+                  body.files.length > 8
+                    ? [{ path: "… +" + (body.files.length - 8) + " more" }]
+                    : [],
                 ),
               },
               null,
@@ -262,9 +356,9 @@
             ) +
             "</pre>";
         } catch (err) {
-          setStatus(uploadStatus, "err", "빌드 실패:\n" + err.message);
+          setStatus(statusBox, "err", "빌드 실패:\n" + err.message);
         } finally {
-          uploadBtn.disabled = false;
+          goBtn.disabled = false;
         }
       });
     </script>
