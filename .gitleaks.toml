@@ -40,7 +40,10 @@ paths = [
   # 실수로 섞이면 소스/테스트 파일에서 잡아야 하므로 문서 경로만 allowlist (세션 70 복구).
   '''packages/license-verifier/README\.md$''',
   '''scripts/README\.md$''',
-  '''progress/sessions/.*\.md$''',
+
+  # 2026-04-24 스코프 리셋 — 구 progress/sessions/ 는 archive/progress_old/sessions/ 로 이동.
+  # 신규 기여는 이 경로에 추가되지 않으므로 실 유출 위험 無. 기록 보존 위한 allowlist.
+  '''archive/.*\.md$''',
 ]
 
 # 값 기반 허용 (IETF 공식 테스트 벡터 고정 핵사값)
