@@ -11,9 +11,12 @@ export type { Category, PartLike, ParameterLike } from "./category.js";
 export {
   buildGenerateMetricEvents,
   METRIC_PHASE_LABELS,
+  summarizeMetricHistory,
 } from "./metrics.js";
 export type {
   BuildGenerateMetricsInput,
   GenerateMetricEvent,
   GenerateMetricKind,
+  MetricHistorySnapshot,
+  MetricRunSummary,
 } from "./metrics.js";

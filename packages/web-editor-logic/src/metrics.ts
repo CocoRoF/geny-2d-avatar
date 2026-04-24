@@ -87,3 +87,107 @@ export function buildGenerateMetricEvents(
   });
   return events;
 }
+
+/**
+ * (β P2-S6) dev `?debug=metrics` 패널용 집계. `buildGenerateMetricEvents` 가
+ * emit 한 순수 이벤트 배열만 입력받아 **side-effect 없이** 카운트/평균/p95 를
+ * 계산한다. DOM/브라우저 의존성 없이 node:test 로 회귀 고정.
+ *
+ * - `runCount` — "generate.total" 이벤트 개수 (한 Generate 클릭 당 1).
+ * - `budgetOkCount` / `budgetOverCount` — total 이벤트의 `labels.budget_ok`
+ *   분포. 두 값의 합은 runCount 와 일치.
+ * - `budgetOkRate` — budgetOkCount / runCount. runCount=0 이면 `null` (0 을
+ *   리턴하면 "100% 실패" 로 오인될 수 있어 분리).
+ * - `phaseAverages` — phase → 평균 ms. 관측되지 않은 phase 는 키 자체 없음.
+ * - `lastRun` — 마지막 total 이벤트의 요약 (ts, ok, totalMs, promptLen,
+ *   template, trigger).  없으면 `null`.
+ * - `p95TotalMs` — runCount ≥ 1 이면 sort + index ceil(0.95·n) 의 rudimentary
+ *   p95. β 단계의 상대적 추세 파악용 — 실 SLO 는 P5 Prometheus histogram.
+ */
+export interface MetricRunSummary {
+  readonly ts: number;
+  readonly ok: boolean;
+  readonly totalMs: number;
+  readonly promptLen: number;
+  readonly template: string;
+  readonly trigger: string;
+  readonly budgetMs: number;
+  readonly budgetOk: boolean;
+}
+
+export interface MetricHistorySnapshot {
+  readonly eventCount: number;
+  readonly runCount: number;
+  readonly budgetOkCount: number;
+  readonly budgetOverCount: number;
+  readonly budgetOkRate: number | null;
+  readonly phaseAverages: Readonly<Record<string, number>>;
+  readonly avgTotalMs: number | null;
+  readonly p95TotalMs: number | null;
+  readonly lastRun: MetricRunSummary | null;
+}
+
+export function summarizeMetricHistory(
+  events: readonly GenerateMetricEvent[],
+): MetricHistorySnapshot {
+  const phaseSums: Record<string, { sum: number; count: number }> = {};
+  const totals: number[] = [];
+  let budgetOkCount = 0;
+  let budgetOverCount = 0;
+  let lastRun: MetricRunSummary | null = null;
+
+  for (const e of events) {
+    if (e.kind === "generate.phase") {
+      const phase = e.labels["phase"];
+      if (typeof phase !== "string") continue;
+      const entry = phaseSums[phase] ?? { sum: 0, count: 0 };
+      entry.sum += e.value;
+      entry.count += 1;
+      phaseSums[phase] = entry;
+    } else if (e.kind === "generate.total") {
+      totals.push(e.value);
+      const okStr = e.labels["budget_ok"];
+      const budgetOk = okStr === "true";
+      if (okStr === "true") budgetOkCount += 1;
+      else if (okStr === "false") budgetOverCount += 1;
+      const budgetMsStr = e.labels["budget_ms"];
+      const budgetMs = budgetMsStr !== undefined ? Number(budgetMsStr) : 0;
+      lastRun = {
+        ts: e.ts,
+        ok: e.labels["ok"] === "true",
+        totalMs: e.value,
+        promptLen: e.prompt_len ?? 0,
+        template: e.labels["template"] ?? "unknown",
+        trigger: e.labels["trigger"] ?? "unknown",
+        budgetMs: Number.isFinite(budgetMs) ? budgetMs : 0,
+        budgetOk,
+      };
+    }
+  }
+
+  const phaseAverages: Record<string, number> = {};
+  for (const [phase, entry] of Object.entries(phaseSums)) {
+    phaseAverages[phase] = entry.count > 0 ? entry.sum / entry.count : 0;
+  }
+
+  const runCount = totals.length;
+  const avgTotalMs = runCount > 0 ? totals.reduce((s, v) => s + v, 0) / runCount : null;
+  let p95TotalMs: number | null = null;
+  if (runCount > 0) {
+    const sorted = [...totals].sort((a, b) => a - b);
+    const idx = Math.min(runCount - 1, Math.ceil(0.95 * runCount) - 1);
+    p95TotalMs = sorted[Math.max(0, idx)] ?? null;
+  }
+
+  return {
+    eventCount: events.length,
+    runCount,
+    budgetOkCount,
+    budgetOverCount,
+    budgetOkRate: runCount > 0 ? budgetOkCount / runCount : null,
+    phaseAverages,
+    avgTotalMs,
+    p95TotalMs,
+    lastRun,
+  };
+}

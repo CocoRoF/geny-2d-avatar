@@ -422,7 +422,7 @@
     </script>
     <script type="module" src="./public/vendor/index.js"></script>
     <script type="module">
-      import { CATEGORY_ORDER, categorize, parametersForPart, buildGenerateMetricEvents } from "./public/vendor/web-editor-logic/index.js";
+      import { CATEGORY_ORDER, categorize, parametersForPart, buildGenerateMetricEvents, summarizeMetricHistory } from "./public/vendor/web-editor-logic/index.js";
       import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
       // 세션 116 — `?debug=logger` URL 파라미터가 있으면 `@geny/web-avatar-renderer`
@@ -436,6 +436,12 @@
       // 파츠 atlas pivot_uv 의 실 화면 위치를 빨간 원 (주입됨) / 회색 원 (fallback)
       // 으로 표시. 기본 경로에선 비활성 (bundle/렌더 비용 무증가).
       const debugPivotsEnabled = debugFlagSet.has("pivots");
+      // β P2-S6 — `?debug=metrics` 오버레이. `__genyMetricsSink` 로 흘러온
+      // generate.phase / generate.total 이벤트를 ring buffer (최근 200 개) 에
+      // 쌓고 `summarizeMetricHistory` (순수 함수, 단위 테스트 9 개) 로 집계해
+      // 화면 우하단 고정 패널에 budget_ok rate / phase 평균 / p95 / lastRun 을
+      // 실시간 표시. 기본 경로에선 sink 주입 자체를 skip (zero-cost).
+      const debugMetricsEnabled = debugFlagSet.has("metrics");
       let debugLoggingRenderer = null;
 
       // β P1-S1 — `?renderer=pixi` 쿼리가 켜지면 `@geny/web-avatar-renderer-pixi` 의
@@ -1179,6 +1185,101 @@
           ok,
         });
         for (const e of events) emitMetric(e);
+      }
+
+      // β P2-S6 — `?debug=metrics` dev 패널. `__genyMetricsSink` 로 이벤트를
+      // 200 개 ring buffer 에 쌓고 `summarizeMetricHistory` 집계를 우하단 고정
+      // DOM 패널에 반영. Generate 1 회 당 6 이벤트가 들어오므로 200 개는 약
+      // 33 회 run 분량 — β 단계 dev inspection 에는 충분.
+      if (debugMetricsEnabled) {
+        const RING_MAX = 200;
+        const ring = [];
+        const panel = document.createElement("div");
+        panel.id = "debug-metrics-panel";
+        panel.setAttribute("aria-label", "debug metrics");
+        Object.assign(panel.style, {
+          position: "fixed",
+          right: "12px",
+          bottom: "12px",
+          width: "320px",
+          maxHeight: "50vh",
+          overflow: "auto",
+          padding: "10px 12px",
+          borderRadius: "8px",
+          background: "rgba(16,18,24,0.92)",
+          color: "#e6edf6",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontSize: "11px",
+          lineHeight: "1.4",
+          zIndex: "9999",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+          pointerEvents: "auto",
+          fontVariantNumeric: "tabular-nums",
+        });
+        panel.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <strong style="color:#9ab7ff;">geny.metrics</strong>
+            <span data-debug="event-count" style="color:#6b7280;">0 ev</span>
+          </div>
+          <div data-debug="runs" style="margin-bottom:6px;">runs: —</div>
+          <div data-debug="budget" style="margin-bottom:6px;">budget: —</div>
+          <div data-debug="avg" style="margin-bottom:6px;">avg: — · p95: —</div>
+          <div data-debug="phases" style="margin-bottom:6px;">phases: —</div>
+          <div data-debug="last-run" style="margin-bottom:6px;color:#9aa1ad;">last: —</div>
+        `;
+        document.body.appendChild(panel);
+
+        const nodes = {
+          events: panel.querySelector('[data-debug="event-count"]'),
+          runs: panel.querySelector('[data-debug="runs"]'),
+          budget: panel.querySelector('[data-debug="budget"]'),
+          avg: panel.querySelector('[data-debug="avg"]'),
+          phases: panel.querySelector('[data-debug="phases"]'),
+          lastRun: panel.querySelector('[data-debug="last-run"]'),
+        };
+
+        function fmtMs(v) {
+          return v == null ? "—" : `${Math.round(v)}ms`;
+        }
+
+        function rerender() {
+          const snap = summarizeMetricHistory(ring);
+          nodes.events.textContent = `${snap.eventCount} ev`;
+          nodes.runs.textContent = `runs: ${snap.runCount}`;
+          const rate = snap.budgetOkRate == null
+            ? "—"
+            : `${Math.round(snap.budgetOkRate * 100)}%`;
+          nodes.budget.textContent = `budget: ${rate} ok (${snap.budgetOkCount}/${snap.runCount}, over=${snap.budgetOverCount})`;
+          nodes.avg.textContent = `avg: ${fmtMs(snap.avgTotalMs)} · p95: ${fmtMs(snap.p95TotalMs)}`;
+          const phaseKeys = ["ingest", "synth", "atlas", "swap", "paint"];
+          const phaseParts = phaseKeys
+            .map((k) => `${k} ${fmtMs(snap.phaseAverages[k])}`)
+            .join(" · ");
+          nodes.phases.textContent = `phases: ${phaseParts}`;
+          if (snap.lastRun) {
+            const ok = snap.lastRun.budgetOk ? "ok" : "over";
+            nodes.lastRun.textContent = `last: ${fmtMs(snap.lastRun.totalMs)} ${ok} · ${snap.lastRun.trigger} · ${snap.lastRun.template} · prompt=${snap.lastRun.promptLen}`;
+          } else {
+            nodes.lastRun.textContent = "last: —";
+          }
+        }
+
+        globalThis.__genyMetricsSink = function debugMetricsSink(event) {
+          ring.push(event);
+          if (ring.length > RING_MAX) ring.splice(0, ring.length - RING_MAX);
+          rerender();
+        };
+        // 테스트·tool 훅: 외부에서 ring buffer / 재렌더 접근 가능 (e2e 검증용).
+        globalThis.__genyDebugMetrics = {
+          getEvents: () => ring.slice(),
+          getSnapshot: () => summarizeMetricHistory(ring),
+          clear: () => {
+            ring.length = 0;
+            rerender();
+          },
+        };
+        rerender();
+        console.info("[geny-avatar/metrics] dev panel attached via ?debug=metrics");
       }
 
       function setPillPhase(index, phase) {
