@@ -1,0 +1,1237 @@
+{
+  "schema_version": "v1",
+  "version": 3,
+  "meta": {
+    "physics_setting_count": 16,
+    "total_input_count": 43,
+    "total_output_count": 20,
+    "vertex_count": 33,
+    "effective_forces": {
+      "gravity": {
+        "x": 0,
+        "y": -1
+      },
+      "wind": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "fps": 30
+  },
+  "physics_dictionary": [
+    {
+      "id": "PhysicsSetting1",
+      "name": {
+        "ko": "PhysicsSetting1",
+        "en": "PhysicsSetting1",
+        "ja": "PhysicsSetting1"
+      }
+    },
+    {
+      "id": "PhysicsSetting2",
+      "name": {
+        "ko": "PhysicsSetting2",
+        "en": "PhysicsSetting2",
+        "ja": "PhysicsSetting2"
+      }
+    },
+    {
+      "id": "PhysicsSetting3",
+      "name": {
+        "ko": "PhysicsSetting3",
+        "en": "PhysicsSetting3",
+        "ja": "PhysicsSetting3"
+      }
+    },
+    {
+      "id": "PhysicsSetting4",
+      "name": {
+        "ko": "PhysicsSetting4",
+        "en": "PhysicsSetting4",
+        "ja": "PhysicsSetting4"
+      }
+    },
+    {
+      "id": "PhysicsSetting5",
+      "name": {
+        "ko": "PhysicsSetting5",
+        "en": "PhysicsSetting5",
+        "ja": "PhysicsSetting5"
+      }
+    },
+    {
+      "id": "PhysicsSetting6",
+      "name": {
+        "ko": "PhysicsSetting6",
+        "en": "PhysicsSetting6",
+        "ja": "PhysicsSetting6"
+      }
+    },
+    {
+      "id": "PhysicsSetting7",
+      "name": {
+        "ko": "PhysicsSetting7",
+        "en": "PhysicsSetting7",
+        "ja": "PhysicsSetting7"
+      }
+    },
+    {
+      "id": "PhysicsSetting8",
+      "name": {
+        "ko": "PhysicsSetting8",
+        "en": "PhysicsSetting8",
+        "ja": "PhysicsSetting8"
+      }
+    },
+    {
+      "id": "PhysicsSetting9",
+      "name": {
+        "ko": "PhysicsSetting9",
+        "en": "PhysicsSetting9",
+        "ja": "PhysicsSetting9"
+      }
+    },
+    {
+      "id": "PhysicsSetting10",
+      "name": {
+        "ko": "PhysicsSetting10",
+        "en": "PhysicsSetting10",
+        "ja": "PhysicsSetting10"
+      }
+    },
+    {
+      "id": "PhysicsSetting11",
+      "name": {
+        "ko": "PhysicsSetting11",
+        "en": "PhysicsSetting11",
+        "ja": "PhysicsSetting11"
+      }
+    },
+    {
+      "id": "PhysicsSetting12",
+      "name": {
+        "ko": "PhysicsSetting12",
+        "en": "PhysicsSetting12",
+        "ja": "PhysicsSetting12"
+      }
+    },
+    {
+      "id": "PhysicsSetting13",
+      "name": {
+        "ko": "PhysicsSetting13",
+        "en": "PhysicsSetting13",
+        "ja": "PhysicsSetting13"
+      }
+    },
+    {
+      "id": "PhysicsSetting14",
+      "name": {
+        "ko": "PhysicsSetting14",
+        "en": "PhysicsSetting14",
+        "ja": "PhysicsSetting14"
+      }
+    },
+    {
+      "id": "PhysicsSetting15",
+      "name": {
+        "ko": "PhysicsSetting15",
+        "en": "PhysicsSetting15",
+        "ja": "PhysicsSetting15"
+      }
+    },
+    {
+      "id": "PhysicsSetting16",
+      "name": {
+        "ko": "PhysicsSetting16",
+        "en": "PhysicsSetting16",
+        "ja": "PhysicsSetting16"
+      }
+    }
+  ],
+  "physics_settings": [
+    {
+      "id": "PhysicsSetting1",
+      "input": [
+        {
+          "source_param": "angle_x",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "angle_z",
+          "weight": 60,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_x",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 40,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_front",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 10
+          },
+          "mobility": 0.95,
+          "delay": 0.8,
+          "acceleration": 1.12,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting2",
+      "input": [
+        {
+          "source_param": "angle_x",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "angle_z",
+          "weight": 60,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_x",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 40,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_side_l",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "destination_param": "hair_side_r",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 15
+          },
+          "mobility": 0.95,
+          "delay": 0.8,
+          "acceleration": 1.27,
+          "radius": 15
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting3",
+      "input": [
+        {
+          "source_param": "angle_x",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "angle_z",
+          "weight": 60,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_x",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 40,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_back",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 15.7
+          },
+          "mobility": 0.9,
+          "delay": 0.8,
+          "acceleration": 1.5,
+          "radius": 15.7
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting4",
+      "input": [
+        {
+          "source_param": "angle_x",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "angle_z",
+          "weight": 60,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_x",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 40,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_back_r",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "destination_param": "hair_back_l",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 16
+          },
+          "mobility": 0.93,
+          "delay": 0.8,
+          "acceleration": 1.41,
+          "radius": 16
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting5",
+      "input": [
+        {
+          "source_param": "angle_x",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "angle_z",
+          "weight": 60,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_x",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 40,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "o_hair_mesh",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 10
+          },
+          "mobility": 0.95,
+          "delay": 0.7,
+          "acceleration": 1,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting6",
+      "input": [
+        {
+          "source_param": "angle_y",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_y",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_front_fuwa",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 11.6
+          },
+          "mobility": 0.98,
+          "delay": 0.88,
+          "acceleration": 0.95,
+          "radius": 11.6
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting7",
+      "input": [
+        {
+          "source_param": "angle_y",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_y",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_side_fuwa",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 15.7
+          },
+          "mobility": 0.98,
+          "delay": 0.89,
+          "acceleration": 0.75,
+          "radius": 15.7
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting8",
+      "input": [
+        {
+          "source_param": "angle_y",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_y",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hair_back_fuwa",
+          "vertex_index": 1,
+          "scale": 1.5,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 17.7
+          },
+          "mobility": 0.98,
+          "delay": 0.8,
+          "acceleration": 0.81,
+          "radius": 17.7
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting9",
+      "input": [
+        {
+          "source_param": "angle_y",
+          "weight": 60,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_y",
+          "weight": 40,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hat_brim",
+          "vertex_index": 1,
+          "scale": 1.5,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 13.9
+          },
+          "mobility": 0.92,
+          "delay": 0.67,
+          "acceleration": 3.02,
+          "radius": 13.9
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting10",
+      "input": [
+        {
+          "source_param": "angle_y",
+          "weight": 50,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "angle_x",
+          "weight": 30,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_y",
+          "weight": 20,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "ribbon",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 7.9
+          },
+          "mobility": 0.95,
+          "delay": 0.9,
+          "acceleration": 0.82,
+          "radius": 7.9
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting11",
+      "input": [
+        {
+          "source_param": "angle_y",
+          "weight": 50,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "angle_x",
+          "weight": 30,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_y",
+          "weight": 20,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "wing",
+          "vertex_index": 1,
+          "scale": 0.9,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 10
+          },
+          "mobility": 0.95,
+          "delay": 0.65,
+          "acceleration": 0.85,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting12",
+      "input": [
+        {
+          "source_param": "angle_x",
+          "weight": 100,
+          "type": "X",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "hat_top",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 61.4
+          },
+          "mobility": 0.96,
+          "delay": 0.81,
+          "acceleration": 1.5,
+          "radius": 61.4
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting13",
+      "input": [
+        {
+          "source_param": "body_angle_x",
+          "weight": 100,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "string",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 15
+          },
+          "mobility": 0.85,
+          "delay": 1,
+          "acceleration": 0.8,
+          "radius": 15
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting14",
+      "input": [
+        {
+          "source_param": "body_angle_x",
+          "weight": 100,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "accessory1",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "destination_param": "accessory2",
+          "vertex_index": 2,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 7
+          },
+          "mobility": 0.8,
+          "delay": 0.6,
+          "acceleration": 3,
+          "radius": 7
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 15
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 3,
+          "radius": 8
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting15",
+      "input": [
+        {
+          "source_param": "body_angle_x",
+          "weight": 100,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "robe_l",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        },
+        {
+          "destination_param": "robe_r",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 10
+          },
+          "mobility": 0.9,
+          "delay": 0.7,
+          "acceleration": 1.5,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    },
+    {
+      "id": "PhysicsSetting16",
+      "input": [
+        {
+          "source_param": "body_angle_y",
+          "weight": 100,
+          "type": "X",
+          "reflect": false
+        },
+        {
+          "source_param": "body_angle_z",
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "output": [
+        {
+          "destination_param": "robe_fuwa",
+          "vertex_index": 1,
+          "scale": 1,
+          "weight": 100,
+          "type": "Angle",
+          "reflect": false
+        }
+      ],
+      "vertices": [
+        {
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "mobility": 1,
+          "delay": 1,
+          "acceleration": 1,
+          "radius": 0
+        },
+        {
+          "position": {
+            "x": 0,
+            "y": 10
+          },
+          "mobility": 0.9,
+          "delay": 0.7,
+          "acceleration": 1.5,
+          "radius": 10
+        }
+      ],
+      "normalization": {
+        "position": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        },
+        "angle": {
+          "minimum": -10,
+          "default": 0,
+          "maximum": 10
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "schema_version": "v1",
+  "slot_id": "smoke",
+  "role": "smoke",
+  "required": false,
+  "template": "tpl.base.v1.mao_pro",
+  "template_version": "^1",
+  "deformation_parent": "root",
+  "category": "fx",
+  "canvas_px": {
+    "w": 4096,
+    "h": 4096
+  },
+  "uv_box_px": {
+    "x": 0,
+    "y": 0,
+    "w": 4096,
+    "h": 4096
+  },
+  "anchor": {
+    "type": "bbox_center",
+    "x_frac": 0.5,
+    "y_frac": 0.5,
+    "detect_method": "bbox"
+  },
+  "z_order": 0,
+  "visual": {
+    "alpha_edge_policy": "feather_2px",
+    "line_weight_hint_px": 1,
+    "color_context": "fx"
+  },
+  "generation": {
+    "prompt_scope": [
+      "wrapper_placeholder"
+    ],
+    "negative_prompt": [],
+    "reference_mask": "wrapper_mask_placeholder.png",
+    "max_iter": 1
+  },
+  "dependencies": [],
+  "validation": {
+    "must_cover_anchor": false,
+    "min_alpha_area_frac": 0,
+    "max_alpha_area_frac": 1
+  },
+  "notes": "3rd-party wrapper spec (Live2D Inc.). drawable 단위 spec 은 .moc3 파싱 후 보강. Cubism Part Id='PartSmoke'.",
+  "cubism_part_id": "PartSmoke"
+}

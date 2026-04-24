@@ -1,0 +1,28 @@
+{
+  "schema_version": "v1",
+  "format": 3,
+  "type": "live2d_pose",
+  "fade_in_time": 0.5,
+  "groups": [
+    [
+      {
+        "slot_id": "arm_l_a",
+        "link": []
+      },
+      {
+        "slot_id": "arm_l_b",
+        "link": []
+      }
+    ],
+    [
+      {
+        "slot_id": "arm_r_a",
+        "link": []
+      },
+      {
+        "slot_id": "arm_r_b",
+        "link": []
+      }
+    ]
+  ]
+}

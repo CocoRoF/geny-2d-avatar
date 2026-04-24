@@ -26,8 +26,9 @@
 
 **데모 목표**: 로컬 웹 UI 에서 `mao_pro` 프리셋 선택 → 프리셋 기본 텍스처 (mao 의 원본 `texture_00.png`) 가 PixiJS 로 실제 픽셀 렌더. 파라미터·모션·표정 동작.
 
-- [ ] `scripts/rig-template/extract-atlas.mjs` — `.moc3` 파싱 → atlas slots 추출
-- [ ] `rig-templates/base/mao_pro/v1.0.0/` 구축 (template.manifest · parameters · deformers · parts · physics · pose · motions · expressions · atlas · runtime_assets/.moc3)
+- [x] `scripts/rig-template/import-cubism-preset.mjs` — Cubism 원본 → rig-template 래퍼 자동 변환 (P1.A 2026-04-24)
+- [x] `rig-templates/base/mao_pro/v1.0.0/` 구축 (template.manifest · parameters · deformers · parts · physics · pose · motions · expressions · atlas · runtime_assets/.moc3) — **P1.A 완료**
+- [ ] `scripts/rig-template/extract-atlas.mjs` — `.moc3` 파싱 → per-drawable atlas slots (P3 per-slot 텍스처 생성 시 필요)
 - [ ] `halfbody/v1.3.0/textures/atlas.json` slots 채움 (같은 스크립트 재사용)
 - [ ] `pnpm run validate:schemas` + `scripts/rig-template/physics-lint.mjs` 통과
 - [ ] `@geny/web-avatar-renderer-pixi` 완성 — `.moc3` + texture 실제 렌더

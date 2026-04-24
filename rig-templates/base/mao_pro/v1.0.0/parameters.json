@@ -1,0 +1,2655 @@
+{
+  "schema_version": "v1",
+  "groups": [
+    {
+      "id": "face",
+      "display_name": {
+        "en": "얼굴",
+        "ko": "얼굴",
+        "ja": "얼굴"
+      }
+    },
+    {
+      "id": "eyes",
+      "display_name": {
+        "en": "눈",
+        "ko": "눈",
+        "ja": "눈"
+      }
+    },
+    {
+      "id": "eyeballs",
+      "display_name": {
+        "en": "눈알",
+        "ko": "눈알",
+        "ja": "눈알"
+      }
+    },
+    {
+      "id": "brows",
+      "display_name": {
+        "en": "눈썹",
+        "ko": "눈썹",
+        "ja": "눈썹"
+      }
+    },
+    {
+      "id": "mouth",
+      "display_name": {
+        "en": "입",
+        "ko": "입",
+        "ja": "입"
+      }
+    },
+    {
+      "id": "body",
+      "display_name": {
+        "en": "몸",
+        "ko": "몸",
+        "ja": "몸"
+      }
+    },
+    {
+      "id": "arm_l_a",
+      "display_name": {
+        "en": "왼팔 A",
+        "ko": "왼팔 A",
+        "ja": "왼팔 A"
+      }
+    },
+    {
+      "id": "arm_r_a",
+      "display_name": {
+        "en": "오른팔 A",
+        "ko": "오른팔 A",
+        "ja": "오른팔 A"
+      }
+    },
+    {
+      "id": "arm_l_b",
+      "display_name": {
+        "en": "왼팔 B",
+        "ko": "왼팔 B",
+        "ja": "왼팔 B"
+      }
+    },
+    {
+      "id": "arm_r_b",
+      "display_name": {
+        "en": "오른팔 B",
+        "ko": "오른팔 B",
+        "ja": "오른팔 B"
+      }
+    },
+    {
+      "id": "overall",
+      "display_name": {
+        "en": "전체",
+        "ko": "전체",
+        "ja": "전체"
+      }
+    },
+    {
+      "id": "sway",
+      "display_name": {
+        "en": "흔들림",
+        "ko": "흔들림",
+        "ja": "흔들림"
+      }
+    },
+    {
+      "id": "heart",
+      "display_name": {
+        "en": "하트",
+        "ko": "하트",
+        "ja": "하트"
+      }
+    },
+    {
+      "id": "ink",
+      "display_name": {
+        "en": "잉크",
+        "ko": "잉크",
+        "ja": "잉크"
+      }
+    },
+    {
+      "id": "explosion",
+      "display_name": {
+        "en": "폭발",
+        "ko": "폭발",
+        "ja": "폭발"
+      }
+    },
+    {
+      "id": "rabbit",
+      "display_name": {
+        "en": "토끼",
+        "ko": "토끼",
+        "ja": "토끼"
+      }
+    },
+    {
+      "id": "aura",
+      "display_name": {
+        "en": "아우라",
+        "ko": "아우라",
+        "ja": "아우라"
+      }
+    },
+    {
+      "id": "light",
+      "display_name": {
+        "en": "빛",
+        "ko": "빛",
+        "ja": "빛"
+      }
+    },
+    {
+      "id": "all_effects",
+      "display_name": {
+        "en": "전체 이펙트",
+        "ko": "전체 이펙트",
+        "ja": "전체 이펙트"
+      }
+    },
+    {
+      "id": "other",
+      "display_name": {
+        "en": "Other",
+        "ko": "기타",
+        "ja": "その他"
+      }
+    }
+  ],
+  "parameters": [
+    {
+      "id": "angle_x",
+      "display_name": {
+        "en": "각도 X",
+        "ko": "각도 X",
+        "ja": "각도 X"
+      },
+      "unit": "degree",
+      "range": [
+        -30,
+        30
+      ],
+      "default": 0,
+      "required": false,
+      "group": "face",
+      "channel": "core",
+      "physics_input": true,
+      "cubism": "ParamAngleX"
+    },
+    {
+      "id": "angle_y",
+      "display_name": {
+        "en": "각도 Y",
+        "ko": "각도 Y",
+        "ja": "각도 Y"
+      },
+      "unit": "degree",
+      "range": [
+        -30,
+        30
+      ],
+      "default": 0,
+      "required": false,
+      "group": "face",
+      "channel": "core",
+      "physics_input": true,
+      "cubism": "ParamAngleY"
+    },
+    {
+      "id": "angle_z",
+      "display_name": {
+        "en": "각도 Z",
+        "ko": "각도 Z",
+        "ja": "각도 Z"
+      },
+      "unit": "degree",
+      "range": [
+        -30,
+        30
+      ],
+      "default": 0,
+      "required": false,
+      "group": "face",
+      "channel": "core",
+      "physics_input": true,
+      "cubism": "ParamAngleZ"
+    },
+    {
+      "id": "cheek",
+      "display_name": {
+        "en": "뺨의선",
+        "ko": "뺨의선",
+        "ja": "뺨의선"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "face",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamCheek"
+    },
+    {
+      "id": "face_ink_on",
+      "display_name": {
+        "en": "얼굴잉크 표시",
+        "ko": "얼굴잉크 표시",
+        "ja": "얼굴잉크 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "face",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamFaceInkOn"
+    },
+    {
+      "id": "eye_l_open",
+      "display_name": {
+        "en": "왼쪽 눈 뜨기",
+        "ko": "왼쪽 눈 뜨기",
+        "ja": "왼쪽 눈 뜨기"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 1,
+      "required": false,
+      "group": "eyes",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeLOpen"
+    },
+    {
+      "id": "eye_l_smile",
+      "display_name": {
+        "en": "왼쪽 눈 웃는 얼굴",
+        "ko": "왼쪽 눈 웃는 얼굴",
+        "ja": "왼쪽 눈 웃는 얼굴"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "eyes",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeLSmile"
+    },
+    {
+      "id": "eye_l_form",
+      "display_name": {
+        "en": "왼쪽 눈 변형",
+        "ko": "왼쪽 눈 변형",
+        "ja": "왼쪽 눈 변형"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "eyes",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeLForm"
+    },
+    {
+      "id": "eye_r_open",
+      "display_name": {
+        "en": "오른쪽 눈 뜨기",
+        "ko": "오른쪽 눈 뜨기",
+        "ja": "오른쪽 눈 뜨기"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 1,
+      "required": false,
+      "group": "eyes",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeROpen"
+    },
+    {
+      "id": "eye_r_smile",
+      "display_name": {
+        "en": "오른쪽 눈 웃는 얼굴",
+        "ko": "오른쪽 눈 웃는 얼굴",
+        "ja": "오른쪽 눈 웃는 얼굴"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "eyes",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeRSmile"
+    },
+    {
+      "id": "eye_r_form",
+      "display_name": {
+        "en": "오른쪽 눈 변형",
+        "ko": "오른쪽 눈 변형",
+        "ja": "오른쪽 눈 변형"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "eyes",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeRForm"
+    },
+    {
+      "id": "eye_ball_x",
+      "display_name": {
+        "en": "눈알 X",
+        "ko": "눈알 X",
+        "ja": "눈알 X"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "eyeballs",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeBallX"
+    },
+    {
+      "id": "eye_ball_y",
+      "display_name": {
+        "en": "눈알 Y",
+        "ko": "눈알 Y",
+        "ja": "눈알 Y"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "eyeballs",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeBallY"
+    },
+    {
+      "id": "eye_ball_form",
+      "display_name": {
+        "en": "눈알 축소",
+        "ko": "눈알 축소",
+        "ja": "눈알 축소"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "eyeballs",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeBallForm"
+    },
+    {
+      "id": "eye_effect",
+      "display_name": {
+        "en": "눈 효과",
+        "ko": "눈 효과",
+        "ja": "눈 효과"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "eyeballs",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamEyeEffect"
+    },
+    {
+      "id": "brow_l_y",
+      "display_name": {
+        "en": "왼쪽 눈썹 상하",
+        "ko": "왼쪽 눈썹 상하",
+        "ja": "왼쪽 눈썹 상하"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "brows",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBrowLY"
+    },
+    {
+      "id": "brow_r_y",
+      "display_name": {
+        "en": "오른쪽 눈썹 상하",
+        "ko": "오른쪽 눈썹 상하",
+        "ja": "오른쪽 눈썹 상하"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "brows",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBrowRY"
+    },
+    {
+      "id": "brow_l_x",
+      "display_name": {
+        "en": "왼쪽 눈썹 좌우",
+        "ko": "왼쪽 눈썹 좌우",
+        "ja": "왼쪽 눈썹 좌우"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "brows",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBrowLX"
+    },
+    {
+      "id": "brow_r_x",
+      "display_name": {
+        "en": "오른쪽 눈썹 좌우",
+        "ko": "오른쪽 눈썹 좌우",
+        "ja": "오른쪽 눈썹 좌우"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "brows",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBrowRX"
+    },
+    {
+      "id": "brow_l_angle",
+      "display_name": {
+        "en": "왼쪽 눈썹 각도",
+        "ko": "왼쪽 눈썹 각도",
+        "ja": "왼쪽 눈썹 각도"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "brows",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBrowLAngle"
+    },
+    {
+      "id": "brow_r_angle",
+      "display_name": {
+        "en": "오른쪽 눈썹 각도",
+        "ko": "오른쪽 눈썹 각도",
+        "ja": "오른쪽 눈썹 각도"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "brows",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBrowRAngle"
+    },
+    {
+      "id": "brow_l_form",
+      "display_name": {
+        "en": "왼쪽 눈썹 변형",
+        "ko": "왼쪽 눈썹 변형",
+        "ja": "왼쪽 눈썹 변형"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "brows",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBrowLForm"
+    },
+    {
+      "id": "brow_r_form",
+      "display_name": {
+        "en": "오른쪽 눈썹 변형",
+        "ko": "오른쪽 눈썹 변형",
+        "ja": "오른쪽 눈썹 변형"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "brows",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBrowRForm"
+    },
+    {
+      "id": "phoneme_a",
+      "display_name": {
+        "en": "아",
+        "ko": "아",
+        "ja": "아"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamA"
+    },
+    {
+      "id": "phoneme_i",
+      "display_name": {
+        "en": "이",
+        "ko": "이",
+        "ja": "이"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamI"
+    },
+    {
+      "id": "phoneme_u",
+      "display_name": {
+        "en": "우",
+        "ko": "우",
+        "ja": "우"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamU"
+    },
+    {
+      "id": "phoneme_e",
+      "display_name": {
+        "en": "에",
+        "ko": "에",
+        "ja": "에"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamE"
+    },
+    {
+      "id": "phoneme_o",
+      "display_name": {
+        "en": "오",
+        "ko": "오",
+        "ja": "오"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamO"
+    },
+    {
+      "id": "mouth_up",
+      "display_name": {
+        "en": "입꼬리 올림",
+        "ko": "입꼬리 올림",
+        "ja": "입꼬리 올림"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamMouthUp"
+    },
+    {
+      "id": "mouth_down",
+      "display_name": {
+        "en": "입꼬리 처짐",
+        "ko": "입꼬리 처짐",
+        "ja": "입꼬리 처짐"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamMouthDown"
+    },
+    {
+      "id": "mouth_angry",
+      "display_name": {
+        "en": "부은 입",
+        "ko": "부은 입",
+        "ja": "부은 입"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamMouthAngry"
+    },
+    {
+      "id": "mouth_angry_line",
+      "display_name": {
+        "en": "부은 입선",
+        "ko": "부은 입선",
+        "ja": "부은 입선"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "mouth",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamMouthAngryLine"
+    },
+    {
+      "id": "body_angle_x",
+      "display_name": {
+        "en": "몸의 회전 X",
+        "ko": "몸의 회전 X",
+        "ja": "몸의 회전 X"
+      },
+      "unit": "degree",
+      "range": [
+        -30,
+        30
+      ],
+      "default": 0,
+      "required": false,
+      "group": "body",
+      "channel": "core",
+      "physics_input": true,
+      "cubism": "ParamBodyAngleX"
+    },
+    {
+      "id": "body_angle_y",
+      "display_name": {
+        "en": "몸의 회전 Y",
+        "ko": "몸의 회전 Y",
+        "ja": "몸의 회전 Y"
+      },
+      "unit": "degree",
+      "range": [
+        -30,
+        30
+      ],
+      "default": 0,
+      "required": false,
+      "group": "body",
+      "channel": "core",
+      "physics_input": true,
+      "cubism": "ParamBodyAngleY"
+    },
+    {
+      "id": "body_angle_z",
+      "display_name": {
+        "en": "몸의 회전 Z",
+        "ko": "몸의 회전 Z",
+        "ja": "몸의 회전 Z"
+      },
+      "unit": "degree",
+      "range": [
+        -30,
+        30
+      ],
+      "default": 0,
+      "required": false,
+      "group": "body",
+      "channel": "core",
+      "physics_input": true,
+      "cubism": "ParamBodyAngleZ"
+    },
+    {
+      "id": "breath",
+      "display_name": {
+        "en": "호흡",
+        "ko": "호흡",
+        "ja": "호흡"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "body",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamBreath"
+    },
+    {
+      "id": "left_shoulder_up",
+      "display_name": {
+        "en": "왼쪽 어깨의 위아래",
+        "ko": "왼쪽 어깨의 위아래",
+        "ja": "왼쪽 어깨의 위아래"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "body",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamLeftShoulderUp"
+    },
+    {
+      "id": "right_shoulder_up",
+      "display_name": {
+        "en": "오른쪽 어깨의 위아래",
+        "ko": "오른쪽 어깨의 위아래",
+        "ja": "오른쪽 어깨의 위아래"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "body",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRightShoulderUp"
+    },
+    {
+      "id": "arm_l_a01",
+      "display_name": {
+        "en": "왼팔 A 어깨의 회전",
+        "ko": "왼팔 A 어깨의 회전",
+        "ja": "왼팔 A 어깨의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmLA01"
+    },
+    {
+      "id": "arm_l_a02",
+      "display_name": {
+        "en": "왼팔 A 팔꿈치의 회전",
+        "ko": "왼팔 A 팔꿈치의 회전",
+        "ja": "왼팔 A 팔꿈치의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmLA02"
+    },
+    {
+      "id": "arm_l_a03",
+      "display_name": {
+        "en": "왼팔 A 손목의 회전",
+        "ko": "왼팔 A 손목의 회전",
+        "ja": "왼팔 A 손목의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmLA03"
+    },
+    {
+      "id": "hand_l_a",
+      "display_name": {
+        "en": "왼손 A",
+        "ko": "왼손 A",
+        "ja": "왼손 A"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHandLA"
+    },
+    {
+      "id": "arm_r_a01",
+      "display_name": {
+        "en": "오른팔 A 어깨의 회전",
+        "ko": "오른팔 A 어깨의 회전",
+        "ja": "오른팔 A 어깨의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmRA01"
+    },
+    {
+      "id": "arm_r_a02",
+      "display_name": {
+        "en": "오른팔 A 팔꿈치의 회전",
+        "ko": "오른팔 A 팔꿈치의 회전",
+        "ja": "오른팔 A 팔꿈치의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmRA02"
+    },
+    {
+      "id": "arm_r_a03",
+      "display_name": {
+        "en": "오른팔 A 손목의 회전",
+        "ko": "오른팔 A 손목의 회전",
+        "ja": "오른팔 A 손목의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmRA03"
+    },
+    {
+      "id": "wand_rotate",
+      "display_name": {
+        "en": "지팡이의 회전",
+        "ko": "지팡이의 회전",
+        "ja": "지팡이의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamWandRotate"
+    },
+    {
+      "id": "hand_r_a",
+      "display_name": {
+        "en": "오른손 A",
+        "ko": "오른손 A",
+        "ja": "오른손 A"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHandRA"
+    },
+    {
+      "id": "ink_drop",
+      "display_name": {
+        "en": "잉크흘림",
+        "ko": "잉크흘림",
+        "ja": "잉크흘림"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamInkDrop"
+    },
+    {
+      "id": "ink_drop_rotate",
+      "display_name": {
+        "en": "잉크흘림 회전",
+        "ko": "잉크흘림 회전",
+        "ja": "잉크흘림 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamInkDropRotate"
+    },
+    {
+      "id": "ink_drop_on",
+      "display_name": {
+        "en": "잉크흘림 표시",
+        "ko": "잉크흘림 표시",
+        "ja": "잉크흘림 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_a",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamInkDropOn"
+    },
+    {
+      "id": "arm_l_b01",
+      "display_name": {
+        "en": "왼팔 B 어깨의 회전",
+        "ko": "왼팔 B 어깨의 회전",
+        "ja": "왼팔 B 어깨의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmLB01"
+    },
+    {
+      "id": "arm_l_b02",
+      "display_name": {
+        "en": "왼팔 B 팔꿈치의 회전",
+        "ko": "왼팔 B 팔꿈치의 회전",
+        "ja": "왼팔 B 팔꿈치의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmLB02"
+    },
+    {
+      "id": "arm_l_b03",
+      "display_name": {
+        "en": "왼팔 B손목의 회전",
+        "ko": "왼팔 B손목의 회전",
+        "ja": "왼팔 B손목의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmLB03"
+    },
+    {
+      "id": "hand_l_b",
+      "display_name": {
+        "en": "왼손 B",
+        "ko": "왼손 B",
+        "ja": "왼손 B"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHandLB"
+    },
+    {
+      "id": "hat_form",
+      "display_name": {
+        "en": "모자의 변형",
+        "ko": "모자의 변형",
+        "ja": "모자의 변형"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_l_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHatForm"
+    },
+    {
+      "id": "arm_r_b01",
+      "display_name": {
+        "en": "오른팔 B 어깨 회전",
+        "ko": "오른팔 B 어깨 회전",
+        "ja": "오른팔 B 어깨 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmRB01"
+    },
+    {
+      "id": "arm_r_b02",
+      "display_name": {
+        "en": "오른팔 B 팔꿈치의 회전",
+        "ko": "오른팔 B 팔꿈치의 회전",
+        "ja": "오른팔 B 팔꿈치의 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmRB02"
+    },
+    {
+      "id": "arm_r_b02_y",
+      "display_name": {
+        "en": "오른팔 B 팔의 Y",
+        "ko": "오른팔 B 팔의 Y",
+        "ja": "오른팔 B 팔의 Y"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmRB02Y"
+    },
+    {
+      "id": "arm_r_b03",
+      "display_name": {
+        "en": "오른팔 B 손목 회전",
+        "ko": "오른팔 B 손목 회전",
+        "ja": "오른팔 B 손목 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamArmRB03"
+    },
+    {
+      "id": "hand_r_b",
+      "display_name": {
+        "en": "오른손 B",
+        "ko": "오른손 B",
+        "ja": "오른손 B"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "arm_r_b",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHandRB"
+    },
+    {
+      "id": "all_x",
+      "display_name": {
+        "en": "전체이동 X",
+        "ko": "전체이동 X",
+        "ja": "전체이동 X"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "overall",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAllX"
+    },
+    {
+      "id": "all_y",
+      "display_name": {
+        "en": "전체이동 Y",
+        "ko": "전체이동 Y",
+        "ja": "전체이동 Y"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "overall",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAllY"
+    },
+    {
+      "id": "all_rotate",
+      "display_name": {
+        "en": "전체 회전",
+        "ko": "전체 회전",
+        "ja": "전체 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "overall",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAllRotate"
+    },
+    {
+      "id": "hair_front",
+      "display_name": {
+        "en": "머리 흔들림 앞",
+        "ko": "머리 흔들림 앞",
+        "ja": "머리 흔들림 앞"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairFront",
+      "physics_output": true
+    },
+    {
+      "id": "hair_side_l",
+      "display_name": {
+        "en": "머리 흔들림 왼쪽 가로",
+        "ko": "머리 흔들림 왼쪽 가로",
+        "ja": "머리 흔들림 왼쪽 가로"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairSideL",
+      "physics_output": true
+    },
+    {
+      "id": "hair_side_r",
+      "display_name": {
+        "en": "머리 흔들림 오른쪽 가로",
+        "ko": "머리 흔들림 오른쪽 가로",
+        "ja": "머리 흔들림 오른쪽 가로"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairSideR",
+      "physics_output": true
+    },
+    {
+      "id": "hair_back",
+      "display_name": {
+        "en": "머리 흔들림 뒤",
+        "ko": "머리 흔들림 뒤",
+        "ja": "머리 흔들림 뒤"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairBack",
+      "physics_output": true
+    },
+    {
+      "id": "hair_back_r",
+      "display_name": {
+        "en": "머리 흔들림 오른쪽 뒤",
+        "ko": "머리 흔들림 오른쪽 뒤",
+        "ja": "머리 흔들림 오른쪽 뒤"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairBackR",
+      "physics_output": true
+    },
+    {
+      "id": "hair_back_l",
+      "display_name": {
+        "en": "머리 흔들림 왼쪽 뒤",
+        "ko": "머리 흔들림 왼쪽 뒤",
+        "ja": "머리 흔들림 왼쪽 뒤"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairBackL",
+      "physics_output": true
+    },
+    {
+      "id": "o_hair_mesh",
+      "display_name": {
+        "en": "메쉬 흔들림",
+        "ko": "메쉬 흔들림",
+        "ja": "메쉬 흔들림"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "physics_output": true
+    },
+    {
+      "id": "hair_front_fuwa",
+      "display_name": {
+        "en": "앞머리 볼륨",
+        "ko": "앞머리 볼륨",
+        "ja": "앞머리 볼륨"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairFrontFuwa",
+      "physics_output": true
+    },
+    {
+      "id": "hair_side_fuwa",
+      "display_name": {
+        "en": "옆머리 볼륨",
+        "ko": "옆머리 볼륨",
+        "ja": "옆머리 볼륨"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairSideFuwa",
+      "physics_output": true
+    },
+    {
+      "id": "hair_back_fuwa",
+      "display_name": {
+        "en": "뒷머리 볼륨",
+        "ko": "뒷머리 볼륨",
+        "ja": "뒷머리 볼륨"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHairBackFuwa",
+      "physics_output": true
+    },
+    {
+      "id": "wing",
+      "display_name": {
+        "en": "깃털의 흔들림",
+        "ko": "깃털의 흔들림",
+        "ja": "깃털의 흔들림"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamWing",
+      "physics_output": true
+    },
+    {
+      "id": "ribbon",
+      "display_name": {
+        "en": "모자 리본의 흔들림",
+        "ko": "모자 리본의 흔들림",
+        "ja": "모자 리본의 흔들림"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRibbon",
+      "physics_output": true
+    },
+    {
+      "id": "hat_brim",
+      "display_name": {
+        "en": "모자창의 흔들림",
+        "ko": "모자창의 흔들림",
+        "ja": "모자창의 흔들림"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHatBrim",
+      "physics_output": true
+    },
+    {
+      "id": "hat_top",
+      "display_name": {
+        "en": "모자 위의 흔들림",
+        "ko": "모자 위의 흔들림",
+        "ja": "모자 위의 흔들림"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHatTop",
+      "physics_output": true
+    },
+    {
+      "id": "accessory1",
+      "display_name": {
+        "en": "목 장식의 흔들림 1",
+        "ko": "목 장식의 흔들림 1",
+        "ja": "목 장식의 흔들림 1"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAccessory1",
+      "physics_output": true
+    },
+    {
+      "id": "accessory2",
+      "display_name": {
+        "en": "목 장식의 흔들림 2",
+        "ko": "목 장식의 흔들림 2",
+        "ja": "목 장식의 흔들림 2"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAccessory2",
+      "physics_output": true
+    },
+    {
+      "id": "string",
+      "display_name": {
+        "en": "파카 끈의 흔들림",
+        "ko": "파카 끈의 흔들림",
+        "ja": "파카 끈의 흔들림"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamString",
+      "physics_output": true
+    },
+    {
+      "id": "robe_l",
+      "display_name": {
+        "en": "로브의 흔들림 왼쪽",
+        "ko": "로브의 흔들림 왼쪽",
+        "ja": "로브의 흔들림 왼쪽"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRobeL",
+      "physics_output": true
+    },
+    {
+      "id": "robe_r",
+      "display_name": {
+        "en": "로브의 흔들림 오른쪽",
+        "ko": "로브의 흔들림 오른쪽",
+        "ja": "로브의 흔들림 오른쪽"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRobeR",
+      "physics_output": true
+    },
+    {
+      "id": "robe_fuwa",
+      "display_name": {
+        "en": "로브의 볼륨",
+        "ko": "로브의 볼륨",
+        "ja": "로브의 볼륨"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "sway",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRobeFuwa",
+      "physics_output": true
+    },
+    {
+      "id": "heart_miss_on",
+      "display_name": {
+        "en": "하트 실패 표시",
+        "ko": "하트 실패 표시",
+        "ja": "하트 실패 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartMissOn"
+    },
+    {
+      "id": "heart_back_miss_on",
+      "display_name": {
+        "en": "하트 뒤 실패 표시",
+        "ko": "하트 뒤 실패 표시",
+        "ja": "하트 뒤 실패 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartBackMissOn"
+    },
+    {
+      "id": "heart_color_rainbow",
+      "display_name": {
+        "en": "하트 실패 무지개",
+        "ko": "하트 실패 무지개",
+        "ja": "하트 실패 무지개"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartColorRainbow"
+    },
+    {
+      "id": "heart_heal_on",
+      "display_name": {
+        "en": "하트 회복 표시",
+        "ko": "하트 회복 표시",
+        "ja": "하트 회복 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartHealOn"
+    },
+    {
+      "id": "heart_back_heal_on",
+      "display_name": {
+        "en": "하트 뒤 회복 표시",
+        "ko": "하트 뒤 회복 표시",
+        "ja": "하트 뒤 회복 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartBackHealOn"
+    },
+    {
+      "id": "heart_color_heal",
+      "display_name": {
+        "en": "하트 회복 녹색",
+        "ko": "하트 회복 녹색",
+        "ja": "하트 회복 녹색"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartColorHeal"
+    },
+    {
+      "id": "heart_drow",
+      "display_name": {
+        "en": "하트 그리기",
+        "ko": "하트 그리기",
+        "ja": "하트 그리기"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartDrow"
+    },
+    {
+      "id": "heart_size",
+      "display_name": {
+        "en": "하트 확축",
+        "ko": "하트 확축",
+        "ja": "하트 확축"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartSize"
+    },
+    {
+      "id": "heart_color_light",
+      "display_name": {
+        "en": "하트 색변화",
+        "ko": "하트 색변화",
+        "ja": "하트 색변화"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "heart",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartColorLight"
+    },
+    {
+      "id": "wand_ink_color_rainbow",
+      "display_name": {
+        "en": "지팡이 잉크색 무지개",
+        "ko": "지팡이 잉크색 무지개",
+        "ja": "지팡이 잉크색 무지개"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "ink",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamWandInkColorRainbow"
+    },
+    {
+      "id": "wand_ink_color_heal",
+      "display_name": {
+        "en": "지팡이 잉크색 녹색",
+        "ko": "지팡이 잉크색 녹색",
+        "ja": "지팡이 잉크색 녹색"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "ink",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamWandInkColorHeal"
+    },
+    {
+      "id": "wand_ink",
+      "display_name": {
+        "en": "지팡이 잉크",
+        "ko": "지팡이 잉크",
+        "ja": "지팡이 잉크"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "ink",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamWandInk"
+    },
+    {
+      "id": "smoke_on",
+      "display_name": {
+        "en": "연기 표시",
+        "ko": "연기 표시",
+        "ja": "연기 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "explosion",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamSmokeOn"
+    },
+    {
+      "id": "smoke",
+      "display_name": {
+        "en": "연기",
+        "ko": "연기",
+        "ja": "연기"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "explosion",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamSmoke"
+    },
+    {
+      "id": "explosion_charge_on",
+      "display_name": {
+        "en": "폭발빛모으기 표시",
+        "ko": "폭발빛모으기 표시",
+        "ja": "폭발빛모으기 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "explosion",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamExplosionChargeOn"
+    },
+    {
+      "id": "explosion_light_charge",
+      "display_name": {
+        "en": "폭발빛 모으기",
+        "ko": "폭발빛 모으기",
+        "ja": "폭발빛 모으기"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "explosion",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamExplosionLightCharge"
+    },
+    {
+      "id": "explosion_on",
+      "display_name": {
+        "en": "폭발 표시",
+        "ko": "폭발 표시",
+        "ja": "폭발 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "explosion",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamExplosionOn"
+    },
+    {
+      "id": "explosion",
+      "display_name": {
+        "en": "폭발",
+        "ko": "폭발",
+        "ja": "폭발"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "explosion",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamExplosion"
+    },
+    {
+      "id": "rabbit_elimination",
+      "display_name": {
+        "en": "토끼 소멸",
+        "ko": "토끼 소멸",
+        "ja": "토끼 소멸"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitElimination"
+    },
+    {
+      "id": "rabbit_appearance",
+      "display_name": {
+        "en": "토끼 출현",
+        "ko": "토끼 출현",
+        "ja": "토끼 출현"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitAppearance"
+    },
+    {
+      "id": "rabbit_size",
+      "display_name": {
+        "en": "토끼 확축",
+        "ko": "토끼 확축",
+        "ja": "토끼 확축"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitSize"
+    },
+    {
+      "id": "rabbit_draworder",
+      "display_name": {
+        "en": "토끼 그리기 순서",
+        "ko": "토끼 그리기 순서",
+        "ja": "토끼 그리기 순서"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitDraworder"
+    },
+    {
+      "id": "rabbit_ear",
+      "display_name": {
+        "en": "토끼 귀",
+        "ko": "토끼 귀",
+        "ja": "토끼 귀"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitEar"
+    },
+    {
+      "id": "rabbit_direction",
+      "display_name": {
+        "en": "토끼 방향",
+        "ko": "토끼 방향",
+        "ja": "토끼 방향"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitDirection"
+    },
+    {
+      "id": "rabbit_light",
+      "display_name": {
+        "en": "토끼 색변화",
+        "ko": "토끼 색변화",
+        "ja": "토끼 색변화"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitLight"
+    },
+    {
+      "id": "rabbit_light_size",
+      "display_name": {
+        "en": "토끼 빛 확축",
+        "ko": "토끼 빛 확축",
+        "ja": "토끼 빛 확축"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitLightSize"
+    },
+    {
+      "id": "rabbit_x",
+      "display_name": {
+        "en": "토끼 이동 X",
+        "ko": "토끼 이동 X",
+        "ja": "토끼 이동 X"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitX"
+    },
+    {
+      "id": "rabbit_y",
+      "display_name": {
+        "en": "토끼 이동 Y",
+        "ko": "토끼 이동 Y",
+        "ja": "토끼 이동 Y"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitY"
+    },
+    {
+      "id": "rabbit_rotate",
+      "display_name": {
+        "en": "토끼 회전",
+        "ko": "토끼 회전",
+        "ja": "토끼 회전"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "rabbit",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitRotate"
+    },
+    {
+      "id": "aura_on",
+      "display_name": {
+        "en": "아우라 표시",
+        "ko": "아우라 표시",
+        "ja": "아우라 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "aura",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAuraOn"
+    },
+    {
+      "id": "aura",
+      "display_name": {
+        "en": "아우라",
+        "ko": "아우라",
+        "ja": "아우라"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "aura",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAura"
+    },
+    {
+      "id": "aura_color1",
+      "display_name": {
+        "en": "아우라 색변화1",
+        "ko": "아우라 색변화1",
+        "ja": "아우라 색변화1"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "aura",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAuraColor1"
+    },
+    {
+      "id": "aura_color2",
+      "display_name": {
+        "en": "아우라 색변화2",
+        "ko": "아우라 색변화2",
+        "ja": "아우라 색변화2"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "aura",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAuraColor2"
+    },
+    {
+      "id": "heart_light_on",
+      "display_name": {
+        "en": "빛 표시",
+        "ko": "빛 표시",
+        "ja": "빛 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "light",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartLightOn"
+    },
+    {
+      "id": "heart_light",
+      "display_name": {
+        "en": "빛 별",
+        "ko": "빛 별",
+        "ja": "빛 별"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "light",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartLight"
+    },
+    {
+      "id": "heart_light_color",
+      "display_name": {
+        "en": "빛 색변화",
+        "ko": "빛 색변화",
+        "ja": "빛 색변화"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "light",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHeartLightColor"
+    },
+    {
+      "id": "heal_light_on",
+      "display_name": {
+        "en": "회복마법빛 표시",
+        "ko": "회복마법빛 표시",
+        "ja": "회복마법빛 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "light",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHealLightOn"
+    },
+    {
+      "id": "heal_light",
+      "display_name": {
+        "en": "회복마법빛",
+        "ko": "회복마법빛",
+        "ja": "회복마법빛"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "light",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamHealLight"
+    },
+    {
+      "id": "strengthen_light_on",
+      "display_name": {
+        "en": "강화 마법 표시",
+        "ko": "강화 마법 표시",
+        "ja": "강화 마법 표시"
+      },
+      "unit": "normalized",
+      "range": [
+        0,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "light",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamStrengthenLightOn"
+    },
+    {
+      "id": "strengthen_light",
+      "display_name": {
+        "en": "강화 마법 빛",
+        "ko": "강화 마법 빛",
+        "ja": "강화 마법 빛"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "light",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamStrengthenLight"
+    },
+    {
+      "id": "strengthen_light_move",
+      "display_name": {
+        "en": "강화 마법 이동",
+        "ko": "강화 마법 이동",
+        "ja": "강화 마법 이동"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "light",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamStrengthenLightMove"
+    },
+    {
+      "id": "magic_position_x",
+      "display_name": {
+        "en": "마법의 위치 X",
+        "ko": "마법의 위치 X",
+        "ja": "마법의 위치 X"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "all_effects",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamMagicPositionX"
+    },
+    {
+      "id": "magic_position_y",
+      "display_name": {
+        "en": "마법의 위치 Y",
+        "ko": "마법의 위치 Y",
+        "ja": "마법의 위치 Y"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "all_effects",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamMagicPositionY"
+    },
+    {
+      "id": "all_color1",
+      "display_name": {
+        "en": "전체 색1",
+        "ko": "전체 색1",
+        "ja": "전체 색1"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "all_effects",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAllColor1"
+    },
+    {
+      "id": "all_color2",
+      "display_name": {
+        "en": "전체 색2",
+        "ko": "전체 색2",
+        "ja": "전체 색2"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "all_effects",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamAllColor2"
+    },
+    {
+      "id": "rabbit_elimination_effect",
+      "display_name": {
+        "en": "ParamRabbitEliminationEffect",
+        "ko": "ParamRabbitEliminationEffect",
+        "ja": "ParamRabbitEliminationEffect"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "other",
+      "channel": "core",
+      "physics_input": false,
+      "cubism": "ParamRabbitEliminationEffect"
+    },
+    {
+      "id": "phoneme_5",
+      "display_name": {
+        "en": "Param5",
+        "ko": "Param5",
+        "ja": "Param5"
+      },
+      "unit": "normalized",
+      "range": [
+        -1,
+        1
+      ],
+      "default": 0,
+      "required": false,
+      "group": "other",
+      "channel": "core",
+      "physics_input": false
+    }
+  ]
+}
