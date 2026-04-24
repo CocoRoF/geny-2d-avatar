@@ -136,7 +136,7 @@ async function runLoaderChain(bundleUrl) {
 
   assert.equal(bundle.manifest.kind, "web-avatar-bundle");
   assert.equal(bundle.manifest.template_id, "tpl.base.v1.halfbody");
-  assert.equal(bundle.manifest.template_version, "1.2.0");
+  assert.equal(bundle.manifest.template_version, "1.3.0");
   assert.equal(bundle.manifest.avatar_id, "avt.preview.halfbody.demo");
   assert.ok(bundle.manifest.files.length >= 3, "manifest.files >=3");
 
@@ -195,7 +195,7 @@ async function runDomLifecycle(bundleUrl) {
 
     assert.equal(manifest.kind, "web-avatar-bundle", "manifest.kind");
     assert.equal(manifest.template_id, "tpl.base.v1.halfbody", "manifest.template_id");
-    assert.equal(manifest.template_version, "1.2.0", "manifest.template_version");
+    assert.equal(manifest.template_version, "1.3.0", "manifest.template_version");
     assert.equal(manifest.avatar_id, "avt.preview.halfbody.demo", "manifest.avatar_id");
     assert.equal(manifest.files.length, 3, "manifest.files.length === 3");
 

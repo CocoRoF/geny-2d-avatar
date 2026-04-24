@@ -15,7 +15,7 @@
 - [x] 아카이브 (`archive/docs/`, `archive/progress_old/`)
 - [x] `docs/00~04` 새 기준 문서
 - [ ] 코드 OFF-GOAL 격리 — Phase 0 의 마지막 작업 (별도 세션)
-- [ ] `rig-templates/base/halfbody/v1.0.0 ~ v1.2.0` archive 이동, `fullbody/v1.0.0` 는 동결
+- [x] `rig-templates/base/halfbody/v1.0.0 ~ v1.2.0` archive 이동 (P0.3.3), `fullbody/v1.0.0` 는 동결
 - [ ] 루트 README + archive README + memory 갱신
 
 **검수**: `pnpm run validate:schemas` 그린 + README 의 모든 패키지/앱 링크가 존재하는 디렉토리를 가리킴.

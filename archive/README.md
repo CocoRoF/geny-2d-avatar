@@ -47,6 +47,14 @@
 | `sync-observability-chart.mjs`, `verify-observability-chart.mjs` | Helm chart ↔ 선언형 config 동기화 | observability Helm 복귀 시 |
 | `rig-template/migrate.mjs` (+ .test.mjs) | rig 템플릿 버전 마이그레이션 체인 | 프리셋 코드 레벨 마이그레이션 필요 시 |
 
+## `rig-templates/halfbody/` — halfbody 구버전 (2026-04-24 P0.3.3)
+
+| 버전 | 상태 |
+|---|---|
+| `v1.0.0`, `v1.1.0`, `v1.2.0` | 이전 iteration. 현 스코프에서는 **v1.3.0 만 활성**. 구버전은 레퍼런스로 보존 (설계 진화 추적용). |
+
+v1.3.0 이 12/16 PhysicsSetting 을 mao_pro 기준으로 달성한 최종 버전. 신규 derived preset 저작 시에는 mao_pro 레퍼런스 + v1.3.0 구조를 참고 (→ `docs/01-RIG-PRESET.md §6`).
+
 ## `infra/` — OFF-GOAL 배포 인프라 (2026-04-24 P0.3.1)
 
 | 디렉토리 | 이전 용도 | 복귀 조건 |

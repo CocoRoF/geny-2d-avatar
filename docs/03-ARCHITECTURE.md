@@ -119,7 +119,7 @@ Phase 0 에서 `archive/` 또는 `packages/_deprecated/` 로 격리:
 | `services/orchestrator` | 파츠 오케스트레이터. 웹 UI 가 직접 AI + exporter 를 호출 |
 | `apps/worker-generate` | 별도 워커 프로세스 불필요 (Phase 6+) |
 | `packages/ai-adapters-fallback` | 단일 어댑터 재시도로 시작. fallback 체인 재설계 후 복귀 |
-| `rig-templates/base/halfbody/v1.0.0 ~ v1.2.0` | 이전 iteration. 카탈로그에서 제외, archive 이동 |
+| ~~`rig-templates/base/halfbody/v1.0.0 ~ v1.2.0`~~ | **P0.3.3 완료** — `archive/rig-templates/halfbody/` 로 이동 |
 
 ## 4. 데이터 계약
 

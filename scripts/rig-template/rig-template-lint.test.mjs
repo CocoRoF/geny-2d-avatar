@@ -3,11 +3,11 @@
 // rig-template-lint.mjs 회귀 (세션 110 리브랜딩, 원래 physics-lint.test.mjs).
 //
 // 수행:
-//  1) 모든 halfbody 공식 버전(v1.0.0 .. v1.3.0) 에 lintPhysics 를 실행해 errors == 0 검증.
+//  1) halfbody v1.3.0 + fullbody v1.0.0 에 lintPhysics 를 실행해 errors == 0 검증.
+//     (P0.3.3 — halfbody v1.0.0~v1.2.0 는 archive/rig-templates/ 로 이동, lint 대상 外.)
 //  2) 변조 케이스: 카운트 mismatch · 범위 밖 vertex_index · 존재하지 않는 source_param ·
 //     output 네이밍 규약 위반 · cubism_mapping 누락 · dictionary/settings id 불일치.
 //     각 변조가 정확히 해당 규칙의 error 만 발생시키는지.
-//  3) v1.2.0 → v1.3.0 diff 가 PhysicsSetting10/11/12 세 개를 신규로 잡는지.
 //
 // node --test 대신 표준 CLI 엔트리 — test-golden.mjs step 18 로 호출된다.
 
@@ -17,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { FAMILY_OUTPUT_RULES, diffPhysics, lintPhysics } from "./rig-template-lint.mjs";
+import { FAMILY_OUTPUT_RULES, lintPhysics } from "./rig-template-lint.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..", "..");
@@ -59,12 +59,14 @@ async function stripAllParameterIds(dir) {
 }
 
 async function main() {
-  // 1) 공식 버전 4개 clean
-  for (const v of ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0"]) {
-    const res = await lintPhysics(join(halfbody, v));
-    assert.equal(res.errors.length, 0, `${v}: ${res.errors.join(" / ")}`);
+  // 1) 공식 버전 clean — halfbody v1.3.0 + fullbody v1.0.0 (P0.3.3 — 구버전 archive)
+  {
+    const res = await lintPhysics(join(halfbody, "v1.3.0"));
+    assert.equal(res.errors.length, 0, `halfbody v1.3.0: ${res.errors.join(" / ")}`);
+    const fb = await lintPhysics(join(repoRoot, "rig-templates", "base", "fullbody", "v1.0.0"));
+    assert.equal(fb.errors.length, 0, `fullbody v1.0.0: ${fb.errors.join(" / ")}`);
   }
-  console.log("  ✓ halfbody v1.0.0..v1.3.0 전부 clean");
+  console.log("  ✓ halfbody v1.3.0 + fullbody v1.0.0 clean");
 
   // 2a) meta 카운트 mismatch
   {
@@ -360,20 +362,19 @@ async function main() {
     console.log("  ✓ C12 deformers.json 누락 시 no-op");
   }
 
-  // 2s) C12 — 모든 공식 템플릿이 C12 통과 + 카운트 sanity (세션 108)
+  // 2s) C12 — 공식 템플릿 C12 통과 + 카운트 sanity (세션 108)
   {
-    for (const v of ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0"]) {
-      const res = await lintPhysics(join(halfbody, v));
-      const c12 = res.errors.filter((e) => e.startsWith("C12"));
-      assert.equal(c12.length, 0, `halfbody ${v} C12 errors: ${res.errors.join(" / ")}`);
-      assert.ok(res.summary.deformer_nodes_checked > 0, `${v} 노드 수 > 0`);
-      assert.ok(res.summary.deformer_params_in_checked > 0, `${v} params_in 수 > 0`);
-    }
+    const res = await lintPhysics(join(halfbody, "v1.3.0"));
+    const c12 = res.errors.filter((e) => e.startsWith("C12"));
+    assert.equal(c12.length, 0, `halfbody v1.3.0 C12 errors: ${res.errors.join(" / ")}`);
+    assert.ok(res.summary.deformer_nodes_checked > 0, `v1.3.0 노드 수 > 0`);
+    assert.ok(res.summary.deformer_params_in_checked > 0, `v1.3.0 params_in 수 > 0`);
+
     const fb = await lintPhysics(join(repoRoot, "rig-templates", "base", "fullbody", "v1.0.0"));
     const c12fb = fb.errors.filter((e) => e.startsWith("C12"));
     assert.equal(c12fb.length, 0, `fullbody v1.0.0 C12 errors: ${fb.errors.join(" / ")}`);
     assert.ok(fb.summary.deformer_nodes_checked > 0);
-    console.log("  ✓ C12 공식 halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 통과");
+    console.log("  ✓ C12 halfbody v1.3.0 + fullbody v1.0.0 통과");
   }
 
   // 2t) C13 — 중복 노드 id (세션 109)
@@ -514,19 +515,18 @@ async function main() {
     console.log("  ✓ C13-orphan root 에서 도달 불가 노드 탐지");
   }
 
-  // 2aa) C13 — 모든 공식 템플릿이 C13 통과 + tree_checked sanity (세션 109)
+  // 2aa) C13 — 공식 템플릿 C13 통과 + tree_checked sanity (세션 109)
   {
-    for (const v of ["v1.0.0", "v1.1.0", "v1.2.0", "v1.3.0"]) {
-      const res = await lintPhysics(join(halfbody, v));
-      const c13 = res.errors.filter((e) => e.startsWith("C13"));
-      assert.equal(c13.length, 0, `halfbody ${v} C13 errors: ${res.errors.join(" / ")}`);
-      assert.equal(res.summary.deformer_tree_checked, true, `${v} tree_checked true`);
-    }
+    const res = await lintPhysics(join(halfbody, "v1.3.0"));
+    const c13 = res.errors.filter((e) => e.startsWith("C13"));
+    assert.equal(c13.length, 0, `halfbody v1.3.0 C13 errors: ${res.errors.join(" / ")}`);
+    assert.equal(res.summary.deformer_tree_checked, true, `v1.3.0 tree_checked true`);
+
     const fb = await lintPhysics(join(repoRoot, "rig-templates", "base", "fullbody", "v1.0.0"));
     const c13fb = fb.errors.filter((e) => e.startsWith("C13"));
     assert.equal(c13fb.length, 0, `fullbody v1.0.0 C13 errors: ${fb.errors.join(" / ")}`);
     assert.equal(fb.summary.deformer_tree_checked, true);
-    console.log("  ✓ C13 공식 halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 통과");
+    console.log("  ✓ C13 halfbody v1.3.0 + fullbody v1.0.0 통과");
   }
 
   // 2ab) C13 — deformers.json 누락 시 tree_checked=false + no-op (세션 109)
@@ -590,49 +590,31 @@ async function main() {
     console.log("  ✓ C14 deformation_parent 누락 spec 은 skip (스키마 책임)");
   }
 
-  // 2af) C14 — 모든 공식 템플릿이 C14 통과 + count 일치 (세션 112).
+  // 2af) C14 — 공식 템플릿 C14 통과 + count 일치 (세션 112).
   // 사각형 완결 확인: C11(parts↔parameters) + C12(deformers↔parameters) +
   // C13(deformers 내부) + C14(parts↔deformers).
   {
-    const expected = {
-      "v1.0.0": { parts: 27, defparent: 27 },
-      "v1.1.0": { parts: 29, defparent: 29 },
-      "v1.2.0": { parts: 29, defparent: 29 },
-      "v1.3.0": { parts: 30, defparent: 30 },
-    };
-    for (const [v, exp] of Object.entries(expected)) {
-      const res = await lintPhysics(join(halfbody, v));
-      const c14 = res.errors.filter((e) => e.startsWith("C14"));
-      assert.equal(c14.length, 0, `halfbody ${v} C14 errors: ${res.errors.join(" / ")}`);
-      assert.equal(
-        res.summary.parts_checked,
-        exp.parts,
-        `${v} parts_checked`,
-      );
-      assert.equal(
-        res.summary.parts_deformation_parents_checked,
-        exp.defparent,
-        `${v} parts_deformation_parents_checked`,
-      );
-    }
+    const res = await lintPhysics(join(halfbody, "v1.3.0"));
+    const c14 = res.errors.filter((e) => e.startsWith("C14"));
+    assert.equal(c14.length, 0, `halfbody v1.3.0 C14 errors: ${res.errors.join(" / ")}`);
+    assert.equal(res.summary.parts_checked, 30, `v1.3.0 parts_checked`);
+    assert.equal(
+      res.summary.parts_deformation_parents_checked,
+      30,
+      `v1.3.0 parts_deformation_parents_checked`,
+    );
+
     const fb = await lintPhysics(join(repoRoot, "rig-templates", "base", "fullbody", "v1.0.0"));
     const c14fb = fb.errors.filter((e) => e.startsWith("C14"));
     assert.equal(c14fb.length, 0, `fullbody v1.0.0 C14 errors: ${fb.errors.join(" / ")}`);
     assert.equal(fb.summary.parts_checked, 38);
     assert.equal(fb.summary.parts_deformation_parents_checked, 38);
-    console.log("  ✓ C14 공식 halfbody v1.0.0..v1.3.0 + fullbody v1.0.0 통과");
+    console.log("  ✓ C14 halfbody v1.3.0 + fullbody v1.0.0 통과");
   }
 
-  // 3) diff v1.2.0 vs v1.3.0 — 3 신규 세팅
-  {
-    const lines = await diffPhysics(join(halfbody, "v1.2.0"), join(halfbody, "v1.3.0"));
-    const added = lines.filter((l) => l.startsWith("+ PhysicsSetting"));
-    assert.equal(added.length, 3, `expected 3 added, got ${lines.join(" / ")}`);
-    assert.ok(lines.some((l) => l.includes("PhysicsSetting10")));
-    assert.ok(lines.some((l) => l.includes("PhysicsSetting11")));
-    assert.ok(lines.some((l) => l.includes("PhysicsSetting12")));
-    console.log("  ✓ diff v1.2.0→v1.3.0 = +3 settings");
-  }
+  // P0.3.3 — 구 `diff v1.2.0 → v1.3.0 = +3 settings` 테스트는 v1.2.0 archive 이동으로
+  // 더 이상 유효하지 않음. diffPhysics 자체는 `rig-template-lint.mjs --baseline` 옵션으로
+  // 런타임 호출 가능 (새 프리셋 저작 시 기존 버전과 대조용).
 
   console.log("[rig-template-lint] ✅ all checks pass");
 }
