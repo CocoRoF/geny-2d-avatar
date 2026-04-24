@@ -241,6 +241,99 @@
       .tab-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
 
+    <section id="live-preview-panel" style="display: none;">
+      <h2>✨ Live2D 실시간 프리뷰 <small style="color:#999;font-weight:normal;">· runtime-preview</small></h2>
+      <p style="font-size: 0.85rem; color: #666; margin: 0 0 10px;">
+        현재 프리셋 + 최신 텍스처를 즉시 Live2D 로 렌더. 텍스처 생성/업로드/슬롯 재생성 시 자동 re-load.
+        <code>.moc3</code> 기반 프리셋 (mao_pro 등) 만 지원.
+      </p>
+      <div id="preview-status" class="status info">초기화 대기…</div>
+      <div class="preview-layout">
+        <div id="preview-stage" class="preview-stage">프리셋 선택 + 텍스처 준비 후 렌더</div>
+        <div class="preview-controls">
+          <div class="preview-row">
+            <label>ParamAngleX</label>
+            <input type="range" id="pvAngleX" min="-30" max="30" value="0" step="1" disabled />
+            <output id="pvAngleX-out">0</output>
+          </div>
+          <div class="preview-row">
+            <label>ParamAngleY</label>
+            <input type="range" id="pvAngleY" min="-30" max="30" value="0" step="1" disabled />
+            <output id="pvAngleY-out">0</output>
+          </div>
+          <div class="preview-row">
+            <label>ParamBodyAngleX</label>
+            <input type="range" id="pvBodyX" min="-10" max="10" value="0" step="1" disabled />
+            <output id="pvBodyX-out">0</output>
+          </div>
+          <div class="preview-row">
+            <label>ParamMouthOpenY</label>
+            <input type="range" id="pvMouth" min="0" max="1" value="0" step="0.1" disabled />
+            <output id="pvMouth-out">0</output>
+          </div>
+          <div style="margin: 10px 0 4px; font-size: 0.82rem; color: #555; font-weight: 600;">Motion</div>
+          <div id="pv-motion-btns" class="preview-btn-row">(모델 로드 후)</div>
+          <div style="margin: 10px 0 4px; font-size: 0.82rem; color: #555; font-weight: 600;">Expression</div>
+          <div id="pv-expression-btns" class="preview-btn-row">(모델 로드 후)</div>
+        </div>
+      </div>
+    </section>
+    <style>
+      .preview-layout {
+        display: grid;
+        grid-template-columns: minmax(300px, 480px) 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+      .preview-stage {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #f7f8fa;
+        width: 100%;
+        max-width: 480px;
+        aspect-ratio: 3 / 4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #888;
+        font-size: 0.9rem;
+        overflow: hidden;
+      }
+      .preview-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.82rem;
+      }
+      .preview-row {
+        display: grid;
+        grid-template-columns: 130px 1fr 40px;
+        gap: 6px;
+        align-items: center;
+      }
+      .preview-row label {
+        font-family: ui-monospace, monospace;
+        color: #444;
+      }
+      .preview-row output {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+      }
+      .preview-btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .preview-btn-row button {
+        padding: 4px 10px;
+        background: #fff;
+        color: #333;
+        border: 1px solid #bbb;
+        font-size: 0.82rem;
+      }
+      .preview-btn-row button:hover { background: #f2f2f2; }
+    </style>
+
     <section>
       <h2>3 · 결과</h2>
       <div id="result" style="color: #999;">빌드 결과가 여기에 표시됩니다.</div>
@@ -336,6 +429,17 @@
         pointer-events: none;
       }
     </style>
+
+    <script src="./public/vendor/live2dcubismcore.min.js" onerror="window.__coreLoadFailed = true;"></script>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@8.18.1/+esm",
+          "pixi-live2d-display-advanced": "https://cdn.jsdelivr.net/npm/pixi-live2d-display-advanced@2.0.0-beta.2/+esm"
+        }
+      }
+    </script>
 
     <script type="module">
       // API base - ?api=... 쿼리로 override 가능.
@@ -919,6 +1023,15 @@
             preset: { id: slotState.preset.id, version: slotState.preset.version },
           });
           await rebuildWithCurrentTexture("슬롯 재생성 후 자동 rebuild");
+          // Runtime preview 자동 리로드.
+          window.dispatchEvent(
+            new CustomEvent("geny:slot-regen-success", {
+              detail: {
+                preset: { id: slotState.preset.id, version: slotState.preset.version },
+                textureId: body.texture_id,
+              },
+            }),
+          );
         } catch (err) {
           setStatus(slotStatus, "err", "슬롯 재생성 실패:\n" + err.message);
         } finally {
@@ -989,6 +1102,8 @@
           }
           renderHistory();
           await rebuildWithCurrentTexture("히스토리 점프 rebuild: " + h.label);
+          // Runtime preview 도 되돌림.
+          reloadLivePreview({ preset: h.preset, textureId: h.texture_id });
         } finally {
           applyingHistory = false;
         }
@@ -1084,6 +1199,203 @@
           source,
           label,
           preset,
+        });
+        // Live2D 프리뷰 자동 리로드.
+        reloadLivePreview({ preset, textureId });
+      });
+
+      // ===== Runtime Preview - Live2D 실시간 렌더 =====
+      const livePanel = document.getElementById("live-preview-panel");
+      const previewStage = document.getElementById("preview-stage");
+      const previewStatus = document.getElementById("preview-status");
+
+      let pixiModules = null; // { Application, Live2DModel, createPixiLive2DRenderer }
+      let pixiApp = null;
+      let currentModel = null;
+      let currentRenderer = null;
+      let rendererReady = false;
+
+      async function loadPixiModules() {
+        if (pixiModules) return pixiModules;
+        if (typeof window.Live2DCubismCore === "undefined" || window.__coreLoadFailed) {
+          setStatus(
+            previewStatus,
+            "err",
+            "❌ Cubism Core 미로드. 런타임 프리뷰 비활성.\n\n" +
+              "해결:\n  1. Live2D SDK for Web → Core/live2dcubismcore.min.js 다운로드\n" +
+              "  2. vendor/live2dcubismcore/ 에 복사\n" +
+              "  3. pnpm exec node scripts/setup-cubism-core.mjs\n" +
+              "  4. pnpm -F @geny/web-preview run build:public",
+          );
+          throw new Error("Cubism Core missing");
+        }
+        const [{ Application }, { Live2DModel }, rendererMod] = await Promise.all([
+          import("pixi.js"),
+          import("pixi-live2d-display-advanced"),
+          import("./public/vendor/renderer-pixi/index.js"),
+        ]);
+        pixiModules = {
+          Application,
+          Live2DModel,
+          createPixiLive2DRenderer: rendererMod.createPixiLive2DRenderer,
+        };
+        return pixiModules;
+      }
+
+      function destroyCurrentModel() {
+        if (currentRenderer && typeof currentRenderer.destroy === "function") {
+          try { currentRenderer.destroy(); } catch (e) { /* noop */ }
+        }
+        if (pixiApp) {
+          try { pixiApp.destroy(true, { children: true }); } catch (e) { /* noop */ }
+        }
+        pixiApp = null;
+        currentModel = null;
+        currentRenderer = null;
+        rendererReady = false;
+        previewStage.innerHTML = "프리셋 선택 + 텍스처 준비 후 렌더";
+      }
+
+      /**
+       * 현재 프리셋이 .moc3 기반인지 판단. builder.html 은 /api/presets 의 slot_count 로
+       * 판정 불가 (derived 도 slot 있음) — origin 이 third-party 거나 mao_pro slug 를
+       * 포함할 때만 렌더 가능하다고 간주 (현 시점 .moc3 가 있는 프리셋).
+       */
+      function presetSupportsLiveRender(presetKey) {
+        const p = presets.find((x) => x.id + "@" + x.version === presetKey);
+        if (!p) return false;
+        // 현재 .moc3 가 있는 프리셋은 mao_pro 만. origin=third-party + mao_pro 로 한정.
+        return p.origin === "third-party";
+      }
+
+      async function reloadLivePreview({ preset, textureId }) {
+        if (!preset) return;
+        const presetKey = preset.id + "@" + preset.version;
+        if (!presetSupportsLiveRender(presetKey)) {
+          livePanel.style.display = "block";
+          setStatus(
+            previewStatus,
+            "info",
+            "프리셋 " + presetKey + " 은 .moc3 미포함 (derived preset). 런타임 프리뷰는 third-party .moc3 프리셋 (mao_pro 등) 만 지원. 텍스처 생성/슬롯 재생성은 정상 동작합니다.",
+          );
+          previewStage.textContent = "렌더 불가 (derived preset)";
+          destroyCurrentModel();
+          return;
+        }
+        livePanel.style.display = "block";
+        try {
+          const mods = await loadPixiModules();
+          // 기존 렌더 파괴.
+          destroyCurrentModel();
+          setStatus(previewStatus, "info", "Live2D 모델 로드 중… (texture_id=" + textureId + ")");
+          previewStage.textContent = "";
+          // PIXI Application 생성.
+          const app = new mods.Application();
+          await app.init({
+            background: 0xf7f8fa,
+            width: 480,
+            height: 640,
+            antialias: true,
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true,
+          });
+          previewStage.innerHTML = "";
+          previewStage.appendChild(app.canvas);
+          pixiApp = app;
+
+          const modelUrl =
+            API + "/api/live2d/" + encodeURIComponent(preset.id) + "/" +
+            encodeURIComponent(preset.version) + "/model3.json" +
+            (textureId ? "?texture_id=" + encodeURIComponent(textureId) : "");
+          const model = await mods.Live2DModel.from(modelUrl);
+          // mao_pro 는 canvas 2400x3200 정도. 480x640 stage 맞춤 + 중앙.
+          model.scale.set(0.2);
+          model.x = 240;
+          model.y = 320;
+          app.stage.addChild(model);
+          currentModel = model;
+          rendererReady = true;
+          wirePreviewControls(model);
+          setStatus(
+            previewStatus,
+            "ok",
+            "✅ 렌더 성공. texture_id=" + textureId + "\n파라미터/모션/표정 컨트롤을 조작해보세요.",
+          );
+        } catch (err) {
+          setStatus(previewStatus, "err", "렌더 실패: " + err.message);
+          console.error(err);
+        }
+      }
+
+      function wirePreviewControls(model) {
+        const binds = [
+          { el: "pvAngleX", cubism: "ParamAngleX" },
+          { el: "pvAngleY", cubism: "ParamAngleY" },
+          { el: "pvBodyX", cubism: "ParamBodyAngleX" },
+          { el: "pvMouth", cubism: "ParamMouthOpenY" },
+        ];
+        for (const { el, cubism } of binds) {
+          const input = document.getElementById(el);
+          const out = document.getElementById(el + "-out");
+          input.disabled = false;
+          input.oninput = () => {
+            const v = Number(input.value);
+            out.textContent = String(v);
+            try {
+              model.internalModel?.coreModel?.setParameterValueById(cubism, v);
+            } catch (e) {
+              // 일부 Cubism 버전은 setParameterValue 만 지원.
+            }
+          };
+        }
+        const motionBtns = document.getElementById("pv-motion-btns");
+        motionBtns.innerHTML = "";
+        const motionGroups = Object.keys(model.internalModel?.settings?.motions ?? {});
+        if (motionGroups.length === 0) {
+          motionBtns.textContent = "(모션 없음)";
+        } else {
+          for (const group of motionGroups) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = group;
+            btn.addEventListener("click", () => {
+              try { model.motion(group); } catch (e) { console.error(e); }
+            });
+            motionBtns.appendChild(btn);
+          }
+        }
+        const expBtns = document.getElementById("pv-expression-btns");
+        expBtns.innerHTML = "";
+        const exps = (model.internalModel?.settings?.expressions ?? []).map(
+          (e) => e.Name ?? e.name,
+        );
+        if (exps.length === 0) {
+          expBtns.textContent = "(표정 없음)";
+        } else {
+          for (const name of exps) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = name;
+            btn.addEventListener("click", () => {
+              try { model.expression(name); } catch (e) { console.error(e); }
+            });
+            expBtns.appendChild(btn);
+          }
+          const reset = document.createElement("button");
+          reset.type = "button";
+          reset.textContent = "(reset)";
+          reset.addEventListener("click", () => {
+            try { model.expression(); } catch (e) { console.error(e); }
+          });
+          expBtns.appendChild(reset);
+        }
+      }
+
+      // 슬롯 재생성 성공 후에도 자동 리로드 (slotState.textureId 가 바뀌었을 때).
+      window.addEventListener("geny:slot-regen-success", (ev) => {
+        reloadLivePreview({
+          preset: ev.detail.preset,
+          textureId: ev.detail.textureId,
         });
       });
     </script>
