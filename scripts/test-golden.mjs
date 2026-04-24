@@ -25,6 +25,7 @@
 //  15) web-avatar-renderer contracts     — Renderer* 계약 + null/logging 구현
 //  16) web-editor-renderer tests         — structure renderer 회귀
 //  17) web-editor e2e                    — editor 스캐폴드 E2E
+//  18) api tests                         — Fastify /api/presets /api/health (P2.1)
 //
 // 어느 단계든 실패하면 non-zero exit. stderr 에 힌트 출력.
 //
@@ -57,6 +58,7 @@ const STEPS = [
   { name: "web-avatar-renderer contracts tests", run: runWebAvatarRendererTests },
   { name: "web-editor-renderer tests", run: runWebEditorRendererTests },
   { name: "web-editor e2e", run: runWebEditorE2E },
+  { name: "api tests", run: runApiTests },
 ];
 
 const failed = [];
@@ -249,6 +251,11 @@ async function runWebEditorRendererTests() {
 
 async function runWebEditorE2E() {
   await run("pnpm", ["-F", "@geny/web-editor", "test"], { cwd: repoRoot });
+}
+
+async function runApiTests() {
+  // P2.1 - Fastify /api/presets + /api/health 회귀.
+  await run("pnpm", ["-F", "@geny/api", "test"], { cwd: repoRoot });
 }
 
 async function runLicenseVerifierTests() {
