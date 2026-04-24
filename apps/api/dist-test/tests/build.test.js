@@ -1,4 +1,6 @@
 // P2.3 - /api/build + /api/bundle/:id/* 회귀.
+// P3.4 - 테스트에서 pollinations 비활성 (기본 adapter registry 에 추가됨, 네트워크 격리).
+process.env.GENY_POLLINATIONS_DISABLED = "true";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
