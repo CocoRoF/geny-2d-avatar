@@ -422,7 +422,17 @@
     </script>
     <script type="module" src="./public/vendor/index.js"></script>
     <script type="module">
-      import { CATEGORY_ORDER, categorize, parametersForPart, buildGenerateMetricEvents, summarizeMetricHistory } from "./public/vendor/web-editor-logic/index.js";
+      import {
+        CATEGORY_ORDER,
+        categorize,
+        parametersForPart,
+        buildGenerateMetricEvents,
+        summarizeMetricHistory,
+        planGenerateAttempts,
+        classifyGenerateFailure,
+        shouldRetry,
+        attemptOutcomeLabels,
+      } from "./public/vendor/web-editor-logic/index.js";
       import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
       // 세션 116 — `?debug=logger` URL 파라미터가 있으면 `@geny/web-avatar-renderer`
@@ -1173,7 +1183,7 @@
         }
       }
 
-      function emitGenerateMetrics({ trigger, prompt, phaseMs, totalMs, budgetMs, ok }) {
+      function emitGenerateMetrics({ trigger, prompt, phaseMs, totalMs, budgetMs, ok, outcome }) {
         const events = buildGenerateMetricEvents({
           ts: Date.now(),
           trigger,
@@ -1184,8 +1194,26 @@
           budgetMs,
           ok,
         });
-        for (const e of events) emitMetric(e);
+        // β P2-S7 — attempts / stop_reason / last_failure_kind 라벨을 total 이벤트에 병합.
+        // buildGenerateMetricEvents 는 base labels 만 만들므로 여기서 얹는다.
+        const extra = outcome ? attemptOutcomeLabels(outcome) : null;
+        for (const e of events) {
+          if (extra && e.kind === "generate.total") {
+            emitMetric({ ...e, labels: { ...e.labels, ...extra } });
+          } else {
+            emitMetric(e);
+          }
+        }
       }
+
+      // β P2-S7 — 재시도 플랜. 5000ms 예산 안에서 1 회 재시도 허용, 첫 실패 후 300ms backoff.
+      // Mock 경로에서는 사실상 발동하지 않지만, P3 실 nano-banana 합류 시 vendor
+      // 네트워크 블립 (fetch failure, 503, 504) 을 한 번 더 시도해 사용자에게 노출 최소화.
+      const GENERATE_PLAN = planGenerateAttempts({
+        totalBudgetMs: 5000,
+        maxAttempts: 2,
+        backoffMs: [300],
+      });
 
       // β P2-S6 — `?debug=metrics` dev 패널. `__genyMetricsSink` 로 이벤트를
       // 200 개 ring buffer 에 쌓고 `summarizeMetricHistory` 집계를 우하단 고정
@@ -1312,6 +1340,50 @@
         genTimingEl.innerHTML = `${phases}<span class="phase" style="color:#f0b0b0;">✗ ${Math.round(totalMs)}ms</span>`;
       }
 
+      // β P2-S7 — 단일 attempt 실행 (phase 1~5). 실패 시 throw, 성공 시 { phaseMs }.
+      // 재시도 루프는 runGenerate 가 담당.
+      async function runGenerateAttempt(prompt, atlas, t0, phaseMs) {
+        let tPhase = t0;
+        const markPhaseDone = (idx) => {
+          const now = performance.now();
+          phaseMs[idx - 1] = now - tPhase;
+          tPhase = now;
+          setPillPhase(idx, "done");
+        };
+        setPillPhase(1, "active");
+        genStatusEl.textContent = "프롬프트 해석";
+        await new Promise((r) => setTimeout(r, 30));
+        markPhaseDone(1);
+
+        setPillPhase(2, "active");
+        genStatusEl.textContent = "텍스처 합성";
+        const mock = await mockGenerateTexture(prompt, atlas);
+        markPhaseDone(2);
+
+        setPillPhase(3, "active");
+        genStatusEl.textContent = "atlas 재구성";
+        const newAtlas = {
+          textures: [{ path: atlas.textures[0]?.path ?? "textures/base.png", width: mock.width, height: mock.height }],
+          slots: atlas.slots,
+        };
+        markPhaseDone(3);
+
+        setPillPhase(4, "active");
+        genStatusEl.textContent = "번들 교체";
+        if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
+        lastBlobUrl = mock.textureUrl;
+        const regenPromise = pixiRenderer.regenerate({
+          atlas: newAtlas,
+          textureUrl: mock.textureUrl,
+        });
+        markPhaseDone(4);
+
+        setPillPhase(5, "active");
+        genStatusEl.textContent = "렌더 트리거";
+        await (regenPromise ?? Promise.resolve());
+        markPhaseDone(5);
+      }
+
       async function runGenerate() {
         const prompt = (promptInput?.value ?? "").trim();
         if (!prompt) {
@@ -1332,52 +1404,56 @@
         resetPills();
         const phaseMs = [0, 0, 0, 0, 0];
         const t0 = performance.now();
-        let tPhase = t0;
-        const markPhaseDone = (idx) => {
-          const now = performance.now();
-          phaseMs[idx - 1] = now - tPhase;
-          tPhase = now;
-          setPillPhase(idx, "done");
-        };
+        let attemptIndex = 0;
+        let lastError = null;
+        let lastFailureKind = undefined;
+        let stopReason = "success";
         try {
-          setPillPhase(1, "active");
-          genStatusEl.textContent = "프롬프트 해석";
-          await new Promise((r) => setTimeout(r, 30));
-          markPhaseDone(1);
-
-          setPillPhase(2, "active");
-          genStatusEl.textContent = "텍스처 합성";
-          const mock = await mockGenerateTexture(prompt, atlas);
-          markPhaseDone(2);
-
-          setPillPhase(3, "active");
-          genStatusEl.textContent = "atlas 재구성";
-          const newAtlas = {
-            textures: [{ path: atlas.textures[0]?.path ?? "textures/base.png", width: mock.width, height: mock.height }],
-            slots: atlas.slots,
-          };
-          markPhaseDone(3);
-
-          setPillPhase(4, "active");
-          genStatusEl.textContent = "번들 교체";
-          if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
-          lastBlobUrl = mock.textureUrl;
-          // β P2-S3 — regenerate 는 Promise. actual canvas swap 이 끝난 시점에 resolve.
-          const regenPromise = pixiRenderer.regenerate({
-            atlas: newAtlas,
-            textureUrl: mock.textureUrl,
-          });
-          markPhaseDone(4);
-
-          setPillPhase(5, "active");
-          genStatusEl.textContent = "렌더 트리거";
-          // 실 스프라이트 교체 (비동기 텍스처 디코드 + buildSpriteScene) 완료 대기.
-          await (regenPromise ?? Promise.resolve());
-          markPhaseDone(5);
-
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            // 새 attempt 마다 phase pill / phase ms 초기화 (이전 attempt 이 남긴 dial 정리).
+            if (attemptIndex > 0) {
+              resetPills();
+              for (let i = 0; i < phaseMs.length; i += 1) phaseMs[i] = 0;
+            }
+            try {
+              await runGenerateAttempt(prompt, atlas, t0, phaseMs);
+              lastError = null;
+              break; // 성공
+            } catch (err) {
+              lastError = err;
+              const failure = classifyGenerateFailure(err);
+              lastFailureKind = failure.kind;
+              const elapsedMs = performance.now() - t0;
+              const decision = shouldRetry({
+                plan: GENERATE_PLAN,
+                failedAttemptIndex: attemptIndex,
+                failure,
+                elapsedMs,
+              });
+              if (!decision.retry) {
+                stopReason = decision.reason;
+                throw err;
+              }
+              // 재시도 진입 — pill 을 err 로 표시해 첫 실패를 UX 에 남기고, backoff 대기.
+              for (let i = 1; i <= 5; i += 1) {
+                if (pillEls[i - 1]?.getAttribute("data-phase") === "active") {
+                  setPillPhase(i, "err");
+                }
+              }
+              genStatusEl.textContent = `재시도 대기… (${failure.kind}, ${decision.backoffMs}ms)`;
+              if (decision.backoffMs > 0) await new Promise((r) => setTimeout(r, decision.backoffMs));
+              attemptIndex = decision.nextAttemptIndex;
+            }
+          }
+          // 성공 경로.
           const total = performance.now() - t0;
           const budget = total <= BETA_BUDGET_MS ? "ok" : "over";
-          genStatusEl.textContent = budget === "ok" ? `✓ ${Math.round(total)}ms` : `⚠ ${Math.round(total)}ms (>${BETA_BUDGET_MS})`;
+          const attempts = attemptIndex + 1;
+          const attemptLabel = attempts > 1 ? ` (${attempts} attempts)` : "";
+          genStatusEl.textContent = budget === "ok"
+            ? `✓ ${Math.round(total)}ms${attemptLabel}`
+            : `⚠ ${Math.round(total)}ms (>${BETA_BUDGET_MS})${attemptLabel}`;
           renderTimings(phaseMs, total);
           emitGenerateMetrics({
             trigger: "user",
@@ -1386,11 +1462,15 @@
             totalMs: total,
             budgetMs: BETA_BUDGET_MS,
             ok: true,
+            outcome: { attempts, ok: true, stopReason: "success" },
           });
         } catch (err) {
           const total = performance.now() - t0;
           console.error("[generate] failed", err);
-          genStatusEl.textContent = `error: ${err?.message ?? err}`;
+          const attempts = attemptIndex + 1;
+          const kindLabel = lastFailureKind ? ` [${lastFailureKind}]` : "";
+          const retryLabel = attempts > 1 ? ` (${attempts} attempts)` : "";
+          genStatusEl.textContent = `error${kindLabel}: ${err?.message ?? err}${retryLabel}`;
           for (let i = 1; i <= 5; i += 1) {
             if (pillEls[i - 1]?.getAttribute("data-phase") === "active") {
               setPillPhase(i, "err");
@@ -1404,6 +1484,12 @@
             totalMs: total,
             budgetMs: BETA_BUDGET_MS,
             ok: false,
+            outcome: {
+              attempts,
+              ok: false,
+              lastFailureKind,
+              stopReason,
+            },
           });
         } finally {
           generateBtn.disabled = false;

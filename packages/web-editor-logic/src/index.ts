@@ -20,3 +20,22 @@ export type {
   MetricHistorySnapshot,
   MetricRunSummary,
 } from "./metrics.js";
+
+export {
+  attemptOutcomeLabels,
+  classifyGenerateFailure,
+  nextAttemptBackoffMs,
+  planGenerateAttempts,
+  shouldRetry,
+} from "./generate-retry.js";
+export type {
+  GenerateAttemptOutcome,
+  GenerateAttemptPlan,
+  GenerateAttemptPlanInput,
+  GenerateFailure,
+  GenerateFailureInput,
+  GenerateFailureKind,
+  ShouldRetryDecision,
+  ShouldRetryInput,
+  ShouldRetryReason,
+} from "./generate-retry.js";
