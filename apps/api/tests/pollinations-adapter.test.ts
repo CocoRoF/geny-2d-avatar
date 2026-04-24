@@ -68,10 +68,12 @@ test("pollinations.generate: 200 + PNG 반환 → 성공", async () => {
   assert.equal(res.height, 32);
 });
 
-test("pollinations.generate: 200 + JPEG 반환 → INVALID_OUTPUT", async () => {
-  const jpegLike = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0]);
+test("pollinations.generate: 200 + 유효하지 않은 이미지 bytes → INVALID_OUTPUT", async () => {
+  // P3.4b - sharp normalizeToPng 도입으로 유효한 JPEG 도 PNG 로 변환됨.
+  // INVALID_OUTPUT 은 decoding 실패 (너무 짧거나 format 모름).
+  const junk = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0]);
   const a = createPollinationsAdapter({
-    fetchImpl: mockFetchOk(jpegLike, "image/jpeg"),
+    fetchImpl: mockFetchOk(junk, "image/jpeg"),
   });
   try {
     await a.generate(task());
@@ -79,6 +81,18 @@ test("pollinations.generate: 200 + JPEG 반환 → INVALID_OUTPUT", async () => 
   } catch (err) {
     const e = err as Error & { code?: string };
     assert.equal(e.code, "INVALID_OUTPUT");
+  }
+});
+
+test("pollinations.generate: 응답 16 bytes 미만 → INVALID_OUTPUT", async () => {
+  const a = createPollinationsAdapter({
+    fetchImpl: mockFetchOk(Buffer.from([1, 2, 3]), "image/png"),
+  });
+  try {
+    await a.generate(task());
+    assert.fail();
+  } catch (err) {
+    assert.equal((err as { code?: string }).code, "INVALID_OUTPUT");
   }
 });
 

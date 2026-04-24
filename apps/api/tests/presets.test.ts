@@ -3,6 +3,8 @@
 // P3.4 - /api/health 응답에 adapters 포함. 테스트에서 pollinations 비활성 (mock 단독).
 
 process.env.GENY_POLLINATIONS_DISABLED = "true";
+process.env.GENY_NANO_BANANA_DISABLED = "true";
+process.env.GENY_OPENAI_IMAGE_DISABLED = "true";
 
 import test from "node:test";
 import assert from "node:assert/strict";

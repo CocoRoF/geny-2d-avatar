@@ -47,6 +47,7 @@ node_modules/
 .yarn/
 .yarn-integrity
 dist/
+dist-test/
 build/
 out/
 .next/
