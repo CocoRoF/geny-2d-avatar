@@ -28,6 +28,13 @@ import type {
   RendererReadyEventDetail,
 } from "@geny/web-avatar-renderer";
 import { atlasUvToFrame } from "./atlas-uv.js";
+import {
+  advanceBreathFrame,
+  initialBreathState,
+  startBreath,
+  stopBreath,
+  type BreathState,
+} from "./motion-ticker.js";
 
 export interface PixiRendererOptions {
   readonly element: RendererHost;
@@ -722,40 +729,20 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
     root.addChild(pivotOverlay);
   }
 
-  // β P1-S3: idle breath. motion.loop=true 면 ticker 에 sine scale.y 를 건다.
-  // 진폭 4% / 주기 = motion.duration_sec (fallback 4s). fade_in 동안 진폭이 0→max 로,
-  // fade_out (해제 시) 에서 max→0 로 선형 램프. 실 motion3 curve 는 β P3+ 에서 대체.
-  let breathMotion: RendererMotion | null = null;
-  let breathElapsedMs = 0;
-  let breathRampMs = 0;
-  let breathRampDurationMs = 0;
-  let breathRampDirection: "in" | "out" = "in";
-  let breathRampFactor = 0; // 0 ~ 1
+  // β P1-S3 + P1-S10: breath ramp 계산을 `motion-ticker` 순수 함수로 분리.
+  // ticker 는 advanceBreathFrame(state, dt) 호출 → scale 적용만. 램프 공식 회귀는
+  // `tests/motion-ticker.test.ts` 가 DOM/pixi 없이 고정.
+  let breathState: BreathState = initialBreathState();
+  let tickerAttached = false;
   const tickerCallback = (opts: { deltaMS?: number }): void => {
     const dt = typeof opts.deltaMS === "number" ? opts.deltaMS : 16.6667;
-    if (breathRampDurationMs > 0) {
-      breathRampMs += dt;
-      const t = Math.min(1, breathRampMs / breathRampDurationMs);
-      breathRampFactor = breathRampDirection === "in" ? t : 1 - t;
-      if (t >= 1) {
-        breathRampDurationMs = 0;
-        breathRampFactor = breathRampDirection === "in" ? 1 : 0;
-        if (breathRampDirection === "out") {
-          // fade_out 완료 — ticker 를 끄고 scale 복귀.
-          app.ticker.remove(tickerCallback);
-          root.scale.set(1, 1);
-          breathMotion = null;
-          return;
-        }
-      }
+    const frame = advanceBreathFrame(breathState, dt);
+    breathState = frame.state;
+    root.scale.set(1, frame.scaleY);
+    if (frame.ended) {
+      app.ticker.remove(tickerCallback);
+      tickerAttached = false;
     }
-    if (!breathMotion) return;
-    breathElapsedMs += dt;
-    const periodMs = Math.max(500, breathMotion.duration_sec * 1000);
-    const phase = (breathElapsedMs / periodMs) * Math.PI * 2;
-    const amplitude = 0.04 * breathRampFactor;
-    const sy = 1 + Math.sin(phase) * amplitude;
-    root.scale.set(1, sy);
   };
 
   return {
@@ -798,15 +785,16 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
     },
     setMotion(motion) {
       if (motion === null) {
-        if (!breathMotion) return;
-        breathRampDirection = "out";
-        breathRampMs = 0;
-        breathRampDurationMs = Math.max(0, (breathMotion.fade_out_sec || 0) * 1000);
-        if (breathRampDurationMs === 0) {
-          app.ticker.remove(tickerCallback);
+        const prevMotion = breathState.motion;
+        breathState = stopBreath(breathState);
+        if (!prevMotion) return;
+        if (breathState.motion === null) {
+          // fade_out_sec=0 → 즉시 해제 경로.
+          if (tickerAttached) {
+            app.ticker.remove(tickerCallback);
+            tickerAttached = false;
+          }
           root.scale.set(1, 1);
-          breathMotion = null;
-          breathRampFactor = 0;
         }
         return;
       }
@@ -815,15 +803,11 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
         // 가 있어야 의미 있으므로 β P3+ 에서 처리.
         return;
       }
-      if (!breathMotion) {
+      breathState = startBreath(breathState, motion);
+      if (!tickerAttached) {
         app.ticker.add(tickerCallback);
+        tickerAttached = true;
       }
-      breathMotion = motion;
-      breathElapsedMs = 0;
-      breathRampDirection = "in";
-      breathRampMs = 0;
-      breathRampDurationMs = Math.max(0, (motion.fade_in_sec || 0) * 1000);
-      breathRampFactor = breathRampDurationMs === 0 ? 1 : 0;
     },
     setExpression(expression) {
       // Mock: 표정 변경 시 stage alpha 를 잠깐 낮췄다가 복귀시켜 "표정이 전환됐음"

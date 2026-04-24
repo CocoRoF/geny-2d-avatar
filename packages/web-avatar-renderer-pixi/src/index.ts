@@ -20,3 +20,14 @@ export {
   type AtlasTextureSize,
   type PixiTextureFrame,
 } from "./atlas-uv.js";
+
+export {
+  advanceBreathFrame,
+  initialBreathState,
+  startBreath,
+  stopBreath,
+  BREATH_AMPLITUDE,
+  BREATH_MIN_PERIOD_MS,
+  type BreathState,
+  type BreathFrame,
+} from "./motion-ticker.js";
