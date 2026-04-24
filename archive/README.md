@@ -33,6 +33,34 @@
 | `15-quality-assurance.md` | QA 전략 | 회귀·스모크 테스트 접근 참고 |
 | `01` / `09` / `14` / `16` / `17` / `18` | 비전·UX·로드맵·수익화·리스크·용어 | 이전 스코프 전제라 구식. 역사적 레퍼런스용 |
 
+## `scripts/` — OFF-GOAL 개발·CI 스크립트 (2026-04-24 P0.3.1)
+
+β 관측 스택 + 마이그레이터 + mock-vendor. 현 스코프 밖.
+
+| 파일 | 이전 용도 | 복귀 조건 |
+|---|---|---|
+| `observability-e2e.mjs`, `observability-smoke.mjs` (+ .test.mjs) | Prometheus exposition e2e + 파서 회귀 | Phase 6 배포 + 실 관측 연결 시 |
+| `observability-fallback-validate.mjs` (+ .test.mjs) | fallback 경로 관측 검증 (1-hop/2-hop/terminal/unsafe) | 자동 폴백 복귀 시 |
+| `observability-snapshot-diff.mjs` (+ .test.mjs) | 관측 exposition structural drift 검사 | 동일 |
+| `perf-harness.mjs` (+ .test.mjs), `perf-sweep-concurrency.mjs` | 성능 SLO 하네스 — worker-generate in-process 기동 | 비동기 워커 복귀 시 |
+| `mock-vendor-server.mjs` (+ .test.mjs) | nano-banana/sdxl/flux-fill HTTP 재현 서버 | 다중 벤더 통합 테스트 재활성화 시 |
+| `sync-observability-chart.mjs`, `verify-observability-chart.mjs` | Helm chart ↔ 선언형 config 동기화 | observability Helm 복귀 시 |
+| `rig-template/migrate.mjs` (+ .test.mjs) | rig 템플릿 버전 마이그레이션 체인 | 프리셋 코드 레벨 마이그레이션 필요 시 |
+
+## `infra/` — OFF-GOAL 배포 인프라 (2026-04-24 P0.3.1)
+
+| 디렉토리 | 이전 용도 | 복귀 조건 |
+|---|---|---|
+| `helm/worker-generate/` | 큐 기반 생성 워커 Helm chart | 비동기 워커 복귀 시 |
+| `helm/observability/` | Prometheus/Grafana Helm chart | 관측 스택 복귀 시 |
+| `helm/redis/` | Redis Helm chart | 큐/캐시 용도 복귀 시 |
+| `observability/` | Prometheus scrape config + Grafana 대시보드 + smoke snapshot 6종 | 관측 스택 복귀 시 |
+| `docker-compose.staging.yml` | staging dev 용 compose | staging 재시작 시 |
+
+Phase 6 배포 착수 시 그대로 복귀 금지 — 새 스코프 (프리셋+텍스처+Web UI) 에 맞춰 재설계.
+
+---
+
 ## `progress_old/` — 세션 로그 · ADR · 런북
 
 | 디렉토리 | 내용 |

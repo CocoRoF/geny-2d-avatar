@@ -1,17 +1,23 @@
 # infra/
 
-Infrastructure as Code.
+Infrastructure · 계약 자산.
 
-| 디렉터리 | 도구 | 역할 |
-|---|---|---|
-| `terraform/` | Terraform | 클라우드 리소스(VPC, EKS/GKE, RDS, S3/R2, Redis) |
-| `helm/` | Helm | K8s 차트 (각 app/service) |
-| `argo/` | Argo CD Application | GitOps 배포 |
-| `observability/` | Prometheus / Grafana 선언형 config | 메트릭 카탈로그 · scrape · 알람 룰 · 대시보드 3종 (`docs/02 §9`) |
+2026-04-24 P0.3.1 — OFF-GOAL 배포 인프라 (`helm/{worker-generate,observability,redis}`, `observability/`, `docker-compose.staging.yml`) `archive/infra/` 로 이동. Phase 6 배포 시 재설계·복귀.
 
-Foundation 단계: 스켈레톤만. 실제 작성은 Platform 워크스트림 세션.
-`observability/` 는 세션 17 에서 Foundation Exit #3 대응으로 config 만 수립 — 런타임 배포는 Helm chart 세션.
+## 현재 남아있는 것
 
-## 환경 채널 (`docs/13 §7.3`)
+| 디렉터리 | 역할 |
+|---|---|
+| `adapters/` | `adapters.json` — AI 어댑터 카탈로그 (ALIGNED, ai-adapter-core 가 소비) |
+| `palettes/` | `halfbody-pastel.json` — 색 팔레트 참조 (ADJACENT, Phase 3 텍스처 생성에 재활용) |
+| `registry/` | `signer-keys.json` — license-verifier 테스트 fixture (RFC 8032 Test 1 공개 벡터) |
 
-`dev → staging → prod-canary → prod`
+## Phase 6 배포 시 복귀 대상
+
+- `archive/infra/helm/worker-generate/` — 큐 기반 생성 워커 chart (bullmq 재활성 조건)
+- `archive/infra/helm/observability/` — Prometheus/Grafana chart
+- `archive/infra/helm/redis/` — Redis chart (큐/캐시 용)
+- `archive/infra/observability/` — Prometheus scrape config + Grafana 대시보드 + smoke snapshot
+- `archive/infra/docker-compose.staging.yml` — staging dev 용 compose
+
+Phase 6 에서 이들은 새 스코프 (프리셋+텍스처+Web UI)에 맞춰 재설계 필요. 그대로 복귀 금지.
