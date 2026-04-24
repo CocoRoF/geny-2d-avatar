@@ -39,3 +39,18 @@ export type {
   ShouldRetryInput,
   ShouldRetryReason,
 } from "./generate-retry.js";
+
+export {
+  CATEGORY_BASE_PROMPTS,
+  PROMPT_CATEGORY_ORDER,
+  buildSlotPrompt,
+  extractPromptHints,
+  mapRoleToCategory,
+  planSlotGenerations,
+} from "./prompt-slot-planner.js";
+export type {
+  PromptHints,
+  SlotCategory,
+  SlotGenerationPlan,
+  SlotInput,
+} from "./prompt-slot-planner.js";
