@@ -2,14 +2,14 @@
   "file_count": 4,
   "files": [
     {
-      "bytes": 222,
+      "bytes": 5533,
       "path": "atlas.json",
-      "sha256": "1bc0cff15f87a7e226c502c9323fc2593b4d7576e83979be5015bf8ed0ed3465"
+      "sha256": "ca74ffa593155c0bd8d3179414690cc74c949fa9f6b7f2419658e5b62618cb15"
     },
     {
-      "bytes": 630,
+      "bytes": 631,
       "path": "bundle.json",
-      "sha256": "b6375750bdfc5429766643af51a34a64aae16e609fa50de2c8cbf947249a43c1"
+      "sha256": "f4b125474fe92d6116c21c6aeae0c9a026c15588309e26b87b3781c59068b3a6"
     },
     {
       "bytes": 69,
@@ -19,8 +19,8 @@
     {
       "bytes": 15083,
       "path": "web-avatar.json",
-      "sha256": "2f634c5d592b9f6fb9aeb025cfd3ee7b0f2554793b085181bb7c61f033b92365"
+      "sha256": "152ca9ffb610b77d6c82560ad6d4885ae6d46c120abdff4ff48a8f301892b484"
     }
   ],
-  "total_bytes": 16004
+  "total_bytes": 21316
 }

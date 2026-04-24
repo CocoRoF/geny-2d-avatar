@@ -138,7 +138,9 @@ test("assembleWebAvatarBundle: atlas.json in bundle matches schema shape", () =>
     assert.equal(atlas.textures[0]!.width, 4);
     assert.equal(atlas.textures[0]!.height, 4);
     assert.equal(atlas.textures[0]!.format, "png");
-    assert.deepEqual(atlas.slots, []);
+    // P1.B — halfbody v1.3.0 atlas.json 의 slots 를 populate-atlas-slots.mjs 로 채움
+    // (30 파츠 = 30 slots). 이전 "slots=[]" placeholder 단계는 종료.
+    assert.equal(atlas.slots.length, 30, "halfbody v1.3.0 has 30 populated slots (P1.B)");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
