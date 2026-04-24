@@ -1,8 +1,9 @@
 # @geny/web-preview
 
-Geny 2D Avatar 개발용 **로컬 프리뷰 앱**. 두 페이지 제공:
+Geny 2D Avatar 개발용 **로컬 프리뷰 앱**. 3 페이지 제공:
 - `/` (index.html) — 번들 메타데이터 디버그 패널 (렌더 없음)
 - `/live2d-demo.html` — **실제 Live2D 렌더 데모 (P1.5)**. mao_pro 프리셋을 `createPixiLive2DRenderer` 로 렌더.
+- `/builder.html` — **전체 라운드트립 빌더 UI (P2.4)**. `apps/api` 엔드포인트 소비: preset 선택 → PNG 업로드 → 빌드 → 번들 다운로드.
 
 ## 빠른 시작
 

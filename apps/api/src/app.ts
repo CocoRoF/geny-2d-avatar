@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import fastifyFactory from "fastify";
 import fastifyMultipart from "@fastify/multipart";
+import fastifyCors from "@fastify/cors";
 import type { FastifyInstance } from "fastify";
 import { presetsRoute } from "./routes/presets.js";
 import { textureUploadRoute } from "./routes/texture-upload.js";
@@ -32,6 +33,9 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   const bundlesDir = opts.bundlesDir ?? join(tmpdir(), "geny-api-bundles");
   const maxFileSize = opts.maxFileSize ?? 16 * 1024 * 1024;
 
+  // 웹 UI 가 다른 포트 (web-preview 4173 / web-editor 5173) 에서 접근.
+  // dev 환경에선 * 로 열어두고 프로덕션은 환경변수로 origin allowlist 교체 예정 (Phase 6).
+  await fastify.register(fastifyCors, { origin: true });
   await fastify.register(fastifyMultipart, {
     limits: { fileSize: maxFileSize, fields: 10, files: 1 },
   });

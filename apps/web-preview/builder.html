@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Geny 2D Avatar · Builder (P2.4)</title>
+    <style>
+      :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; }
+      body { margin: 0; padding: 24px; max-width: 900px; margin-inline: auto; color: #222; }
+      header h1 { margin: 0 0 4px; }
+      header p { margin: 0 0 20px; color: #666; font-size: 0.92rem; }
+      section {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+      }
+      h2 { margin: 0 0 12px; font-size: 0.95rem; text-transform: uppercase; color: #555; letter-spacing: 0.04em; }
+      label.block { display: block; font-size: 0.9rem; color: #444; margin-bottom: 4px; }
+      select, input[type="text"], input[type="file"] {
+        width: 100%;
+        padding: 7px 10px;
+        border: 1px solid #c4c4c4;
+        border-radius: 5px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        box-sizing: border-box;
+        background: #fff;
+      }
+      input[type="text"]:focus, select:focus { outline: 2px solid #2a6df4; outline-offset: -1px; border-color: transparent; }
+      .form-row { margin-bottom: 12px; }
+      .inline { display: grid; grid-template-columns: 160px 1fr; align-items: center; gap: 10px; }
+      button {
+        padding: 8px 16px;
+        font-size: 0.92rem;
+        background: #2a6df4;
+        color: #fff;
+        border: 1px solid #1e50c2;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      button:hover { background: #1e50c2; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      button.secondary { background: #fff; color: #333; border-color: #bbb; }
+      button.secondary:hover { background: #f2f2f2; }
+      .status {
+        padding: 10px 14px;
+        border-radius: 5px;
+        font-size: 0.9rem;
+        margin-top: 12px;
+        white-space: pre-wrap;
+        font-family: ui-monospace, monospace;
+      }
+      .status.info { background: #eef4ff; color: #2b4a8b; }
+      .status.ok { background: #e8f6ed; color: #205d38; }
+      .status.err { background: #fbe9e9; color: #7a1f1f; }
+      pre { background: #f7f7f9; padding: 10px 12px; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; margin: 8px 0 0; }
+      .result-links a { color: #1e50c2; text-decoration: none; font-weight: 500; }
+      .result-links a:hover { text-decoration: underline; }
+      .result-links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; font-size: 0.95rem; }
+      code { background: #f4f4f6; padding: 1px 6px; border-radius: 3px; font-size: 0.85em; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Builder <small style="color: #999; font-weight: normal;">· P2.4</small></h1>
+      <p>
+        프리셋 선택 → 텍스처 PNG 업로드 → 빌드 → Cubism 번들 다운로드. <code>apps/api</code> end-to-end 라운드트립.
+      </p>
+      <p style="font-size: 0.85rem; color: #888;">
+        사전 조건: <code>pnpm -F @geny/api dev</code> 로 백엔드가 기본 포트 3000 에 떠 있어야 함. 필요 시 <code>?api=http://...</code> 로 override.
+      </p>
+    </header>
+
+    <section>
+      <h2>1 · Preset 선택</h2>
+      <div class="form-row">
+        <select id="preset-select" disabled>
+          <option value="">프리셋 로드 중…</option>
+        </select>
+      </div>
+      <div id="preset-details" class="status info" style="display: none;"></div>
+    </section>
+
+    <section>
+      <h2>2 · Texture 업로드</h2>
+      <div class="form-row">
+        <label class="block" for="file-input">PNG 파일 (프리셋 atlas 와 크기 일치 필수)</label>
+        <input type="file" id="file-input" accept="image/png" disabled />
+      </div>
+      <div class="form-row inline">
+        <label class="block" for="bundle-name-input">bundle_name (옵션)</label>
+        <input type="text" id="bundle-name-input" placeholder="기본: preset slug" disabled />
+      </div>
+      <button id="upload-btn" disabled>업로드 + 빌드</button>
+      <div id="upload-status" class="status info" style="display: none;"></div>
+    </section>
+
+    <section>
+      <h2>3 · 결과</h2>
+      <div id="result" style="color: #999;">빌드 결과가 여기에 표시됩니다.</div>
+    </section>
+
+    <script type="module">
+      // API base - ?api=... 쿼리로 override 가능.
+      const qs = new URLSearchParams(location.search);
+      const API = qs.get("api") ?? "http://localhost:3000";
+
+      const presetSelect = document.getElementById("preset-select");
+      const presetDetails = document.getElementById("preset-details");
+      const fileInput = document.getElementById("file-input");
+      const bundleNameInput = document.getElementById("bundle-name-input");
+      const uploadBtn = document.getElementById("upload-btn");
+      const uploadStatus = document.getElementById("upload-status");
+      const result = document.getElementById("result");
+
+      let presets = [];
+
+      function setStatus(el, cls, msg) {
+        el.className = "status " + cls;
+        el.textContent = msg;
+        el.style.display = "block";
+      }
+
+      // 1) 프리셋 카탈로그 로드.
+      try {
+        const r = await fetch(API + "/api/presets");
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const body = await r.json();
+        presets = body.presets;
+        presetSelect.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "— 프리셋 선택 —";
+        presetSelect.appendChild(placeholder);
+        for (const p of presets) {
+          const opt = document.createElement("option");
+          opt.value = p.id + "@" + p.version;
+          opt.textContent =
+            p.display_name.ko + " (" + p.id + "@" + p.version + ", " + p.origin + ")";
+          presetSelect.appendChild(opt);
+        }
+        presetSelect.disabled = false;
+      } catch (err) {
+        presetSelect.innerHTML = '<option value="">프리셋 로드 실패</option>';
+        setStatus(
+          uploadStatus,
+          "err",
+          "API 연결 실패: " + err.message + "\n기본 URL: " + API + "\n\n해결:\n- pnpm -F @geny/api dev 로 백엔드 시작\n- 또는 ?api=<url> 로 다른 호스트 지정",
+        );
+      }
+
+      presetSelect.addEventListener("change", () => {
+        const v = presetSelect.value;
+        if (!v) {
+          presetDetails.style.display = "none";
+          fileInput.disabled = true;
+          bundleNameInput.disabled = true;
+          uploadBtn.disabled = true;
+          return;
+        }
+        const [id, version] = v.split("@");
+        const p = presets.find((x) => x.id === id && x.version === version);
+        if (!p) return;
+        presetDetails.style.display = "block";
+        presetDetails.className = "status info";
+        const atlasSize = p.atlas ? p.atlas.width + "x" + p.atlas.height : "-";
+        presetDetails.textContent =
+          "✓ " + p.display_name.en + "\n" +
+          "  family: " + p.family + " · origin: " + p.origin + "\n" +
+          "  canvas: " + p.canvas.width + "x" + p.canvas.height + "\n" +
+          "  atlas texture: " + atlasSize + " (slots: " + (p.atlas?.slot_count ?? 0) + ")\n" +
+          "  motions: " + p.motion_count + " · expressions: " + p.expression_count + "\n\n" +
+          "→ PNG 업로드 크기는 atlas " + atlasSize + " 와 일치해야 합니다.";
+        fileInput.disabled = false;
+        bundleNameInput.disabled = false;
+        bundleNameInput.placeholder = "기본: " + id.split(".").pop();
+        uploadBtn.disabled = false;
+      });
+
+      // 2) 업로드 + 빌드.
+      uploadBtn.addEventListener("click", async () => {
+        const v = presetSelect.value;
+        if (!v) return;
+        const [id, version] = v.split("@");
+        const file = fileInput.files?.[0];
+        if (!file) {
+          setStatus(uploadStatus, "err", "PNG 파일을 선택하세요.");
+          return;
+        }
+        const bundleName = bundleNameInput.value.trim() || undefined;
+        uploadBtn.disabled = true;
+        setStatus(uploadStatus, "info", "1/2 · /api/texture/upload 중…");
+        result.textContent = "";
+        result.style.color = "#999";
+
+        let textureId = "";
+        try {
+          const fd = new FormData();
+          fd.append("preset_id", id);
+          fd.append("preset_version", version);
+          fd.append("file", file, file.name);
+          const r = await fetch(API + "/api/texture/upload", { method: "POST", body: fd });
+          const body = await r.json();
+          if (!r.ok) {
+            throw new Error(body.error?.code + ": " + body.error?.message);
+          }
+          textureId = body.texture_id;
+          setStatus(
+            uploadStatus,
+            "info",
+            "2/2 · /api/build 중…\n  texture_id: " + textureId + "\n  sha256: " + body.sha256,
+          );
+        } catch (err) {
+          setStatus(uploadStatus, "err", "업로드 실패:\n" + err.message);
+          uploadBtn.disabled = false;
+          return;
+        }
+
+        try {
+          const r = await fetch(API + "/api/build", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              preset_id: id,
+              preset_version: version,
+              texture_id: textureId,
+              ...(bundleName ? { bundle_name: bundleName } : {}),
+            }),
+          });
+          const body = await r.json();
+          if (!r.ok) {
+            throw new Error(body.error?.code + ": " + body.error?.message);
+          }
+          setStatus(
+            uploadStatus,
+            "ok",
+            "✅ 빌드 성공!\n  bundle_id: " +
+              body.bundle_id +
+              "\n  파일 수: " +
+              body.file_count,
+          );
+          result.style.color = "inherit";
+          result.innerHTML =
+            "<div class='result-links'>" +
+            "<a href='" + API + body.bundle_url + "' target='_blank'>bundle.json 열기</a>" +
+            "<a href='" + API + body.download_url + "' download>⬇ zip 다운로드</a>" +
+            "</div>" +
+            "<pre>" +
+            JSON.stringify(
+              {
+                bundle_id: body.bundle_id,
+                preset: body.preset,
+                bundle_name: body.bundle_name,
+                file_count: body.file_count,
+                files: body.files.slice(0, 8).concat(
+                  body.files.length > 8 ? [{ path: "… +" + (body.files.length - 8) + " more" }] : [],
+                ),
+              },
+              null,
+              2,
+            ) +
+            "</pre>";
+        } catch (err) {
+          setStatus(uploadStatus, "err", "빌드 실패:\n" + err.message);
+        } finally {
+          uploadBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
