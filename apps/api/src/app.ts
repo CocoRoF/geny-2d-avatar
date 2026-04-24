@@ -20,6 +20,7 @@ import { buildRoute } from "./routes/build.js";
 import { bundleRoute } from "./routes/bundle.js";
 import { TextureAdapterRegistry } from "./lib/texture-adapter.js";
 import { createMockAdapter } from "./lib/adapters/mock-adapter.js";
+import { createPollinationsAdapter } from "./lib/adapters/pollinations-adapter.js";
 
 export interface AppOptions {
   readonly rigTemplatesRoot: string;
@@ -31,9 +32,16 @@ export interface AppOptions {
   readonly adapters?: TextureAdapterRegistry;
 }
 
-/** 기본 레지스트리 = mock 어댑터만. 실 벤더는 P3.4 에서 추가. */
+/**
+ * 기본 레지스트리:
+ *   1. pollinations@flux  (공개 HTTP, key 불필요) — primary
+ *   2. mock               (결정론, 항상 fallback)
+ *
+ * GENY_POLLINATIONS_DISABLED=true 환경에서는 pollinations 가 supports=false 라 사실상 mock 만.
+ */
 export function createDefaultAdapterRegistry(): TextureAdapterRegistry {
   const r = new TextureAdapterRegistry();
+  r.register(createPollinationsAdapter());
   r.register(createMockAdapter());
   return r;
 }

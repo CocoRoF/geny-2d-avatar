@@ -1,4 +1,7 @@
 // P3.1 - /api/texture/generate mock endpoint + mock-generator 회귀.
+// P3.4 - 테스트 환경에서 pollinations 네트워크 호출 방지 (mock fallback 경로만 검증).
+
+process.env.GENY_POLLINATIONS_DISABLED = "true";
 
 import test from "node:test";
 import assert from "node:assert/strict";
