@@ -16,25 +16,26 @@ function scratch(): string {
   return mkdtempSync(join(tmpdir(), "geny-bundle-"));
 }
 
-test("assembleBundle: halfbody v1.2.0 snapshot matches golden byte-for-byte", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("assembleBundle: halfbody v1.3.0 snapshot matches golden byte-for-byte", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir);
     const got = snapshotBundle(res);
-    const want = readFileSync(join(goldenDir, "halfbody_v1.2.0.bundle.snapshot.json"), "utf8");
+    const want = readFileSync(join(goldenDir, "halfbody_v1.3.0.bundle.snapshot.json"), "utf8");
     assert.equal(got, want);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("assembleBundle: writes all 15 expected files for v1.2.0 (incl. bundle.json root manifest)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("assembleBundle: writes all 17 expected files for v1.3.0 (incl. bundle.json root manifest)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir);
-    assert.equal(res.files.length, 15);
+    // v1.3.0: 9 motion packs + 4 sibling JSONs + 3 expressions + 1 bundle.json = 17 files.
+    assert.equal(res.files.length, 17);
     const paths = res.files.map((f) => f.path);
     assert.ok(paths.includes("avatar.cdi3.json"));
     assert.ok(paths.includes("avatar.model3.json"));
@@ -55,19 +56,19 @@ test("assembleBundle: writes all 15 expected files for v1.2.0 (incl. bundle.json
 });
 
 test("assembleBundle: individual files byte-match their per-converter goldens", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleBundle(tpl, dir);
     const cases: Array<[string, string]> = [
-      ["avatar.cdi3.json", "halfbody_v1.2.0.cdi3.json"],
-      ["avatar.model3.json", "halfbody_v1.2.0.model3.json"],
-      ["avatar.physics3.json", "halfbody_v1.2.0.physics3.json"],
-      ["motions/idle_default.motion3.json", "halfbody_v1.2.0__idle_default.motion3.json"],
-      ["motions/greet_wave.motion3.json", "halfbody_v1.2.0__greet_wave.motion3.json"],
-      ["expressions/smile.exp3.json", "halfbody_v1.2.0__smile.exp3.json"],
-      ["expressions/wink.exp3.json", "halfbody_v1.2.0__wink.exp3.json"],
-      ["expressions/neutral.exp3.json", "halfbody_v1.2.0__neutral.exp3.json"],
+      ["avatar.cdi3.json", "halfbody_v1.3.0.cdi3.json"],
+      ["avatar.model3.json", "halfbody_v1.3.0.model3.json"],
+      ["avatar.physics3.json", "halfbody_v1.3.0.physics3.json"],
+      ["motions/idle_default.motion3.json", "halfbody_v1.3.0__idle_default.motion3.json"],
+      ["motions/greet_wave.motion3.json", "halfbody_v1.3.0__greet_wave.motion3.json"],
+      ["expressions/smile.exp3.json", "halfbody_v1.3.0__smile.exp3.json"],
+      ["expressions/wink.exp3.json", "halfbody_v1.3.0__wink.exp3.json"],
+      ["expressions/neutral.exp3.json", "halfbody_v1.3.0__neutral.exp3.json"],
     ];
     for (const [bundlePath, goldenName] of cases) {
       const got = readFileSync(join(dir, bundlePath), "utf8");
@@ -80,7 +81,7 @@ test("assembleBundle: individual files byte-match their per-converter goldens", 
 });
 
 test("assembleBundle: fileNames override changes paths but keeps bytes", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir, {
@@ -102,7 +103,7 @@ test("assembleBundle: fileNames override changes paths but keeps bytes", () => {
 });
 
 test("assembleBundle: files list is path-sorted for determinism", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir);
@@ -116,7 +117,7 @@ test("assembleBundle: files list is path-sorted for determinism", () => {
 });
 
 test("assembleBundle: repeated calls on same template produce identical snapshot", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dirA = scratch();
   const dirB = scratch();
   try {

@@ -16,32 +16,32 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..", "..", "..");
 const goldenDir = resolve(here, "..", "..", "tests", "golden");
 
-test("convertExpression: halfbody v1.2.0 smile byte-for-byte golden", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("convertExpression: halfbody v1.3.0 smile byte-for-byte golden", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const exp3 = convertExpressionFromTemplate(tpl, "expression.smile");
   const got = canonicalJson(exp3);
-  const want = readFileSync(join(goldenDir, "halfbody_v1.2.0__smile.exp3.json"), "utf8");
+  const want = readFileSync(join(goldenDir, "halfbody_v1.3.0__smile.exp3.json"), "utf8");
   assert.equal(got, want);
 });
 
-test("convertExpression: halfbody v1.2.0 wink byte-for-byte golden", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("convertExpression: halfbody v1.3.0 wink byte-for-byte golden", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const exp3 = convertExpressionFromTemplate(tpl, "expression.wink");
   const got = canonicalJson(exp3);
-  const want = readFileSync(join(goldenDir, "halfbody_v1.2.0__wink.exp3.json"), "utf8");
+  const want = readFileSync(join(goldenDir, "halfbody_v1.3.0__wink.exp3.json"), "utf8");
   assert.equal(got, want);
 });
 
-test("convertExpression: halfbody v1.2.0 neutral byte-for-byte golden", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("convertExpression: halfbody v1.3.0 neutral byte-for-byte golden", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const exp3 = convertExpressionFromTemplate(tpl, "expression.neutral");
   const got = canonicalJson(exp3);
-  const want = readFileSync(join(goldenDir, "halfbody_v1.2.0__neutral.exp3.json"), "utf8");
+  const want = readFileSync(join(goldenDir, "halfbody_v1.3.0__neutral.exp3.json"), "utf8");
   assert.equal(got, want);
 });
 
 test("convertExpression: Type is 'Live2D Expression' and fade defaults to 0.5s", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const exp3 = convertExpressionFromTemplate(tpl, "expression.smile");
   assert.equal(exp3.Type, "Live2D Expression");
   assert.equal(exp3.FadeInTime, 0.5);
@@ -49,7 +49,7 @@ test("convertExpression: Type is 'Live2D Expression' and fade defaults to 0.5s",
 });
 
 test("convertExpression: Parameters preserve source blends order (determinism)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const exp3 = convertExpressionFromTemplate(tpl, "expression.smile");
   assert.deepEqual(
     exp3.Parameters.map((p) => p.Id),
@@ -58,7 +58,7 @@ test("convertExpression: Parameters preserve source blends order (determinism)",
 });
 
 test("convertExpression: supports Add / Multiply / Overwrite blends", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const smile = convertExpressionFromTemplate(tpl, "expression.smile");
   assert.ok(smile.Parameters.every((p) => p.Blend === "Add"));
   const wink = convertExpressionFromTemplate(tpl, "expression.wink");
@@ -68,7 +68,7 @@ test("convertExpression: supports Add / Multiply / Overwrite blends", () => {
 });
 
 test("convertExpression: throws on missing Cubism mapping for target_id", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   assert.throws(
     () =>
       convertExpression({
@@ -87,7 +87,7 @@ test("convertExpression: throws on missing Cubism mapping for target_id", () => 
 });
 
 test("convertExpression: throws on duplicate target_id in same pack", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   assert.throws(
     () =>
       convertExpression({
@@ -109,7 +109,7 @@ test("convertExpression: throws on duplicate target_id in same pack", () => {
 });
 
 test("convertExpressionFromTemplate: throws on unknown expression_id", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   assert.throws(
     () => convertExpressionFromTemplate(tpl, "expression.nope"),
     /not in template/,

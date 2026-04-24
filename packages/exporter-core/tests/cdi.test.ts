@@ -12,22 +12,22 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..", "..", "..");
 const goldenDir = resolve(here, "..", "..", "tests", "golden");
 
-test("convertCdi: halfbody v1.2.0 byte-for-byte golden", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("convertCdi: halfbody v1.3.0 byte-for-byte golden", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const cdi3 = convertCdiFromTemplate(tpl);
   const got = canonicalJson(cdi3);
-  const want = readFileSync(join(goldenDir, "halfbody_v1.2.0.cdi3.json"), "utf8");
+  const want = readFileSync(join(goldenDir, "halfbody_v1.3.0.cdi3.json"), "utf8");
   assert.equal(got, want);
 });
 
 test("convertCdi: Version is fixed to 3", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const cdi3 = convertCdiFromTemplate(tpl);
   assert.equal(cdi3.Version, 3);
 });
 
 test("convertCdi: Parameters.Name uses display_name.en only", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const cdi3 = convertCdiFromTemplate(tpl);
   for (const p of cdi3.Parameters) {
     assert.ok(/^[\x20-\x7e]+$/.test(p.Name), `Name should be ASCII-only, got '${p.Name}'`);
@@ -35,7 +35,7 @@ test("convertCdi: Parameters.Name uses display_name.en only", () => {
 });
 
 test("convertCdi: ParameterGroups use PascalCase Ids", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const cdi3 = convertCdiFromTemplate(tpl);
   const ids = cdi3.ParameterGroups.map((g) => g.Id);
   assert.deepEqual(ids, ["Face", "Eyes", "Brows", "Mouth", "Body", "Hair", "Overall"]);
@@ -43,7 +43,7 @@ test("convertCdi: ParameterGroups use PascalCase Ids", () => {
 });
 
 test("convertCdi: Parts.Name is synthesized from slot_id (arm_l_a → 'Arm L A')", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const cdi3 = convertCdiFromTemplate(tpl);
   const armLA = cdi3.Parts.find((p) => p.Id === "PartArmLA");
   assert.ok(armLA, "PartArmLA should exist");
@@ -54,14 +54,14 @@ test("convertCdi: Parts.Name is synthesized from slot_id (arm_l_a → 'Arm L A')
 });
 
 test("convertCdi: Parts are sorted by slot_id for determinism", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const cdi3 = convertCdiFromTemplate(tpl);
   const slotIdsFromPartsOrder = Object.keys(tpl.partsById).sort();
   assert.equal(cdi3.Parts.length, slotIdsFromPartsOrder.length);
 });
 
 test("convertCdi: CombinedParameters map internal combined_axes via cubism IDs", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const cdi3 = convertCdiFromTemplate(tpl);
   assert.deepEqual(cdi3.CombinedParameters, [
     { ParameterIdH: "ParamAngleX", ParameterIdV: "ParamAngleY" },
@@ -70,7 +70,7 @@ test("convertCdi: CombinedParameters map internal combined_axes via cubism IDs",
 });
 
 test("convertCdi: throws when combined_axes references unknown parameter", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   assert.ok(tpl.parameters);
   const badParams = {
     ...tpl.parameters!,
@@ -83,7 +83,7 @@ test("convertCdi: throws when combined_axes references unknown parameter", () =>
 });
 
 test("convertCdi: throws when a parameter has no cubism mapping (inline nor manifest)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   assert.ok(tpl.parameters);
   const strippedParams = {
     ...tpl.parameters!,

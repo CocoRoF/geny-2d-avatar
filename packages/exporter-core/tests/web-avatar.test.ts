@@ -10,8 +10,8 @@ import { canonicalJson } from "../src/util/canonical-json.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..", "..", "..");
 
-test("convertWebAvatar: halfbody v1.2.0 basic shape", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("convertWebAvatar: halfbody v1.3.0 basic shape", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const wa = convertWebAvatar(tpl);
 
   assert.equal(wa.schema_version, "v1");
@@ -37,7 +37,7 @@ test("convertWebAvatar: halfbody v1.2.0 basic shape", () => {
 });
 
 test("convertWebAvatar: arrays are stably sorted", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const wa = convertWebAvatar(tpl);
 
   const isSortedBy = <T>(arr: T[], key: keyof T): boolean => {
@@ -56,13 +56,13 @@ test("convertWebAvatar: arrays are stably sorted", () => {
 });
 
 test("convertWebAvatar: avatar_id option is embedded", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const wa = convertWebAvatar(tpl, { avatarId: "avt.test.unit" });
   assert.equal(wa.avatar_id, "avt.test.unit");
 });
 
 test("convertWebAvatar: textures option is sorted by path and preserved", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const wa = convertWebAvatar(tpl, {
     textures: [
       {
@@ -91,28 +91,28 @@ test("convertWebAvatar: textures option is sorted by path and preserved", () => 
 });
 
 test("convertWebAvatar: atlas option passed through when provided", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const atlasRef = { path: "atlas.json" as const, sha256: "f".repeat(64) };
   const wa = convertWebAvatar(tpl, { atlas: atlasRef });
   assert.deepEqual(wa.atlas, atlasRef);
 });
 
 test("convertWebAvatar: default atlas is null (opts.atlas omitted)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const wa = convertWebAvatar(tpl);
   assert.equal(wa.atlas, null);
   assert.deepEqual(wa.textures, []);
 });
 
 test("convertWebAvatar: canonicalJson bytes are stable across calls", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const a = canonicalJson(convertWebAvatar(tpl));
   const b = canonicalJson(convertWebAvatar(tpl));
   assert.equal(a, b);
 });
 
 test("convertWebAvatar: parameters keep physics_output ids (runtime may inspect)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const wa = convertWebAvatar(tpl);
   const ids = new Set(wa.parameters.map((p) => p.id));
   assert.ok(ids.has("ParamAngleX") || ids.size > 0, "at least one parameter exposed");
@@ -136,9 +136,14 @@ test("convertWebAvatar: part.parameter_ids 가 spec 에 있으면 번들로 전�
 });
 
 test("convertWebAvatar: spec 에 parameter_ids 없으면 번들에서 생략 (세션 103)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  // P0.3.2 — 구 assertion 은 halfbody v1.2.0 (parameter_ids 全 부재) 기준이었음.
+  // v1.3.0 Face 14 파츠는 parameter_ids 를 갖고, 나머지는 여전히 부재 →
+  // "없으면 생략" 의 본 의도는 부재 파츠 표본에서 확인.
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const wa = convertWebAvatar(tpl);
-  for (const p of wa.parts) {
-    assert.equal(p.parameter_ids, undefined, `${p.slot_id} should not carry parameter_ids`);
+  const withoutIds = wa.parts.filter((p) => p.parameter_ids === undefined);
+  assert.ok(withoutIds.length > 0, "at least one part without parameter_ids expected");
+  for (const p of withoutIds) {
+    assert.equal(p.parameter_ids, undefined, `${p.slot_id} should retain undefined parameter_ids`);
   }
 });

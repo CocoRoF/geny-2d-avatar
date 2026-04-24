@@ -28,8 +28,8 @@ function ariaSpec(): AvatarExportSpec {
 }
 
 test("resolveTemplateDir: maps template_id + version via D5 convention", () => {
-  const dir = resolveTemplateDir(rigTemplatesRoot, "tpl.base.v1.halfbody", "1.2.0");
-  assert.equal(dir, join(rigTemplatesRoot, "base", "halfbody", "v1.2.0"));
+  const dir = resolveTemplateDir(rigTemplatesRoot, "tpl.base.v1.halfbody", "1.3.0");
+  assert.equal(dir, join(rigTemplatesRoot, "base", "halfbody", "v1.3.0"));
   assert.ok(existsSync(dir));
 });
 
@@ -59,7 +59,7 @@ test("specToBundleOptions: bundle_name flows into fileNames + default moc/textur
     schema_version: "v1",
     avatar_id: "av_01JBMBTC8W5FQ0RTYAX38P7Z5K",
     template_id: "tpl.base.v1.halfbody",
-    template_version: "1.2.0",
+    template_version: "1.3.0",
     bundle_name: "zelda",
   });
   assert.deepEqual(opts.fileNames, {
@@ -78,7 +78,7 @@ test("specToBundleOptions: explicit moc_path / texture_paths win over defaults",
     schema_version: "v1",
     avatar_id: "av_01JBMBTC8W5FQ0RTYAX38P7Z5K",
     template_id: "tpl.base.v1.halfbody",
-    template_version: "1.2.0",
+    template_version: "1.3.0",
     bundle_name: "aria",
     moc_path: "assets/aria.moc3",
     texture_paths: ["tex/01.png", "tex/02.png"],
@@ -103,8 +103,8 @@ test("assembleAvatarBundle: aria spec produces aria-prefixed files + expected co
     assert.ok(paths.includes("motions/greet_wave.motion3.json"));
     assert.ok(paths.includes("expressions/smile.exp3.json"));
     assert.ok(paths.includes("bundle.json"));
-    // halfbody v1.2.0: 7 motion packs + 4 sibling JSONs + 3 expressions + 1 bundle.json = 15 files.
-    assert.equal(res.files.length, 15);
+    // halfbody v1.3.0: 9 motion packs + 4 sibling JSONs + 3 expressions + 1 bundle.json = 17 files.
+    assert.equal(res.files.length, 17);
     for (const f of res.files) {
       assert.ok(existsSync(join(dir, f.path)), `missing on disk: ${f.path}`);
     }
