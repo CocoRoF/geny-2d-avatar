@@ -59,6 +59,8 @@ try {
     `${base}/public/presets/mao_pro/mao_pro.model3.json`,
     "application/json",
   );
+  // P2.4 - Builder page (api 라운드트립 UI).
+  await checkHttp(`${base}/builder.html`, "text/html");
   log("✅ web-preview e2e pass");
 } catch (err) {
   log(`✖ ${err?.message ?? err}`);
