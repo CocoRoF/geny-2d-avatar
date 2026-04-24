@@ -1,6 +1,8 @@
 # @geny/web-preview
 
-Geny 2D Avatar Foundation Exit #1 의 **수동 E2E 테스트 드라이버**. 템플릿/아바타 → 번들 → 브라우저 프리뷰까지의 흐름을 한 명령으로 재현한다.
+Geny 2D Avatar 개발용 **로컬 프리뷰 앱**. 두 페이지 제공:
+- `/` (index.html) — 번들 메타데이터 디버그 패널 (렌더 없음)
+- `/live2d-demo.html` — **실제 Live2D 렌더 데모 (P1.5)**. mao_pro 프리셋을 `createPixiLive2DRenderer` 로 렌더.
 
 ## 빠른 시작
 
@@ -53,8 +55,44 @@ apps/web-preview/
 
 종합 절차는 `progress/exit-gates/01-single-avatar-e2e.md` 참조.
 
-## 범위 제한 (Stage 2)
+## 범위 제한
 
-- **렌더링 없음** — `<geny-avatar>` 가 로드/이벤트까지만 담당. WebGL 도입은 Stage 3.
+- **`/` 메타데이터 뷰**: `<geny-avatar>` 가 로드/이벤트까지만 담당. 렌더는 하지 않음 (역사적 Stage 2 페이지).
+- **`/live2d-demo.html` (P1.5)**: 실제 PIXI + Live2DModel 렌더 ⚠️ Cubism Core 수동 설치 필요.
 - **Integrity 검증 없음** — `manifest.files[].sha256` 은 참조용 (SubtleCrypto 검증은 차후).
-- **Cubism 실제 moc3 없음** — `aria.moc3` 는 placeholder. 구조 검증만 가능.
+
+## `/live2d-demo.html` 사용
+
+### 사전 조건
+
+Live2D Cubism Core (proprietary) 는 재배포 금지라 저장소에 포함되지 않음 (ADR 002).
+사용자 수동 설치:
+
+```bash
+# 1. Live2D SDK for Web 다운로드 후 압축 해제
+#    https://www.live2d.com/sdk/download/web/
+
+# 2. Core/live2dcubismcore.min.js 를 저장소 vendor 디렉토리로 복사
+cp <SDK_EXTRACTED>/Core/live2dcubismcore.min.js vendor/live2dcubismcore/
+
+# 3. 앱 public/vendor/ 로 복사 (프로젝트 루트에서)
+pnpm exec node scripts/setup-cubism-core.mjs
+
+# 4. web-preview 빌드 + 서브
+pnpm -F @geny/web-preview build:public
+pnpm -F @geny/web-preview serve
+# → http://localhost:4173/live2d-demo.html
+```
+
+### 기대 결과
+
+- 상태 박스: **"✅ mao_pro 로드 성공"** (녹색).
+- 좌측 PIXI canvas 에 니지이로 마오 3rd-party 프리셋 렌더.
+- 우측 슬라이더 (ParamAngleX/Y/Z/BodyAngleX/MouthOpenY) 로 파츠 조작 가능.
+- 모션 버튼 (예: Idle / TapBody) 재생.
+- 표정 버튼 (exp_01~exp_08 / reset) 적용.
+
+### 실패 시
+
+- **❌ Cubism Core 미로드**: 위 1~3 단계 확인. vendor/live2dcubismcore/live2dcubismcore.min.js 파일이 존재하는지.
+- **❌ 모델 로드 실패**: DevTools Network 탭에서 mao_pro.moc3 / texture_00.png / *.motion3.json 등이 404 인지 확인. `pnpm -F @geny/web-preview build:public` 재실행.

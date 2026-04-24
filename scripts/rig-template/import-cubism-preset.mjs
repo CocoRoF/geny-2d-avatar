@@ -635,20 +635,15 @@ const validationSet = {
 await writeJson(join(OUT, "test_poses", "validation_set.json"), validationSet);
 console.log("✓ test_poses/validation_set.json");
 
-// ---------- 11. runtime_assets/ (copy originals) ----------
+// ---------- 11. runtime_assets/ (copy originals, 전체 디렉토리 - Cubism Framework 가 직접 로드) ----------
+// model3.json 의 FileReferences 는 상대경로 (textures/, motions/, expressions/, *.4096/ 등) 를
+// 가리키므로 source 전체를 recursive 복사. 이렇게 해야 브라우저에서 Live2DModel.from(model3URL)
+// 이 모든 참조 파일 (moc3, texture, physics, pose, cdi, motions, expressions) 을 fetch 가능.
 
-for (const [srcRel, dest] of [
-  [moc3File, "mao_pro.moc3"],
-  [cdi3File, "mao_pro.cdi3.json"],
-  [model3File, "mao_pro.model3.json"],
-  [physics3File, "mao_pro.physics3.json"],
-  [pose3File, "mao_pro.pose3.json"],
-]) {
-  if (srcRel && existsSync(join(SRC, srcRel))) {
-    await cp(join(SRC, srcRel), join(OUT, "runtime_assets", dest));
-  }
-}
-console.log("✓ runtime_assets/ (moc3 + JSONs)");
+await cp(SRC, join(OUT, "runtime_assets"), { recursive: true });
+
+// 편의를 위해 파일명은 원본 유지 (mao_pro.moc3 등). model3.json 내부 FileReferences 는 원본 상대경로 그대로 동작.
+console.log("✓ runtime_assets/ (source 전체 recursive 복사)");
 
 // ---------- 12. template.manifest.json ----------
 
