@@ -9,9 +9,9 @@
 ## 0. 현재 상태 (2026-04-21)
 
 - **Foundation**: ✅ 종료 (Exit 4/4 + 릴리스 게이트 3/3 + lint C1~C14 + migrator + 렌더러 계약 + 15 패키지 + 125+ 세션 문서)
-- **β 로드맵**: 🟢 **P1 S1~S10 완료 + P2 🟢 S1~S6 완료** (2026-04-22) — P1-S10 에서 pixi motion ticker 의 breath fade ramp 를 `motion-ticker.ts` 순수 함수 (`advanceBreathFrame` / `startBreath` / `stopBreath` / `initialBreathState`) 로 분리. BreathState immutable 단일 레퍼런스로 기존 6 mutable 변수 통합 + 22 node:test 회귀 (fade 선형성 · scaleY = 1+sin(phase)·AMP·rampFactor · 500ms period floor · dt NaN/negative 방어 · start/sustain/stop 라이프사이클). 렌더러 ticker callback 30줄→8줄, 기존 44 pixi-renderer 테스트 불변(거동 zero change). P2-S6 `?debug=metrics` dev 패널 + `summarizeMetricHistory` 순수 함수 (9 node:test). P1-S9 `?debug=pivots` dev 오버레이. P1-S8 halfbody/fullbody 68 파츠 pivot_uv 자동 주입 + P1-S7 uv 포맷 회귀 수정. P2-S5 metrics emit 스키마 14 node:test 회귀 고정. P1-S7 atlas `pivot_uv` 계약. P2-S4 텔레메트리 훅. P1-S6 auto-preview. P2-S3 pill timing + 5000ms 예산 시각화. P2-S2 mock 품질. P1-S5 시각 정확성. P1-S4 per-part parameter binding. P0 Q1~Q6 사용자 승인 대기 (비차단).
+- **β 로드맵**: 🟢 **P1 S1~S11 완료 + P2 🟢 S1~S6 완료** (2026-04-22) — P1-S11 에서 pixi expression ticker 의 blink fade ramp 를 `expression-ticker.ts` 순수 함수 (`advanceExpressionFrame` / `setExpressionTarget` / `initialExpressionState`) 로 분리. ExpressionState 단일 immutable 레퍼런스로 기존 callback-per-call 경합 구조 제거 + 17 node:test 회귀 (선형 ramp · duration min 60ms 클램프 · 중간 재타겟 시 jump-cut 방지 · ended 일회성 · dt NaN/음수 방어 · null→smile→frown→null lifecycle). setExpression 18줄 closure→6줄. P1-S10 에서 motion ticker 의 breath fade ramp 를 `motion-ticker.ts` 순수 함수로 분리 (22 node:test, 6 mutable 변수 통합). P2-S6 `?debug=metrics` dev 패널 + `summarizeMetricHistory` 순수 함수 (9 node:test). P1-S9 `?debug=pivots` dev 오버레이. P1-S8 halfbody/fullbody 68 파츠 pivot_uv 자동 주입 + P1-S7 uv 포맷 회귀 수정. P2-S5 metrics emit 스키마 14 node:test 회귀 고정. P1-S7 atlas `pivot_uv` 계약. P2-S4 텔레메트리 훅. P1-S6 auto-preview. P2-S3 pill timing + 5000ms 예산 시각화. P2-S2 mock 품질. P1-S5 시각 정확성. P1-S4 per-part parameter binding. P0 Q1~Q6 사용자 승인 대기 (비차단).
 - **자율 모드**: 🟢 β 범위 활성. SOAK/speculative doc 는 금지 (사용자 2026-04-21 correction).
-- **다음 step**: expression blink 순수 함수화, pivot 레이블 + 슬롯 ID 오버레이, metrics 패널 접기/clear UX. P3 은 `BL-VENDOR-KEY` 블로커 대기.
+- **다음 step**: metrics 패널 접기/clear UX, pivot 레이블 + 슬롯 ID 오버레이, P2-S7 재시도 로직. P3 은 `BL-VENDOR-KEY` 블로커 대기.
 
 ## 1. β 까지의 외부 의존 3 축
 
@@ -28,7 +28,7 @@
 | Phase | 상태 | 예상 세션 | 시작 조건 | 검수 (전부 green 이어야 종료) |
 |---|---|---:|---|---|
 | **P0** UX wireframe | 🟡 산출물 완료 · 사용자 Q1~Q6 승인 대기 | 1 | ✅ 자율 세션 P0-S1 (2026-04-21) | 사용자 `docs/UX-BETA-WIREFRAME.md §9` Q1~Q6 승인 |
-| **P1** 실 픽셀 렌더 | 🟢 **S1~S10 완료** (sprite + atlas slot + slider + motion/expression + per-part binding + sprite pivot/axis split + mount-time auto-preview + atlas pivot_uv optional contract + halfbody/fullbody 전 파츠 pivot_uv 자동 주입 + uv 포맷 회귀 수정 + `?debug=pivots` dev 오버레이 + motion ticker breath ramp 순수 함수 추출(22 node:test 회귀)) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
+| **P1** 실 픽셀 렌더 | 🟢 **S1~S11 완료** (sprite + atlas slot + slider + motion/expression + per-part binding + sprite pivot/axis split + mount-time auto-preview + atlas pivot_uv optional contract + halfbody/fullbody 전 파츠 pivot_uv 자동 주입 + uv 포맷 회귀 수정 + `?debug=pivots` dev 오버레이 + motion ticker breath ramp 순수 함수 추출(22 node:test) + expression ticker alpha ramp 순수 함수 추출(17 node:test, 경합 구조 제거)) | 3~5 | ✅ ADR 0007 Option E Accepted (2026-04-21 P1-S1) | 브라우저에서 aria 실제 픽셀 + slider 변형 실반영 |
 | **P2** 프롬프트 UI + Mock e2e | 🟢 **S1+S2+S3+S4+S5+S6 완료** (Generate UI + Mock 생성기 + live swap + 역할별 shape 렌더링 + per-phase timing + β §7 5000ms 예산 시각화 + 구조화 텔레메트리 emit + metric 스키마 14 단위테스트 고정 + `?debug=metrics` dev 패널 (runs·rate·p95·phase 평균 실시간 집계, 순수 집계 함수 9 테스트)) | 2~3 | P1 완료 | Mock 벤더로 프롬프트→프리뷰 5초 내 완결 **— 측정 기반 완결 + P5 log scraper 대비** |
 | **P3** 실 nano-banana 통합 | ⚪ 대기 | 3~5 | P2 완료 + BL-VENDOR-KEY | 실 HTTP 호출 10회 중 7회 이상 성공 |
 | **P4** 5 슬롯 자동 조립 | ⚪ 대기 | 3~5 | P3 완료 | 프롬프트 1 줄 → 30초 내 5 슬롯 생성 + atlas |

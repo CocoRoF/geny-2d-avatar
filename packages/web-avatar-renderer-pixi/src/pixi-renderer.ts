@@ -35,6 +35,12 @@ import {
   stopBreath,
   type BreathState,
 } from "./motion-ticker.js";
+import {
+  advanceExpressionFrame,
+  initialExpressionState,
+  setExpressionTarget,
+  type ExpressionState,
+} from "./expression-ticker.js";
 
 export interface PixiRendererOptions {
   readonly element: RendererHost;
@@ -745,6 +751,22 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
     }
   };
 
+  // β P1-S11: expression blink alpha ramp 을 `expression-ticker` 순수 함수로 분리.
+  // 기존 setExpression 은 호출마다 callback 을 ticker.add 해 경합 가능 → 이제
+  // 단일 state + 단일 ticker. `tests/expression-ticker.test.ts` 가 공식 고정.
+  let expressionState: ExpressionState = initialExpressionState();
+  let expressionTickerAttached = false;
+  const expressionTickerCallback = (opts: { deltaMS?: number }): void => {
+    const dt = typeof opts.deltaMS === "number" ? opts.deltaMS : 16.6667;
+    const frame = advanceExpressionFrame(expressionState, dt);
+    expressionState = frame.state;
+    root.alpha = frame.alpha;
+    if (frame.ended) {
+      app.ticker.remove(expressionTickerCallback);
+      expressionTickerAttached = false;
+    }
+  };
+
   return {
     rebuild(scene): Promise<void> {
       root.removeChildren();
@@ -810,22 +832,14 @@ async function defaultCreateApp(options: CreatePixiAppOptions): Promise<PixiAppH
       }
     },
     setExpression(expression) {
-      // Mock: 표정 변경 시 stage alpha 를 잠깐 낮췄다가 복귀시켜 "표정이 전환됐음"
-      // 을 시각적으로 알림. 실 parameter delta 합성은 β P3+ 실 expression asset
-      // 합류 시점.
-      const fadeIn = expression ? expression.fade_in_sec : 0.15;
-      const targetAlpha = expression ? 1 : 0.95;
-      let elapsed = 0;
-      const duration = Math.max(60, fadeIn * 1000);
-      const startAlpha = root.alpha;
-      const blinkCallback = (o: { deltaMS?: number }): void => {
-        const dt = typeof o.deltaMS === "number" ? o.deltaMS : 16.6667;
-        elapsed += dt;
-        const t = Math.min(1, elapsed / duration);
-        root.alpha = startAlpha + (targetAlpha - startAlpha) * t;
-        if (t >= 1) app.ticker.remove(blinkCallback);
-      };
-      app.ticker.add(blinkCallback);
+      // Mock: 표정 변경 시 root.alpha 를 target 으로 선형 램프. β P1-S11 에서
+      // `expression-ticker` 순수 함수로 분리돼 단일 state + 단일 ticker 유지.
+      // 실 parameter delta 합성은 β P3+ 실 expression asset 합류 시점.
+      expressionState = setExpressionTarget(expressionState, expression);
+      if (!expressionTickerAttached) {
+        app.ticker.add(expressionTickerCallback);
+        expressionTickerAttached = true;
+      }
     },
     destroy() {
       app.destroy(true, { children: true, texture: false });
