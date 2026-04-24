@@ -20,6 +20,7 @@ import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { isPng, readPngInfo } from "../lib/png.js";
+import { writeTextureManifest } from "../lib/texture-manifest.js";
 async function readAtlas(rigTemplatesRoot, id, version) {
     // id="tpl.base.v1.<slug>" → base/<slug>/v<version>/textures/atlas.json
     const m = /^tpl\.(base|community|custom)\.v[0-9]+\.([a-z][a-z0-9_]{1,40})$/.exec(id);
@@ -145,11 +146,22 @@ export const textureUploadRoute = async (fastify, opts) => {
                 },
             });
         }
-        // sha256 + 저장.
+        // sha256 + PNG 저장 + manifest 사이드카 저장.
         const sha256 = createHash("sha256").update(fileBuf).digest("hex");
         const textureId = "tex_" + randomUUID().replace(/-/g, "");
         const outPath = join(texturesDir, textureId + ".png");
         await writeFile(outPath, fileBuf);
+        await writeTextureManifest({
+            texturesDir,
+            textureId,
+            atlasSha256: sha256,
+            width: info.width,
+            height: info.height,
+            bytes: fileBuf.length,
+            preset: { id: presetId, version: presetVersion },
+            mode: "manual_upload",
+            sourceFilename: filename,
+        });
         return {
             texture_id: textureId,
             sha256,

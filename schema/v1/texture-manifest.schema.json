@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://geny.ai/schema/v1/texture-manifest.schema.json",
+  "title": "Texture Manifest",
+  "description": "docs/02-TEXTURE-PIPELINE.md §6.2 - 생성·업로드된 텍스처의 메타데이터. 번들 내 texture.manifest.json 에 기록되며 재현성·provenance 추적용. P3.1 에서 mock 생성 지원, P3.3 이후 AI 벤더 경로 확장.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "format",
+    "texture_id",
+    "atlas_sha256",
+    "width",
+    "height",
+    "bytes",
+    "preset",
+    "generated_by",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "v1" },
+    "format": {
+      "type": "integer",
+      "const": 1,
+      "description": "manifest 구조 버전. 필드 추가 시 bump."
+    },
+    "texture_id": {
+      "type": "string",
+      "pattern": "^tex_[a-f0-9]{32}$",
+      "description": "UUID hex32 prefix 로 생성 (apps/api). 업로드/생성 시점에 부여."
+    },
+    "atlas_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "PNG 바이트의 SHA-256. bundle.json 교차검증에 사용."
+    },
+    "width": { "type": "integer", "exclusiveMinimum": 0, "maximum": 8192 },
+    "height": { "type": "integer", "exclusiveMinimum": 0, "maximum": 8192 },
+    "bytes": { "type": "integer", "exclusiveMinimum": 0 },
+    "preset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "$ref": "common/ids.json#/$defs/templateRef" },
+        "version": { "$ref": "common/ids.json#/$defs/semver" }
+      }
+    },
+    "generated_by": {
+      "type": "object",
+      "description": "텍스처 출처. 재현성과 provenance 추적 근거.",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["manual_upload", "mock_generate", "ai_generate", "recolor"],
+          "description": "manual_upload: 사용자 PNG / mock_generate: P3.1 mock / ai_generate: P3.3+ 벤더 / recolor: client-side HSL shift (P2.5)."
+        },
+        "adapter": {
+          "type": "string",
+          "description": "생성 어댑터 이름. 예: 'mock', 'nano-banana@1.2.0', 'sdxl-turbo'. manual_upload / recolor 에선 생략."
+        },
+        "prompt": {
+          "type": "string",
+          "maxLength": 4000,
+          "description": "AI 생성 프롬프트 (mock_generate / ai_generate). 다른 mode 에선 생략."
+        },
+        "seed": {
+          "type": "integer",
+          "description": "재현 seed. 동일 (preset, prompt, seed, adapter) → 동일 결과 (결정론적 adapter)."
+        },
+        "source_filename": {
+          "type": "string",
+          "description": "manual_upload 원본 파일명 (로그·디버깅용). 선택."
+        },
+        "attempts": {
+          "type": "array",
+          "description": "ai-adapter-core routeWithFallback 경로 기록 (P3.3+).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["adapter", "status"],
+            "properties": {
+              "adapter": { "type": "string" },
+              "status": { "type": "string", "enum": ["success", "error"] },
+              "error_code": { "type": "string" },
+              "latency_ms": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp."
+    },
+    "notes": { "type": "string", "maxLength": 2000 }
+  }
+}
