@@ -54,3 +54,19 @@ export type {
   SlotGenerationPlan,
   SlotInput,
 } from "./prompt-slot-planner.js";
+
+export {
+  cancelCheckpoint,
+  cancelReasonPriority,
+  cancelStopReason,
+  initialCancelState,
+  isAbortError,
+  isCancelRequested,
+  markAborted,
+  requestCancel,
+} from "./generate-cancel.js";
+export type {
+  CancelReason,
+  CancelSnapshot,
+  CancelStatus,
+} from "./generate-cancel.js";

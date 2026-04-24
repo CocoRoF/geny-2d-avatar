@@ -70,6 +70,13 @@
         opacity: 0.6;
         cursor: not-allowed;
       }
+      .generate-bar button.generate.cancel {
+        border-color: #c94a4a;
+        background: #c94a4a;
+      }
+      .generate-bar button.generate.cancel:hover {
+        background: #b03e3e;
+      }
       .generate-bar .gen-status {
         min-width: 120px;
         font-size: 12px;
@@ -379,6 +386,7 @@
         <div class="gen-pill" data-pill="5" title="repaint"></div>
       </div>
       <button id="generate-btn" class="generate" type="button">Generate</button>
+      <button id="cancel-btn" class="generate cancel" type="button" hidden>Cancel</button>
       <span id="gen-status" class="gen-status">준비</span>
       <div id="gen-timing" class="gen-timing" aria-label="phase timings" hidden></div>
     </div>
@@ -432,6 +440,12 @@
         classifyGenerateFailure,
         shouldRetry,
         attemptOutcomeLabels,
+        initialCancelState,
+        requestCancel,
+        markAborted,
+        isCancelRequested,
+        cancelCheckpoint,
+        cancelStopReason,
       } from "./public/vendor/web-editor-logic/index.js";
       import { createStructureRenderer } from "./public/vendor/web-editor-renderer/index.js";
 
@@ -1159,6 +1173,7 @@
       // β P2-S1+S3 — Generate 버튼 wiring + phase timing 측정.
       const promptInput = document.querySelector("#prompt-input");
       const generateBtn = document.querySelector("#generate-btn");
+      const cancelBtn = document.querySelector("#cancel-btn");
       const genStatusEl = document.querySelector("#gen-status");
       const genTimingEl = document.querySelector("#gen-timing");
       const pillEls = Array.from(document.querySelectorAll(".gen-pill"));
@@ -1342,7 +1357,10 @@
 
       // β P2-S7 — 단일 attempt 실행 (phase 1~5). 실패 시 throw, 성공 시 { phaseMs }.
       // 재시도 루프는 runGenerate 가 담당.
-      async function runGenerateAttempt(prompt, atlas, t0, phaseMs) {
+      // β P2-S8 — phase 경계마다 cancelCheckpoint(getCancelState()) 로 취소 상태 확인.
+      // 취소 요청 시 AbortError throw → classifyGenerateFailure → shouldRetry
+      // 가 canceled_by_user 로 즉시 종료.
+      async function runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState) {
         let tPhase = t0;
         const markPhaseDone = (idx) => {
           const now = performance.now();
@@ -1350,14 +1368,18 @@
           tPhase = now;
           setPillPhase(idx, "done");
         };
+        const checkpoint = () => cancelCheckpoint(getCancelState());
+        checkpoint();
         setPillPhase(1, "active");
         genStatusEl.textContent = "프롬프트 해석";
         await new Promise((r) => setTimeout(r, 30));
+        checkpoint();
         markPhaseDone(1);
 
         setPillPhase(2, "active");
         genStatusEl.textContent = "텍스처 합성";
         const mock = await mockGenerateTexture(prompt, atlas);
+        checkpoint();
         markPhaseDone(2);
 
         setPillPhase(3, "active");
@@ -1366,6 +1388,7 @@
           textures: [{ path: atlas.textures[0]?.path ?? "textures/base.png", width: mock.width, height: mock.height }],
           slots: atlas.slots,
         };
+        checkpoint();
         markPhaseDone(3);
 
         setPillPhase(4, "active");
@@ -1381,8 +1404,21 @@
         setPillPhase(5, "active");
         genStatusEl.textContent = "렌더 트리거";
         await (regenPromise ?? Promise.resolve());
+        checkpoint();
         markPhaseDone(5);
       }
+
+      // β P2-S8 — Generate run 당 하나의 취소 컨트롤러. 버튼 listener 가 여기로
+      // 접근. run 시작 시 initialCancelState() 로 리셋, run 종료 (성공/실패/취소)
+      // 시 null 로 놓아 다음 run 진입 전 stale 참조 제거.
+      let currentCancelState = null;
+      let currentAbortController = null;
+      function setGenerating(on) {
+        generateBtn.hidden = on;
+        cancelBtn.hidden = !on;
+        generateBtn.disabled = false; // 숨기는 것으로 충분, disabled 조합 회피
+      }
+      setGenerating(false);
 
       async function runGenerate() {
         const prompt = (promptInput?.value ?? "").trim();
@@ -1400,12 +1436,15 @@
           return;
         }
 
-        generateBtn.disabled = true;
+        setGenerating(true);
         resetPills();
+        currentCancelState = initialCancelState();
+        currentAbortController = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const getCancelState = () => currentCancelState;
+
         const phaseMs = [0, 0, 0, 0, 0];
         const t0 = performance.now();
         let attemptIndex = 0;
-        let lastError = null;
         let lastFailureKind = undefined;
         let stopReason = "success";
         try {
@@ -1417,11 +1456,13 @@
               for (let i = 0; i < phaseMs.length; i += 1) phaseMs[i] = 0;
             }
             try {
-              await runGenerateAttempt(prompt, atlas, t0, phaseMs);
-              lastError = null;
+              await runGenerateAttempt(prompt, atlas, t0, phaseMs, getCancelState);
               break; // 성공
             } catch (err) {
-              lastError = err;
+              // 취소로 인한 throw 면 state 를 aborted 로 전이 (metric 보존용).
+              if (currentCancelState && isCancelRequested(currentCancelState)) {
+                currentCancelState = markAborted(currentCancelState);
+              }
               const failure = classifyGenerateFailure(err);
               lastFailureKind = failure.kind;
               const elapsedMs = performance.now() - t0;
@@ -1442,7 +1483,22 @@
                 }
               }
               genStatusEl.textContent = `재시도 대기… (${failure.kind}, ${decision.backoffMs}ms)`;
-              if (decision.backoffMs > 0) await new Promise((r) => setTimeout(r, decision.backoffMs));
+              if (decision.backoffMs > 0) {
+                // backoff wait 도 취소 가능해야 함 — setTimeout + Promise.race
+                await new Promise((resolve) => {
+                  const timer = setTimeout(resolve, decision.backoffMs);
+                  if (currentAbortController) {
+                    currentAbortController.signal.addEventListener("abort", () => {
+                      clearTimeout(timer);
+                      resolve();
+                    }, { once: true });
+                  }
+                });
+              }
+              // backoff 중 취소가 들어왔다면 다음 attempt 진입 전에 재확인
+              if (currentCancelState && isCancelRequested(currentCancelState)) {
+                cancelCheckpoint(currentCancelState); // throw
+              }
               attemptIndex = decision.nextAttemptIndex;
             }
           }
@@ -1466,35 +1522,87 @@
           });
         } catch (err) {
           const total = performance.now() - t0;
-          console.error("[generate] failed", err);
           const attempts = attemptIndex + 1;
-          const kindLabel = lastFailureKind ? ` [${lastFailureKind}]` : "";
-          const retryLabel = attempts > 1 ? ` (${attempts} attempts)` : "";
-          genStatusEl.textContent = `error${kindLabel}: ${err?.message ?? err}${retryLabel}`;
-          for (let i = 1; i <= 5; i += 1) {
-            if (pillEls[i - 1]?.getAttribute("data-phase") === "active") {
-              setPillPhase(i, "err");
+          // 취소는 error 가 아닌 별도 흐름 — UX + metric 을 구분.
+          const wasCanceled = currentCancelState != null && isCancelRequested(currentCancelState);
+          if (wasCanceled) {
+            const reasonLabel = cancelStopReason(currentCancelState) ?? "canceled";
+            const retryLabel = attempts > 1 ? ` (${attempts} attempts)` : "";
+            genStatusEl.textContent = `✗ 취소됨 (${currentCancelState.reason})${retryLabel}`;
+            // pill 정리 — active 를 err 로.
+            for (let i = 1; i <= 5; i += 1) {
+              if (pillEls[i - 1]?.getAttribute("data-phase") === "active") {
+                setPillPhase(i, "err");
+              }
             }
-          }
-          renderTimingError(phaseMs, total);
-          emitGenerateMetrics({
-            trigger: "user",
-            prompt,
-            phaseMs,
-            totalMs: total,
-            budgetMs: BETA_BUDGET_MS,
-            ok: false,
-            outcome: {
-              attempts,
+            renderTimingError(phaseMs, total);
+            emitGenerateMetrics({
+              trigger: "user",
+              prompt,
+              phaseMs,
+              totalMs: total,
+              budgetMs: BETA_BUDGET_MS,
               ok: false,
-              lastFailureKind,
-              stopReason,
-            },
-          });
+              outcome: {
+                attempts,
+                ok: false,
+                lastFailureKind: "canceled",
+                stopReason: reasonLabel,
+              },
+            });
+          } else {
+            console.error("[generate] failed", err);
+            const kindLabel = lastFailureKind ? ` [${lastFailureKind}]` : "";
+            const retryLabel = attempts > 1 ? ` (${attempts} attempts)` : "";
+            genStatusEl.textContent = `error${kindLabel}: ${err?.message ?? err}${retryLabel}`;
+            for (let i = 1; i <= 5; i += 1) {
+              if (pillEls[i - 1]?.getAttribute("data-phase") === "active") {
+                setPillPhase(i, "err");
+              }
+            }
+            renderTimingError(phaseMs, total);
+            emitGenerateMetrics({
+              trigger: "user",
+              prompt,
+              phaseMs,
+              totalMs: total,
+              budgetMs: BETA_BUDGET_MS,
+              ok: false,
+              outcome: {
+                attempts,
+                ok: false,
+                lastFailureKind,
+                stopReason,
+              },
+            });
+          }
         } finally {
-          generateBtn.disabled = false;
+          // 취소 상태 정리 — 다음 run 에서 stale 참조 제거.
+          currentCancelState = null;
+          currentAbortController = null;
+          setGenerating(false);
         }
       }
+
+      // β P2-S8 — Cancel 버튼: 취소 요청 + in-flight abort. 실제 throw 는
+      // runGenerateAttempt 의 cancelCheckpoint 가 phase 경계에서.
+      function requestCancelNow(reason) {
+        if (!currentCancelState) return;
+        if (!isCancelRequested(currentCancelState)) {
+          currentCancelState = requestCancel(currentCancelState, reason, performance.now());
+          if (currentAbortController && !currentAbortController.signal.aborted) {
+            try {
+              currentAbortController.abort();
+            } catch {
+              // 일부 구버전 런타임은 abort 중 throw — 무시.
+            }
+          }
+          genStatusEl.textContent = "취소 요청…";
+        }
+      }
+      cancelBtn.addEventListener("click", () => requestCancelNow("user"));
+      // 페이지 이탈 시 자동 취소 — stale texture blob / ticker 가 계속 돌지 않도록.
+      window.addEventListener("beforeunload", () => requestCancelNow("navigation"));
 
       generateBtn.addEventListener("click", () => void runGenerate());
       promptInput.addEventListener("keydown", (e) => {
