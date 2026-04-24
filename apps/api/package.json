@@ -15,6 +15,7 @@
     "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
   },
   "dependencies": {
+    "@fastify/multipart": "^10.0.0",
     "fastify": "^5.2.0"
   },
   "devDependencies": {
