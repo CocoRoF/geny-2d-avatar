@@ -31,7 +31,11 @@
 - [ ] `scripts/rig-template/extract-atlas.mjs` — `.moc3` 파싱 → per-drawable atlas slots (P3 per-slot 텍스처 생성 시 필요)
 - [ ] `halfbody/v1.3.0/textures/atlas.json` slots 채움 (같은 스크립트 재사용)
 - [ ] `pnpm run validate:schemas` + `scripts/rig-template/physics-lint.mjs` 통과
-- [ ] `@geny/web-avatar-renderer-pixi` 완성 — `.moc3` + texture 실제 렌더
+- [x] `@geny/web-avatar-renderer-pixi` 구조 프리뷰 수준 구현 — grid placeholder (P1 이전 β 결과)
+- [ ] `@geny/web-avatar-renderer-pixi` **first-pixel** — `.moc3` 실제 렌더 (P1.4)
+  - [x] **P1.C**: renderer 통합 경로 ADR 확정 → `docs/adr/001-renderer-integration.md` (pixi-live2d-display 채택)
+  - [ ] **P1.D**: Cubism Core 번들 정책 ADR + 의존성 추가 (blocking — 라이선스 검토 필요)
+  - [ ] **P1.E**: `PixiLive2DRenderer` 어댑터 + mao_pro 번들 브라우저 재생 Playwright E2E
 - [ ] `apps/web-preview` (또는 `web-editor` 최소판) — 프리셋 드롭다운 + 기본 텍스처 렌더
 - [ ] 파라미터·모션·표정 이벤트 확인
 
