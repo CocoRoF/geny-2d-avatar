@@ -350,25 +350,64 @@
         <button id="redo-btn" class="secondary" type="button" disabled>↷ Redo</button>
         <span id="history-position" style="font-size: 0.85rem; color: #555;">-</span>
       </div>
-      <ol id="history-list" style="list-style: decimal; padding-left: 22px; margin: 0; font-size: 0.85rem;"></ol>
+      <ol id="history-list"></ol>
     </section>
 
     <style>
+      #history-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
       #history-list li {
-        padding: 4px 6px;
-        border-radius: 3px;
-        margin-bottom: 2px;
+        padding: 6px 8px;
+        border-radius: 4px;
         color: #555;
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid transparent;
+      }
+      #history-list li:hover {
+        background: #f6f7fa;
       }
       #history-list li.current {
         background: #eef4ff;
         color: #2b4a8b;
-        font-weight: 600;
+        border-color: #c1d2f0;
       }
+      #history-list li .thumb {
+        display: block;
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+        background: repeating-linear-gradient(45deg, #eee 0 6px, #f7f7f9 6px 12px);
+        border-radius: 3px;
+        border: 1px solid #ddd;
+      }
+      #history-list li .hist-body {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      #history-list li .hist-label {
+        font-size: 0.88rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #history-list li.current .hist-label { font-weight: 600; }
       #history-list li .ts {
         color: #999;
-        font-size: 0.85em;
-        margin-left: 6px;
+        font-size: 0.78em;
+        font-family: ui-monospace, monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     </style>
 
@@ -1107,9 +1146,17 @@
           const li = document.createElement("li");
           if (i === historyCursor) li.className = "current";
           const tstr = new Date(h.ts).toLocaleTimeString();
+          const thumbUrl = h.texture_id
+            ? API + "/api/texture/" + encodeURIComponent(h.texture_id) + ".png"
+            : "";
           li.innerHTML =
-            "<span>" + h.label + "</span>" +
-            "<span class='ts'>· " + h.source + " · " + h.texture_id.slice(0, 12) + "… · " + tstr + "</span>";
+            (thumbUrl
+              ? "<img class='thumb' src='" + thumbUrl + "' alt='' loading='lazy' />"
+              : "<span class='thumb'>-</span>") +
+            "<span class='hist-body'>" +
+            "<span class='hist-label'>" + h.label + "</span>" +
+            "<span class='ts'>" + h.source + " · " + h.texture_id.slice(0, 12) + "… · " + tstr + "</span>" +
+            "</span>";
           li.addEventListener("click", () => jumpToHistory(i));
           li.style.cursor = "pointer";
           historyList.appendChild(li);
