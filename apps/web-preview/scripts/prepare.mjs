@@ -3,7 +3,7 @@
  * web-preview prepare 스크립트.
  *
  * 1) @geny/web-avatar 빌드 → `public/vendor/` 복사.
- * 2) halfbody v1.2.0 템플릿 로드 → `assembleWebAvatarBundle()` → `public/sample/`.
+ * 2) halfbody v1.3.0 템플릿 로드 → `assembleWebAvatarBundle()` → `public/sample/`.
  * 3) aria 아바타 export → `assembleAvatarBundle()` → `public/cubism/` (Foundation Exit #1 의
  *    "Cubism export" 축 — 다운로드 가능하도록 동반 emit).
  *
@@ -66,7 +66,7 @@ const { loadTemplate } = await import(
   pathToFileURL(join(exporterDist, "loader.js")).toString()
 );
 
-const templateDir = resolve(repoRoot, "rig-templates/base/halfbody/v1.2.0");
+const templateDir = resolve(repoRoot, "rig-templates/base/halfbody/v1.3.0");
 
 step("assemble halfbody web-avatar bundle → public/sample/", () => {
   const tpl = loadTemplate(templateDir);
