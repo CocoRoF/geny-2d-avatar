@@ -1,7 +1,308 @@
 {
   "format": 1,
   "schema_version": "v1",
-  "slots": [],
+  "slots": [
+    {
+      "slot_id": "accessory_back",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.125,
+        0.0546875,
+        0.875,
+        1
+      ]
+    },
+    {
+      "slot_id": "accessory_front",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.125,
+        0.0546875,
+        0.875,
+        1
+      ]
+    },
+    {
+      "slot_id": "ahoge",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.421875,
+        0.015625,
+        0.578125,
+        0.1328125
+      ]
+    },
+    {
+      "slot_id": "arm_l_a",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.71875,
+        0.703125,
+        0.9375,
+        1
+      ]
+    },
+    {
+      "slot_id": "arm_l_b",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.71875,
+        0.375,
+        0.9375,
+        0.671875
+      ]
+    },
+    {
+      "slot_id": "arm_r_a",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.0625,
+        0.703125,
+        0.28125,
+        1
+      ]
+    },
+    {
+      "slot_id": "arm_r_b",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.0625,
+        0.375,
+        0.28125,
+        0.671875
+      ]
+    },
+    {
+      "slot_id": "brow_l",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.5078125,
+        0.296875,
+        0.6171875,
+        0.3359375
+      ]
+    },
+    {
+      "slot_id": "brow_r",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.3828125,
+        0.296875,
+        0.4921875,
+        0.3359375
+      ]
+    },
+    {
+      "slot_id": "cheek_blush",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.3515625,
+        0.390625,
+        0.6640625,
+        0.484375
+      ]
+    },
+    {
+      "slot_id": "cloth_main",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.125,
+        0.65625,
+        0.875,
+        1
+      ]
+    },
+    {
+      "slot_id": "eye_iris_l",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.51953125,
+        0.34375,
+        0.61328125,
+        0.421875
+      ]
+    },
+    {
+      "slot_id": "eye_iris_r",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.38671875,
+        0.34375,
+        0.48046875,
+        0.421875
+      ]
+    },
+    {
+      "slot_id": "eye_lash_lower_l",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.5078125,
+        0.40625,
+        0.625,
+        0.4453125
+      ]
+    },
+    {
+      "slot_id": "eye_lash_lower_r",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.375,
+        0.40625,
+        0.4921875,
+        0.4453125
+      ]
+    },
+    {
+      "slot_id": "eye_lash_upper_l",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.5078125,
+        0.328125,
+        0.625,
+        0.3828125
+      ]
+    },
+    {
+      "slot_id": "eye_lash_upper_r",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.375,
+        0.328125,
+        0.4921875,
+        0.3828125
+      ]
+    },
+    {
+      "slot_id": "eye_white_l",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.5078125,
+        0.3515625,
+        0.625,
+        0.4296875
+      ]
+    },
+    {
+      "slot_id": "eye_white_r",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.375,
+        0.3515625,
+        0.4921875,
+        0.4296875
+      ]
+    },
+    {
+      "slot_id": "face_base",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.28125,
+        0.15625,
+        0.71875,
+        0.65625
+      ]
+    },
+    {
+      "slot_id": "face_shadow",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.2734375,
+        0.1484375,
+        0.7265625,
+        0.6640625
+      ]
+    },
+    {
+      "slot_id": "hair_back",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.1875,
+        0.0546875,
+        0.8125,
+        0.8515625
+      ]
+    },
+    {
+      "slot_id": "hair_front",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.1875,
+        0.05859375,
+        0.8125,
+        0.4296875
+      ]
+    },
+    {
+      "slot_id": "hair_side_l",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.65625,
+        0.15625,
+        0.84375,
+        0.625
+      ]
+    },
+    {
+      "slot_id": "hair_side_r",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.15625,
+        0.15625,
+        0.34375,
+        0.625
+      ]
+    },
+    {
+      "slot_id": "mouth_base",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.4375,
+        0.4765625,
+        0.5625,
+        0.5703125
+      ]
+    },
+    {
+      "slot_id": "mouth_inner",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.453125,
+        0.48828125,
+        0.546875,
+        0.55859375
+      ]
+    },
+    {
+      "slot_id": "neck",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.421875,
+        0.609375,
+        0.578125,
+        0.734375
+      ]
+    },
+    {
+      "slot_id": "nose",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.4609375,
+        0.40625,
+        0.5390625,
+        0.4921875
+      ]
+    },
+    {
+      "slot_id": "torso",
+      "texture_path": "textures/base.png",
+      "uv": [
+        0.25,
+        0.703125,
+        0.75,
+        1
+      ]
+    }
+  ],
   "textures": [
     {
       "format": "png",
