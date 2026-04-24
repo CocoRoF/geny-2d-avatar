@@ -76,14 +76,111 @@
     </header>
 
     <section>
-      <h2>1 · Preset 선택</h2>
-      <div class="form-row">
-        <select id="preset-select" disabled>
-          <option value="">프리셋 로드 중…</option>
-        </select>
+      <h2>1 · Preset 선택 <small style="color:#999;font-weight:normal;">· P5.1</small></h2>
+      <div id="family-tabs" class="family-tabs" style="display: flex; gap: 2px; margin-bottom: 10px; border-bottom: 1px solid #ddd; flex-wrap: wrap;">
+        <button class="family-tab active" data-family="all" disabled>전체 <span class="count">0</span></button>
       </div>
-      <div id="preset-details" class="status info" style="display: none;"></div>
+      <div id="preset-cards" class="preset-cards">프리셋 로드 중…</div>
+      <select id="preset-select" style="display: none;">
+        <option value=""></option>
+      </select>
+      <div id="preset-details" class="status info" style="display: none; margin-top: 10px;"></div>
     </section>
+    <style>
+      .family-tab {
+        padding: 6px 12px;
+        background: #fff;
+        color: #555;
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 5px 5px 0 0;
+        cursor: pointer;
+        font-size: 0.88rem;
+      }
+      .family-tab.active {
+        background: #eef4ff;
+        color: #2b4a8b;
+        border-color: #ddd;
+        border-bottom: 1px solid #eef4ff;
+        margin-bottom: -1px;
+        font-weight: 600;
+      }
+      .family-tab .count {
+        display: inline-block;
+        background: #ccc;
+        color: #fff;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 0.75em;
+        margin-left: 6px;
+        min-width: 18px;
+        text-align: center;
+      }
+      .family-tab.active .count { background: #2a6df4; }
+      .family-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      .preset-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 10px;
+      }
+      .preset-card {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 12px 14px;
+        cursor: pointer;
+        background: #fff;
+        transition: border-color 120ms, box-shadow 120ms;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .preset-card:hover {
+        border-color: #2a6df4;
+        box-shadow: 0 2px 6px rgba(42, 109, 244, 0.12);
+      }
+      .preset-card.selected {
+        border-color: #2a6df4;
+        background: #eef4ff;
+      }
+      .preset-card .thumb {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        background: repeating-linear-gradient(45deg, #f2f2f4 0 6px, #fff 6px 12px);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #aaa;
+        font-size: 0.8rem;
+        font-family: ui-monospace, monospace;
+      }
+      .preset-card .name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #222;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .preset-card .origin {
+        font-size: 0.7rem;
+        font-weight: 500;
+        padding: 2px 7px;
+        border-radius: 10px;
+        background: #eaeaef;
+        color: #555;
+      }
+      .preset-card .origin.third-party { background: #fff1d9; color: #8a5a00; }
+      .preset-card .origin.derived { background: #e7efff; color: #2b4a8b; }
+      .preset-card .origin.user { background: #e4f6dc; color: #2a6d1f; }
+      .preset-card .meta {
+        font-size: 0.82rem;
+        color: #666;
+        line-height: 1.4;
+        font-family: ui-monospace, monospace;
+      }
+    </style>
 
     <section>
       <h2>2 · Texture 소스</h2>
@@ -290,7 +387,74 @@
         // 배너는 실패해도 무시 (main 로직 계속).
       }
 
-      // 1) 프리셋 카탈로그 로드.
+      // 1) 프리셋 카탈로그 로드 + P5.1 카드/패밀리 탭 렌더.
+      const familyTabs = document.getElementById("family-tabs");
+      const presetCards = document.getElementById("preset-cards");
+      let activeFamily = "all";
+
+      function familyLabel(f) {
+        if (f === "all") return "전체";
+        return f;
+      }
+
+      function renderFamilyTabs() {
+        const counts = { all: presets.length };
+        for (const p of presets) {
+          counts[p.family] = (counts[p.family] ?? 0) + 1;
+        }
+        const families = ["all", ...new Set(presets.map((p) => p.family)).values()];
+        familyTabs.innerHTML = "";
+        for (const f of families) {
+          const btn = document.createElement("button");
+          btn.className = "family-tab" + (f === activeFamily ? " active" : "");
+          btn.dataset.family = f;
+          btn.innerHTML = familyLabel(f) + " <span class='count'>" + (counts[f] ?? 0) + "</span>";
+          btn.addEventListener("click", () => {
+            activeFamily = f;
+            renderFamilyTabs();
+            renderCards();
+          });
+          familyTabs.appendChild(btn);
+        }
+      }
+
+      function renderCards() {
+        presetCards.innerHTML = "";
+        const selectedKey = presetSelect.value;
+        const visible = presets.filter(
+          (p) => activeFamily === "all" || p.family === activeFamily,
+        );
+        if (visible.length === 0) {
+          presetCards.innerHTML = '<p style="color:#999;">이 family 에 프리셋 없음.</p>';
+          return;
+        }
+        for (const p of visible) {
+          const key = p.id + "@" + p.version;
+          const card = document.createElement("div");
+          card.className = "preset-card" + (selectedKey === key ? " selected" : "");
+          card.dataset.key = key;
+          const atlasSize = p.atlas ? p.atlas.width + "×" + p.atlas.height : "-";
+          const slotCount = p.atlas?.slot_count ?? 0;
+          card.innerHTML =
+            "<div class='thumb'>" + p.id.split(".").pop() + "<br>" + atlasSize + "</div>" +
+            "<div class='name'>" +
+              "<span>" + (p.display_name.ko ?? p.display_name.en) + "</span>" +
+              "<span class='origin " + p.origin + "'>" + p.origin + "</span>" +
+            "</div>" +
+            "<div class='meta'>" +
+              p.id + "@" + p.version + "<br>" +
+              "canvas " + p.canvas.width + "×" + p.canvas.height + " · atlas " + atlasSize + "<br>" +
+              slotCount + " slot · " + p.motion_count + " motion · " + p.expression_count + " expr" +
+            "</div>";
+          card.addEventListener("click", () => {
+            presetSelect.value = key;
+            presetSelect.dispatchEvent(new Event("change"));
+            renderCards();
+          });
+          presetCards.appendChild(card);
+        }
+      }
+
       try {
         const r = await fetch(API + "/api/presets");
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -299,23 +463,19 @@
         presetSelect.innerHTML = "";
         const placeholder = document.createElement("option");
         placeholder.value = "";
-        placeholder.textContent = "— 프리셋 선택 —";
         presetSelect.appendChild(placeholder);
         for (const p of presets) {
           const opt = document.createElement("option");
           opt.value = p.id + "@" + p.version;
-          opt.textContent =
-            p.display_name.ko + " (" + p.id + "@" + p.version + ", " + p.origin + ")";
           presetSelect.appendChild(opt);
         }
         presetSelect.disabled = false;
+        renderFamilyTabs();
+        renderCards();
       } catch (err) {
-        presetSelect.innerHTML = '<option value="">프리셋 로드 실패</option>';
-        setStatus(
-          uploadStatus,
-          "err",
-          "API 연결 실패: " + err.message + "\n기본 URL: " + API + "\n\n해결:\n- pnpm -F @geny/api dev 로 백엔드 시작\n- 또는 ?api=<url> 로 다른 호스트 지정",
-        );
+        presetCards.innerHTML =
+          '<p style="color:#a00;">프리셋 로드 실패: ' + err.message + "</p>" +
+          '<p style="color:#666;font-size:0.85rem;">해결: <code>pnpm -F @geny/api dev</code> 로 백엔드 시작, 또는 <code>?api=&lt;url&gt;</code>.</p>';
       }
 
       function setControlsEnabled(enabled) {
