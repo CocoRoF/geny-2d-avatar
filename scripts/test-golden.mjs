@@ -10,9 +10,9 @@
 // 현 단계 (모두 ALIGNED · ADJACENT):
 //   1) validate-schemas                  — schema/v1 + rig-templates + samples
 //   2) exporter-core unit tests          — 88 tests, canonicalJson + converters
-//   3) bundle golden diff                — halfbody v1.2.0 bundle byte-equal
-//   4) avatar bundle golden diff         — sample-01-aria (halfbody v1.2.0 기반)
-//   5) web-avatar bundle golden diff     — halfbody v1.2.0 web-avatar bundle
+//   3) bundle golden diff                — halfbody v1.3.0 bundle byte-equal
+//   4) avatar bundle golden diff         — sample-01-aria (halfbody v1.3.0 기반)
+//   5) web-avatar bundle golden diff     — halfbody v1.3.0 web-avatar bundle
 //   6) web-preview e2e                   — loader + <geny-avatar> 체인
 //   7) license-verifier tests            — registry 파서 + verify round-trip
 //   8) ai-adapter-core tests             — deterministicSeed/registry/orchestrate/metrics (68 tests)
@@ -76,8 +76,8 @@ if (failed.length > 0) {
   process.stderr.write(`\n[golden] FAILED: ${failed.join(", ")}\n`);
   process.stderr.write(
     "[golden] 골든이 의도적으로 바뀌어야 한다면 다음을 참고:\n" +
-      "          packages/exporter-core/tests/golden/halfbody_v1.2.0.*.json\n" +
-      "          packages/exporter-core/tests/golden/halfbody_v1.2.0.web-avatar*.json\n" +
+      "          packages/exporter-core/tests/golden/halfbody_v1.3.0.*.json\n" +
+      "          packages/exporter-core/tests/golden/halfbody_v1.3.0.web-avatar*.json\n" +
       "          samples/avatars/sample-01-aria.bundle.snapshot.json\n" +
       "          를 새 결과로 덮어쓴 뒤 PR 에 '골든 갱신' 명시.\n",
   );
@@ -110,7 +110,7 @@ async function runBundleDiff() {
           "packages/exporter-core/dist/cli.js",
           "bundle",
           "--template",
-          "rig-templates/base/halfbody/v1.2.0",
+          "rig-templates/base/halfbody/v1.3.0",
           "--out-dir",
           bundleDir,
           ">",
@@ -124,7 +124,7 @@ async function runBundleDiff() {
       readFile(
         resolve(
           repoRoot,
-          "packages/exporter-core/tests/golden/halfbody_v1.2.0.bundle.snapshot.json",
+          "packages/exporter-core/tests/golden/halfbody_v1.3.0.bundle.snapshot.json",
         ),
         "utf8",
       ),
@@ -199,7 +199,7 @@ async function runWebAvatarBundleDiff() {
           "packages/exporter-core/dist/cli.js",
           "web-avatar",
           "--template",
-          "rig-templates/base/halfbody/v1.2.0",
+          "rig-templates/base/halfbody/v1.3.0",
           "--out-dir",
           bundleDir,
           ">",
@@ -213,7 +213,7 @@ async function runWebAvatarBundleDiff() {
       readFile(
         resolve(
           repoRoot,
-          "packages/exporter-core/tests/golden/halfbody_v1.2.0.web-avatar-bundle.snapshot.json",
+          "packages/exporter-core/tests/golden/halfbody_v1.3.0.web-avatar-bundle.snapshot.json",
         ),
         "utf8",
       ),

@@ -25,6 +25,28 @@
     {
       "FadeInTime": -1,
       "FadeOutTime": -1,
+      "Id": "ParamBodyAngleY",
+      "Segments": [
+        0,
+        0,
+        0,
+        1,
+        1.5,
+        0,
+        2,
+        0,
+        0,
+        3,
+        1.5,
+        0,
+        4,
+        0
+      ],
+      "Target": "Parameter"
+    },
+    {
+      "FadeInTime": -1,
+      "FadeOutTime": -1,
       "Id": "ParamAngleX",
       "Segments": [
         0,
@@ -60,14 +82,14 @@
   ],
   "Meta": {
     "AreBeziersRestricted": false,
-    "CurveCount": 3,
+    "CurveCount": 4,
     "Duration": 4,
     "FadeInTime": 1,
     "FadeOutTime": 1,
     "Fps": 30,
     "Loop": true,
-    "TotalPointCount": 12,
-    "TotalSegmentCount": 9,
+    "TotalPointCount": 17,
+    "TotalSegmentCount": 13,
     "TotalUserDataSize": 0,
     "UserDataCount": 0
   },

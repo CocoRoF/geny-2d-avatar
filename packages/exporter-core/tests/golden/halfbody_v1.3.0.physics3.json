@@ -47,12 +47,24 @@
       {
         "Id": "PhysicsSetting9",
         "Name": "Cloth Main Fuwa"
+      },
+      {
+        "Id": "PhysicsSetting10",
+        "Name": "Ahoge Sway"
+      },
+      {
+        "Id": "PhysicsSetting11",
+        "Name": "Accessory Sway"
+      },
+      {
+        "Id": "PhysicsSetting12",
+        "Name": "Body Breath Phys"
       }
     ],
-    "PhysicsSettingCount": 9,
-    "TotalInputCount": 24,
-    "TotalOutputCount": 9,
-    "VertexCount": 18
+    "PhysicsSettingCount": 12,
+    "TotalInputCount": 31,
+    "TotalOutputCount": 13,
+    "VertexCount": 24
   },
   "PhysicsSettings": [
     {
@@ -736,6 +748,236 @@
             "Y": 8
           },
           "Radius": 8
+        }
+      ]
+    },
+    {
+      "Id": "PhysicsSetting10",
+      "Input": [
+        {
+          "Reflect": false,
+          "Source": {
+            "Id": "ParamAngleX",
+            "Target": "Parameter"
+          },
+          "Type": "X",
+          "Weight": 70
+        },
+        {
+          "Reflect": false,
+          "Source": {
+            "Id": "ParamAngleY",
+            "Target": "Parameter"
+          },
+          "Type": "Y",
+          "Weight": 30
+        },
+        {
+          "Reflect": false,
+          "Source": {
+            "Id": "ParamBodyAngleX",
+            "Target": "Parameter"
+          },
+          "Type": "X",
+          "Weight": 20
+        }
+      ],
+      "Normalization": {
+        "Angle": {
+          "Default": 0,
+          "Maximum": 12,
+          "Minimum": -12
+        },
+        "Position": {
+          "Default": 0,
+          "Maximum": 5,
+          "Minimum": -5
+        }
+      },
+      "Output": [
+        {
+          "Destination": {
+            "Id": "ParamAhogeSway",
+            "Target": "Parameter"
+          },
+          "Reflect": false,
+          "Scale": 1.2,
+          "Type": "Angle",
+          "VertexIndex": 1,
+          "Weight": 100
+        }
+      ],
+      "Vertices": [
+        {
+          "Acceleration": 1,
+          "Delay": 1,
+          "Mobility": 1,
+          "Position": {
+            "X": 0,
+            "Y": 0
+          },
+          "Radius": 0
+        },
+        {
+          "Acceleration": 1.35,
+          "Delay": 0.55,
+          "Mobility": 1,
+          "Position": {
+            "X": 0,
+            "Y": 5
+          },
+          "Radius": 5
+        }
+      ]
+    },
+    {
+      "Id": "PhysicsSetting11",
+      "Input": [
+        {
+          "Reflect": false,
+          "Source": {
+            "Id": "ParamBodyAngleX",
+            "Target": "Parameter"
+          },
+          "Type": "X",
+          "Weight": 60
+        },
+        {
+          "Reflect": false,
+          "Source": {
+            "Id": "ParamBodyAngleZ",
+            "Target": "Parameter"
+          },
+          "Type": "Angle",
+          "Weight": 40
+        }
+      ],
+      "Normalization": {
+        "Angle": {
+          "Default": 0,
+          "Maximum": 10,
+          "Minimum": -10
+        },
+        "Position": {
+          "Default": 0,
+          "Maximum": 8,
+          "Minimum": -8
+        }
+      },
+      "Output": [
+        {
+          "Destination": {
+            "Id": "ParamAccessoryBackSway",
+            "Target": "Parameter"
+          },
+          "Reflect": false,
+          "Scale": 1,
+          "Type": "Angle",
+          "VertexIndex": 1,
+          "Weight": 80
+        },
+        {
+          "Destination": {
+            "Id": "ParamAccessoryFrontSway",
+            "Target": "Parameter"
+          },
+          "Reflect": false,
+          "Scale": 0.8,
+          "Type": "Angle",
+          "VertexIndex": 1,
+          "Weight": 70
+        }
+      ],
+      "Vertices": [
+        {
+          "Acceleration": 0.9,
+          "Delay": 0.85,
+          "Mobility": 0.85,
+          "Position": {
+            "X": 0,
+            "Y": 0
+          },
+          "Radius": 0
+        },
+        {
+          "Acceleration": 1.05,
+          "Delay": 0.7,
+          "Mobility": 0.8,
+          "Position": {
+            "X": 0,
+            "Y": 8
+          },
+          "Radius": 8
+        }
+      ]
+    },
+    {
+      "Id": "PhysicsSetting12",
+      "Input": [
+        {
+          "Reflect": false,
+          "Source": {
+            "Id": "ParamBreath",
+            "Target": "Parameter"
+          },
+          "Type": "X",
+          "Weight": 100
+        },
+        {
+          "Reflect": false,
+          "Source": {
+            "Id": "ParamBodyAngleY",
+            "Target": "Parameter"
+          },
+          "Type": "Y",
+          "Weight": 20
+        }
+      ],
+      "Normalization": {
+        "Angle": {
+          "Default": 0,
+          "Maximum": 3,
+          "Minimum": -3
+        },
+        "Position": {
+          "Default": 0,
+          "Maximum": 1,
+          "Minimum": 0
+        }
+      },
+      "Output": [
+        {
+          "Destination": {
+            "Id": "ParamBodyBreathPhys",
+            "Target": "Parameter"
+          },
+          "Reflect": false,
+          "Scale": 0.6,
+          "Type": "Y",
+          "VertexIndex": 1,
+          "Weight": 60
+        }
+      ],
+      "Vertices": [
+        {
+          "Acceleration": 0.5,
+          "Delay": 0.8,
+          "Mobility": 0.4,
+          "Position": {
+            "X": 0,
+            "Y": 0
+          },
+          "Radius": 0
+        },
+        {
+          "Acceleration": 0.48,
+          "Delay": 0.75,
+          "Mobility": 0.38,
+          "Position": {
+            "X": 0,
+            "Y": 4
+          },
+          "Radius": 4
         }
       ]
     }

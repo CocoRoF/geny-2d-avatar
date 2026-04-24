@@ -1,6 +1,6 @@
 {
   "avatar_id": "av_01JBMBTC8W5FQ0RTYAX38P7Z5K",
-  "bundle_manifest_sha256": "e56ce4d74795ce483f863999ac123af2adac9df093e455674613da9d775cf7ac",
+  "bundle_manifest_sha256": "fe40168a4ccdcea51111ed202ac977a5910d2f19a60d3a15939ae246e5ee0f0c",
   "expires_at": null,
   "issued_at": "2026-04-18T10:00:00Z",
   "license_id": "lic_01JBMCFZAAW7FRDFN0HXJS7DCY",
@@ -15,7 +15,7 @@
     "no_ai_training_third_party"
   ],
   "schema_version": "v1",
-  "signature": "ed25519:Yqf5ll8EfXVAWu_SG0gGr3AVBLT7JHsNzW1nEM75DNT2UhPelzZIN1ivxzGL7sXY0KxeezhOFz0ESVY9LsUKAg",
+  "signature": "ed25519:StAVvs478tDlL95N5IdMtLWA-09Ng20XI7GOA9zbkhLuia_2MT7noVj6x5q9mC-sqAFZSvPQe0bPwTuoHJpmDA",
   "signer_key_id": "geny.fixture.rfc8032-test1",
   "style_profile": null,
   "template_id": "tpl.base.v1.halfbody",

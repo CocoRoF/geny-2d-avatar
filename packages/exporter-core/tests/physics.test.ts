@@ -18,10 +18,10 @@ function template(version: string): string {
   return resolve(repoRoot, "rig-templates", "base", "halfbody", version);
 }
 
-test("physics3: halfbody v1.2.0 matches golden byte-for-byte", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+test("physics3: halfbody v1.3.0 matches golden byte-for-byte", () => {
+  const tpl = loadTemplate(template("v1.3.0"));
   const got = canonicalJson(convertPhysicsFromTemplate(tpl));
-  const want = readFileSync(resolve(goldenDir, "halfbody_v1.2.0.physics3.json"), "utf8");
+  const want = readFileSync(resolve(goldenDir, "halfbody_v1.3.0.physics3.json"), "utf8");
   assert.equal(got, want);
 });
 
@@ -79,32 +79,33 @@ test("physics3: throws on missing cubism_mapping entry", () => {
 });
 
 test("physics3: PhysicsDictionary.Name uses 'en' (D3)", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+  const tpl = loadTemplate(template("v1.3.0"));
   const out = convertPhysicsFromTemplate(tpl);
   const names = out.Meta.PhysicsDictionary.map((d) => d.Name);
   assert.ok(names.every((n) => /^[\x20-\x7e()]+$/.test(n)), `non-ASCII leaked: ${names}`);
 });
 
 test("physics3: presets field is ignored", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+  const tpl = loadTemplate(template("v1.3.0"));
   const out = convertPhysicsFromTemplate(tpl);
   assert.ok(!("presets" in out));
   assert.ok(!("Presets" in out));
 });
 
 test("physics3: Meta counts match source", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+  const tpl = loadTemplate(template("v1.3.0"));
   const out = convertPhysicsFromTemplate(tpl);
-  assert.equal(out.Meta.PhysicsSettingCount, 9);
-  assert.equal(out.Meta.TotalInputCount, 24);
-  assert.equal(out.Meta.TotalOutputCount, 9);
-  assert.equal(out.Meta.VertexCount, 18);
+  // v1.3.0: 12 settings (머리 8 + 옷 4) / 31 inputs / 13 outputs / 24 vertices.
+  assert.equal(out.Meta.PhysicsSettingCount, 12);
+  assert.equal(out.Meta.TotalInputCount, 31);
+  assert.equal(out.Meta.TotalOutputCount, 13);
+  assert.equal(out.Meta.VertexCount, 24);
   assert.equal(out.Meta.Fps, 30);
   assert.equal(out.Version, 3);
 });
 
 test("physics3: Input.Source.Target is 'Parameter'", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+  const tpl = loadTemplate(template("v1.3.0"));
   const out = convertPhysicsFromTemplate(tpl);
   for (const s of out.PhysicsSettings) {
     for (const i of s.Input) {

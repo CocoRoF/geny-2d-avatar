@@ -34,16 +34,16 @@ const halfbodyTemplateDir = resolve(
   "rig-templates",
   "base",
   "halfbody",
-  "v1.2.0",
+  "v1.3.0",
 );
 
 /** 임시 번들 디렉터리 구성 — 골든 JSON + 템플릿 PNG 를 배치. */
 function materializeGoldenBundle(): string {
   const dir = mkdtempSync(join(tmpdir(), "geny-web-avatar-dom-"));
-  const webAvatar = readFileSync(join(goldenDir, "halfbody_v1.2.0.web-avatar.json"));
-  const atlas = readFileSync(join(goldenDir, "halfbody_v1.2.0.atlas.json"));
+  const webAvatar = readFileSync(join(goldenDir, "halfbody_v1.3.0.web-avatar.json"));
+  const atlas = readFileSync(join(goldenDir, "halfbody_v1.3.0.atlas.json"));
   const bundleSnapshot = JSON.parse(
-    readFileSync(join(goldenDir, "halfbody_v1.2.0.web-avatar-bundle.snapshot.json"), "utf8"),
+    readFileSync(join(goldenDir, "halfbody_v1.3.0.web-avatar-bundle.snapshot.json"), "utf8"),
   ) as { files: Array<{ path: string; sha256: string; bytes: number }> };
 
   writeFileSync(join(dir, "web-avatar.json"), webAvatar);

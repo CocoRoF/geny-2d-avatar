@@ -17,6 +17,20 @@
     ],
     "Moc": "avatar.moc3",
     "Motions": {
+      "Accessory": [
+        {
+          "FadeInTime": 0.25,
+          "FadeOutTime": 0.35,
+          "File": "motions/accessory_greet.motion3.json"
+        }
+      ],
+      "Ahoge": [
+        {
+          "FadeInTime": 0.15,
+          "FadeOutTime": 0.2,
+          "File": "motions/ahoge_bounce.motion3.json"
+        }
+      ],
       "Blink": [
         {
           "FadeInTime": 0.05,

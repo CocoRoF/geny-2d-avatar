@@ -18,28 +18,28 @@ function template(version: string): string {
   return resolve(repoRoot, "rig-templates", "base", "halfbody", version);
 }
 
-test("motion3: halfbody v1.2.0 idle.default matches golden byte-for-byte", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+test("motion3: halfbody v1.3.0 idle.default matches golden byte-for-byte", () => {
+  const tpl = loadTemplate(template("v1.3.0"));
   const got = canonicalJson(convertMotionFromTemplate(tpl, "idle.default"));
   const want = readFileSync(
-    resolve(goldenDir, "halfbody_v1.2.0__idle_default.motion3.json"),
+    resolve(goldenDir, "halfbody_v1.3.0__idle_default.motion3.json"),
     "utf8",
   );
   assert.equal(got, want);
 });
 
-test("motion3: halfbody v1.2.0 greet.wave matches golden byte-for-byte", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+test("motion3: halfbody v1.3.0 greet.wave matches golden byte-for-byte", () => {
+  const tpl = loadTemplate(template("v1.3.0"));
   const got = canonicalJson(convertMotionFromTemplate(tpl, "greet.wave"));
   const want = readFileSync(
-    resolve(goldenDir, "halfbody_v1.2.0__greet_wave.motion3.json"),
+    resolve(goldenDir, "halfbody_v1.3.0__greet_wave.motion3.json"),
     "utf8",
   );
   assert.equal(got, want);
 });
 
 test("motion3: throws on unknown pack_id", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+  const tpl = loadTemplate(template("v1.3.0"));
   assert.throws(
     () => convertMotionFromTemplate(tpl, "does.not.exist"),
     /pack 'does\.not\.exist' not found/,
@@ -113,7 +113,7 @@ test("motion3: throws on unmapped parameter", () => {
 });
 
 test("motion3: UserData empty defaults to count=0 size=0", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+  const tpl = loadTemplate(template("v1.3.0"));
   const out = convertMotionFromTemplate(tpl, "idle.default");
   assert.equal(out.Meta.UserDataCount, 0);
   assert.equal(out.Meta.TotalUserDataSize, 0);
@@ -121,7 +121,7 @@ test("motion3: UserData empty defaults to count=0 size=0", () => {
 });
 
 test("motion3: segments copied byte-equal (no normalization)", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
+  const tpl = loadTemplate(template("v1.3.0"));
   const out = convertMotionFromTemplate(tpl, "greet.wave");
   assert.deepEqual(out.Curves[0]!.Segments, [0, 0, 0, 0.5, 20, 0, 1.0, 0, 0, 1.5, 20, 0, 2.0, 0]);
 });

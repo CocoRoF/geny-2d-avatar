@@ -12,16 +12,16 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..", "..", "..");
 const goldenDir = resolve(here, "..", "..", "tests", "golden");
 
-test("convertModel: halfbody v1.2.0 byte-for-byte golden", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("convertModel: halfbody v1.3.0 byte-for-byte golden", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const model3 = convertModelFromTemplate(tpl);
   const got = canonicalJson(model3);
-  const want = readFileSync(join(goldenDir, "halfbody_v1.2.0.model3.json"), "utf8");
+  const want = readFileSync(join(goldenDir, "halfbody_v1.3.0.model3.json"), "utf8");
   assert.equal(got, want);
 });
 
 test("convertModel: Groups.EyeBlink uses both eye_open_l/r", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const model3 = convertModelFromTemplate(tpl);
   const eye = model3.Groups.find((g) => g.Name === "EyeBlink");
   assert.ok(eye, "EyeBlink group must exist");
@@ -30,7 +30,7 @@ test("convertModel: Groups.EyeBlink uses both eye_open_l/r", () => {
 });
 
 test("convertModel: Groups.LipSync simple mode uses only ParamA", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const model3 = convertModelFromTemplate(tpl);
   const lip = model3.Groups.find((g) => g.Name === "LipSync");
   assert.ok(lip, "LipSync group must exist");
@@ -38,7 +38,7 @@ test("convertModel: Groups.LipSync simple mode uses only ParamA", () => {
 });
 
 test("convertModel: Groups.LipSync precise mode has all 5 vowels", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const model3 = convertModelFromTemplate(tpl, { lipsync: "precise" });
   const lip = model3.Groups.find((g) => g.Name === "LipSync");
   assert.ok(lip, "LipSync group must exist");
@@ -46,7 +46,7 @@ test("convertModel: Groups.LipSync precise mode has all 5 vowels", () => {
 });
 
 test("convertModel: HitAreas from manifest with PascalCase roles", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const model3 = convertModelFromTemplate(tpl);
   assert.deepEqual(model3.HitAreas, [
     { Id: "HitAreaHead", Name: "Head" },
@@ -55,7 +55,7 @@ test("convertModel: HitAreas from manifest with PascalCase roles", () => {
 });
 
 test("convertModel: FileReferences default Moc/Textures are placeholders, overridable", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const def = convertModelFromTemplate(tpl);
   assert.equal(def.FileReferences.Moc, "avatar.moc3");
   assert.deepEqual(def.FileReferences.Textures, ["textures/texture_00.png"]);
@@ -69,7 +69,7 @@ test("convertModel: FileReferences default Moc/Textures are placeholders, overri
 });
 
 test("convertModel: motion file paths follow <motionsDir>/<pack_slug>.motion3.json", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const model3 = convertModelFromTemplate(tpl);
   const idle = model3.FileReferences.Motions?.["Idle"];
   assert.ok(idle, "Idle motion group must exist");
@@ -78,7 +78,7 @@ test("convertModel: motion file paths follow <motionsDir>/<pack_slug>.motion3.js
 });
 
 test("convertModel: empty motions produces no Motions field", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const model3 = convertModel({
     manifest: tpl.manifest,
     parameters: tpl.parameters,
@@ -88,7 +88,7 @@ test("convertModel: empty motions produces no Motions field", () => {
 });
 
 test("convertModel: no parameters doc → empty Groups", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const manifestNoMapping = { ...tpl.manifest, cubism_mapping: {} };
   const model3 = convertModel({
     manifest: manifestNoMapping,

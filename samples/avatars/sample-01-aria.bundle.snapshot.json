@@ -1,20 +1,20 @@
 {
-  "file_count": 15,
+  "file_count": 17,
   "files": [
     {
-      "bytes": 7259,
+      "bytes": 7748,
       "path": "aria.cdi3.json",
-      "sha256": "74bd0c74ce0655da54a13ba07d5be18799f75abab482add3375e30517830a208"
+      "sha256": "819ede01092a01eb54628661faa10c0ba3ecf79ef0f50f51b676e66c1293adff"
     },
     {
-      "bytes": 2094,
+      "bytes": 2422,
       "path": "aria.model3.json",
-      "sha256": "abf013a601c98ee6d61e1be512a5e631f58394f3d904c3fdfcf892dc630888ac"
+      "sha256": "ef64df1f3e9e3691033c7de5612782b02fbecbc7ca4dd913459d66c81f58294d"
     },
     {
-      "bytes": 15151,
+      "bytes": 20162,
       "path": "aria.physics3.json",
-      "sha256": "af9a639b056ae5659145b3df27b08aecb98dd7d7d17e9bcb20bf671bbc8950da"
+      "sha256": "a3b92db5bb301862eb3bc34078530a863b98ec1c8c2b8bad8b02d88f59d14b7a"
     },
     {
       "bytes": 343,
@@ -22,9 +22,9 @@
       "sha256": "1ef160383f7abc7044bb27badc33df92cf767dac28e85a15b0d46b81a2c2671a"
     },
     {
-      "bytes": 2452,
+      "bytes": 2790,
       "path": "bundle.json",
-      "sha256": "e56ce4d74795ce483f863999ac123af2adac9df093e455674613da9d775cf7ac"
+      "sha256": "fe40168a4ccdcea51111ed202ac977a5910d2f19a60d3a15939ae246e5ee0f0c"
     },
     {
       "bytes": 969,
@@ -42,6 +42,16 @@
       "sha256": "ae5e17e49c85dfe26fa82f0a6bd4d838710120cb2ac0a9eea39724ded4c47c0d"
     },
     {
+      "bytes": 1190,
+      "path": "motions/accessory_greet.motion3.json",
+      "sha256": "054e28eed6c21bbe6efb83472a1c6cfcacf288506b3842ae9cffb5ba4b836ddc"
+    },
+    {
+      "bytes": 922,
+      "path": "motions/ahoge_bounce.motion3.json",
+      "sha256": "406bfd5c009db72b20670e26d605d10286c72cdd3e90e83ac8df685a592a8d04"
+    },
+    {
       "bytes": 885,
       "path": "motions/blink_auto.motion3.json",
       "sha256": "d7c1d47ff5c7fd13d110a8dec52fa48d3aa688ef16222c31441bddf2dd7142a3"
@@ -52,9 +62,9 @@
       "sha256": "d3cd6c1e3177880f3f603a4799e70f18f804d7f319061cc790ec1d906931ab01"
     },
     {
-      "bytes": 1134,
+      "bytes": 1442,
       "path": "motions/idle_default.motion3.json",
-      "sha256": "6e799ba2fa7b205bf12c55c16a9f453a9d4c8d2e08ecf1a3ded8d1fa91fd200e"
+      "sha256": "48a06814a8082264f2b0bdc562e93fdc5d37481fe861c256132d6863596cd901"
     },
     {
       "bytes": 977,
@@ -77,5 +87,5 @@
       "sha256": "920a9248251b2f32393562708391fb152ab928e43503dea07ba986e4815b16e9"
     }
   ],
-  "total_bytes": 36122
+  "total_bytes": 44708
 }

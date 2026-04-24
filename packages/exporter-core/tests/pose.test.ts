@@ -16,17 +16,10 @@ function template(version: string): string {
   return resolve(repoRoot, "rig-templates", "base", "halfbody", version);
 }
 
-test("pose3: halfbody v1.1.0 matches golden byte-for-byte", () => {
-  const tpl = loadTemplate(template("v1.1.0"));
+test("pose3: halfbody v1.3.0 matches golden byte-for-byte", () => {
+  const tpl = loadTemplate(template("v1.3.0"));
   const got = canonicalJson(convertPoseFromTemplate(tpl));
-  const want = readFileSync(resolve(goldenDir, "halfbody_v1.1.0.pose3.json"), "utf8");
-  assert.equal(got, want);
-});
-
-test("pose3: halfbody v1.2.0 matches golden byte-for-byte", () => {
-  const tpl = loadTemplate(template("v1.2.0"));
-  const got = canonicalJson(convertPoseFromTemplate(tpl));
-  const want = readFileSync(resolve(goldenDir, "halfbody_v1.2.0.pose3.json"), "utf8");
+  const want = readFileSync(resolve(goldenDir, "halfbody_v1.3.0.pose3.json"), "utf8");
   assert.equal(got, want);
 });
 

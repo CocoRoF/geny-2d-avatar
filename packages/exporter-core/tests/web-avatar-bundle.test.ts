@@ -22,14 +22,14 @@ function scratch(): string {
   return mkdtempSync(join(tmpdir(), "geny-web-avatar-"));
 }
 
-test("assembleWebAvatarBundle: halfbody v1.2.0 bundle snapshot matches golden", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("assembleWebAvatarBundle: halfbody v1.3.0 bundle snapshot matches golden", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleWebAvatarBundle(tpl, dir);
     const got = snapshotBundle(res);
     const want = readFileSync(
-      join(goldenDir, "halfbody_v1.2.0.web-avatar-bundle.snapshot.json"),
+      join(goldenDir, "halfbody_v1.3.0.web-avatar-bundle.snapshot.json"),
       "utf8",
     );
     assert.equal(got, want);
@@ -39,20 +39,20 @@ test("assembleWebAvatarBundle: halfbody v1.2.0 bundle snapshot matches golden", 
 });
 
 test("assembleWebAvatarBundle: web-avatar.json matches golden byte-for-byte", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleWebAvatarBundle(tpl, dir);
     const got = readFileSync(join(dir, "web-avatar.json"), "utf8");
-    const want = readFileSync(join(goldenDir, "halfbody_v1.2.0.web-avatar.json"), "utf8");
+    const want = readFileSync(join(goldenDir, "halfbody_v1.3.0.web-avatar.json"), "utf8");
     assert.equal(got, want);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("assembleWebAvatarBundle: halfbody v1.2.0 writes 4 files (web-avatar + atlas + bundle + 1 texture)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+test("assembleWebAvatarBundle: halfbody v1.3.0 writes 4 files (web-avatar + atlas + bundle + 1 texture)", () => {
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleWebAvatarBundle(tpl, dir);
@@ -71,7 +71,7 @@ test("assembleWebAvatarBundle: halfbody v1.2.0 writes 4 files (web-avatar + atla
 });
 
 test("assembleWebAvatarBundle: includeTextures=false reverts to stage 1 (2 files)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleWebAvatarBundle(tpl, dir, { includeTextures: false });
@@ -85,7 +85,7 @@ test("assembleWebAvatarBundle: includeTextures=false reverts to stage 1 (2 files
 });
 
 test("assembleWebAvatarBundle: bundle.json excludes itself from files[]", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleWebAvatarBundle(tpl, dir);
@@ -106,12 +106,12 @@ test("assembleWebAvatarBundle: bundle.json excludes itself from files[]", () => 
 });
 
 test("assembleWebAvatarBundle: textures/*.png bytes match template source", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleWebAvatarBundle(tpl, dir);
     const srcBuf = readFileSync(
-      join(repoRoot, "rig-templates/base/halfbody/v1.2.0/textures/base.png"),
+      join(repoRoot, "rig-templates/base/halfbody/v1.3.0/textures/base.png"),
     );
     const outBuf = readFileSync(join(dir, "textures/base.png"));
     assert.deepEqual(Buffer.compare(srcBuf, outBuf), 0, "texture bytes must be identical");
@@ -121,7 +121,7 @@ test("assembleWebAvatarBundle: textures/*.png bytes match template source", () =
 });
 
 test("assembleWebAvatarBundle: atlas.json in bundle matches schema shape", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleWebAvatarBundle(tpl, dir);
@@ -145,7 +145,7 @@ test("assembleWebAvatarBundle: atlas.json in bundle matches schema shape", () =>
 });
 
 test("assembleWebAvatarBundle: avatarId option embedded in web-avatar.json and bundle.json", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleWebAvatarBundle(tpl, dir, { avatarId: "avt.test.demo" });
@@ -163,7 +163,7 @@ test("assembleWebAvatarBundle: avatarId option embedded in web-avatar.json and b
 });
 
 test("assembleWebAvatarBundle: repeated calls produce identical snapshots", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dirA = scratch();
   const dirB = scratch();
   try {
@@ -177,7 +177,7 @@ test("assembleWebAvatarBundle: repeated calls produce identical snapshots", () =
 });
 
 test("assembleWebAvatarBundle: textureOverrides 가 template.textures 를 대체 (세션 35)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     // 원본을 복사해 1 바이트만 변경 — sha256 가 달라져야 한다.
@@ -407,7 +407,7 @@ test("assembleWebAvatarBundle: atlasOverride 가 template.atlas 를 대체 + 정
 });
 
 test("assembleWebAvatarBundle: textureOverrides path 가 template 에 없으면 throw (세션 35)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const orig = tpl.textures[0]!;

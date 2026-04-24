@@ -276,6 +276,26 @@
       "GroupId": "Overall",
       "Id": "ParamOverallRotate",
       "Name": "Overall Rotate"
+    },
+    {
+      "GroupId": "Hair",
+      "Id": "ParamAhogeSway",
+      "Name": "Ahoge Sway"
+    },
+    {
+      "GroupId": "Body",
+      "Id": "ParamAccessoryBackSway",
+      "Name": "Accessory Back Sway"
+    },
+    {
+      "GroupId": "Body",
+      "Id": "ParamAccessoryFrontSway",
+      "Name": "Accessory Front Sway"
+    },
+    {
+      "GroupId": "Body",
+      "Id": "ParamBodyBreathPhys",
+      "Name": "Body Breath Offset"
     }
   ],
   "Parts": [
@@ -286,6 +306,10 @@
     {
       "Id": "PartAccessoryFront",
       "Name": "Accessory Front"
+    },
+    {
+      "Id": "PartAhoge",
+      "Name": "Ahoge"
     },
     {
       "Id": "PartArmLA",

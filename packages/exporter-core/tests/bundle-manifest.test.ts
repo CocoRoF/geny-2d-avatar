@@ -28,7 +28,7 @@ function readManifest(dir: string, name = "bundle.json"): BundleManifestJson {
 }
 
 test("bundle.json: kind='cubism-bundle', format=1, schema_version='v1'", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleBundle(tpl, dir);
@@ -42,13 +42,13 @@ test("bundle.json: kind='cubism-bundle', format=1, schema_version='v1'", () => {
 });
 
 test("bundle.json: template_id / template_version come from manifest; avatar_id=null for template-only bundle", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleBundle(tpl, dir);
     const m = readManifest(dir);
     assert.equal(m.template_id, "tpl.base.v1.halfbody");
-    assert.equal(m.template_version, "1.2.0");
+    assert.equal(m.template_version, "1.3.0");
     assert.equal(m.avatar_id, null);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -56,7 +56,7 @@ test("bundle.json: template_id / template_version come from manifest; avatar_id=
 });
 
 test("bundle.json: files list excludes self and is path-sorted", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir);
@@ -73,7 +73,7 @@ test("bundle.json: files list excludes self and is path-sorted", () => {
 });
 
 test("bundle.json: each file entry in manifest matches BundleResult entry (sha256 + bytes)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir);
@@ -90,7 +90,7 @@ test("bundle.json: each file entry in manifest matches BundleResult entry (sha25
 });
 
 test("bundle.json: avatarId option propagates into avatar_id field", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     assembleBundle(tpl, dir, { avatarId: "av_01HXYZABCDEFGHJKMNPQRSTVWX" });
@@ -117,7 +117,7 @@ test("bundle.json: assembleAvatarBundle injects spec.avatar_id", () => {
 });
 
 test("bundle.json: fileNames.manifest override renames the manifest file", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dir = scratch();
   try {
     const res = assembleBundle(tpl, dir, { fileNames: { manifest: "MANIFEST.json" } });
@@ -132,7 +132,7 @@ test("bundle.json: fileNames.manifest override renames the manifest file", () =>
 });
 
 test("bundle.json: repeated calls produce identical manifest bytes (determinism)", () => {
-  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.2.0"));
+  const tpl = loadTemplate(join(repoRoot, "rig-templates/base/halfbody/v1.3.0"));
   const dirA = scratch();
   const dirB = scratch();
   try {
