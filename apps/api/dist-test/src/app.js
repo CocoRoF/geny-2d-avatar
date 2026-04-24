@@ -13,6 +13,7 @@ import fastifyMultipart from "@fastify/multipart";
 import fastifyCors from "@fastify/cors";
 import { presetsRoute } from "./routes/presets.js";
 import { textureUploadRoute } from "./routes/texture-upload.js";
+import { textureGenerateRoute } from "./routes/texture-generate.js";
 import { buildRoute } from "./routes/build.js";
 import { bundleRoute } from "./routes/bundle.js";
 export async function buildApp(opts) {
@@ -31,6 +32,10 @@ export async function buildApp(opts) {
         rigTemplatesRoot: opts.rigTemplatesRoot,
         texturesDir,
         maxFileSize,
+    });
+    await fastify.register(textureGenerateRoute, {
+        rigTemplatesRoot: opts.rigTemplatesRoot,
+        texturesDir,
     });
     await fastify.register(buildRoute, {
         rigTemplatesRoot: opts.rigTemplatesRoot,
