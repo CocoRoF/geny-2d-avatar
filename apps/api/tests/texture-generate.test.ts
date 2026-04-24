@@ -84,6 +84,11 @@ test("POST /api/texture/generate: halfbody v1.3.0 프리셋에 대해 생성 성
     assert.equal(json.seed, 12345);
     assert.equal(json.adapter, "mock");
     assert.ok(json.bytes > 0);
+    // P3.3 - attempts 배열 포함 확인.
+    const jsonFull = json as unknown as { attempts?: Array<{ adapter: string; status: string }> };
+    assert.ok(Array.isArray(jsonFull.attempts));
+    assert.equal(jsonFull.attempts![0]!.adapter, "mock");
+    assert.equal(jsonFull.attempts![0]!.status, "success");
     assert.ok(existsSync(join(textures, json.texture_id + ".png")));
   } finally {
     await app.close();

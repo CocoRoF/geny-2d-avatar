@@ -1,10 +1,10 @@
 /**
- * Geny API Fastify app 생성자. 서버와 테스트에서 공용.
+ * Geny API Fastify app 생성자. 서버와 테스트 공용.
  *
  * 설계 (docs/03-ARCHITECTURE.md §3.2):
- *   - 프레임워크: Fastify v5
- *   - 엔드포인트: /api/health, /api/presets, /api/texture/upload, /api/build, /api/bundle/:id/*
- *   - rigTemplatesRoot, texturesDir, bundlesDir 는 DI (테스트에서 tmp dir)
+ *   - Fastify v5 + @fastify/cors + @fastify/multipart
+ *   - 엔드포인트: /api/health, /api/presets, /api/texture/{upload,generate}, /api/build, /api/bundle/:id/*
+ *   - DI: rigTemplatesRoot / texturesDir / bundlesDir / TextureAdapterRegistry
  */
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,13 +16,20 @@ import { textureUploadRoute } from "./routes/texture-upload.js";
 import { textureGenerateRoute } from "./routes/texture-generate.js";
 import { buildRoute } from "./routes/build.js";
 import { bundleRoute } from "./routes/bundle.js";
+import { TextureAdapterRegistry } from "./lib/texture-adapter.js";
+import { createMockAdapter } from "./lib/adapters/mock-adapter.js";
+/** 기본 레지스트리 = mock 어댑터만. 실 벤더는 P3.4 에서 추가. */
+export function createDefaultAdapterRegistry() {
+    const r = new TextureAdapterRegistry();
+    r.register(createMockAdapter());
+    return r;
+}
 export async function buildApp(opts) {
     const fastify = fastifyFactory({ logger: opts.logger ?? false });
     const texturesDir = opts.texturesDir ?? join(tmpdir(), "geny-api-textures");
     const bundlesDir = opts.bundlesDir ?? join(tmpdir(), "geny-api-bundles");
     const maxFileSize = opts.maxFileSize ?? 16 * 1024 * 1024;
-    // 웹 UI 가 다른 포트 (web-preview 4173 / web-editor 5173) 에서 접근.
-    // dev 환경에선 * 로 열어두고 프로덕션은 환경변수로 origin allowlist 교체 예정 (Phase 6).
+    const adapters = opts.adapters ?? createDefaultAdapterRegistry();
     await fastify.register(fastifyCors, { origin: true });
     await fastify.register(fastifyMultipart, {
         limits: { fileSize: maxFileSize, fields: 10, files: 1 },
@@ -36,6 +43,7 @@ export async function buildApp(opts) {
     await fastify.register(textureGenerateRoute, {
         rigTemplatesRoot: opts.rigTemplatesRoot,
         texturesDir,
+        adapters,
     });
     await fastify.register(buildRoute, {
         rigTemplatesRoot: opts.rigTemplatesRoot,
@@ -43,7 +51,11 @@ export async function buildApp(opts) {
         bundlesDir,
     });
     await fastify.register(bundleRoute, { bundlesDir });
-    fastify.get("/api/health", async () => ({ status: "ok", version: "0.1.0" }));
+    fastify.get("/api/health", async () => ({
+        status: "ok",
+        version: "0.1.0",
+        adapters: adapters.list().map((a) => a.name),
+    }));
     return fastify;
 }
 //# sourceMappingURL=app.js.map

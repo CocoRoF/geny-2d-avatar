@@ -1,5 +1,5 @@
 /**
- * /api/texture/generate - Mock 텍스처 생성 엔드포인트.
+ * /api/texture/generate - 텍스처 생성 (어댑터 경유).
  *
  * 요청 body (JSON):
  *   {
@@ -9,21 +9,20 @@
  *     seed?:          1234567890
  *   }
  *
- * 동작 (P3.1 스텁):
+ * 동작 (P3.3):
  *   1) preset 조회 → atlas.json 에서 width/height 읽음
- *   2) generateMockTexture(prompt, seed, width, height) → deterministic RGBA PNG
- *   3) sha256 계산 + tmp 저장
- *   4) 응답: { texture_id, sha256, width, height, prompt, seed, adapter: "mock" }
+ *   2) TextureAdapterRegistry 에서 eligible 어댑터 순차 시도 (첫 성공 채택)
+ *   3) attempts[] 기록 → texture.manifest.json.generated_by.attempts
+ *   4) 응답: { texture_id, sha256, adapter, attempts, ... }
  *
- * 실 AI 벤더 통합 (P3.3+) 에서는 ai-adapter-core.orchestrate() 로 라우팅하도록 교체 예정.
- * 현 단계는 파이프라인 검증용 결정론적 스텁.
+ * 현재 등록된 어댑터: "mock" (P3.3). 실 AI 벤더 어댑터 (P3.4) 추가 시 primary 자동 변경.
  */
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
-import { generateMockTexture } from "../lib/mock-generator.js";
 import { writeTextureManifest } from "../lib/texture-manifest.js";
+import { runTextureGenerate, AllAdaptersFailedError, NoEligibleAdapterError, } from "../lib/texture-adapter.js";
 async function readAtlas(rigTemplatesRoot, id, version) {
     const m = /^tpl\.(base|community|custom)\.v[0-9]+\.([a-z][a-z0-9_]{1,40})$/.exec(id);
     if (!m || !m[1] || !m[2])
@@ -41,6 +40,7 @@ async function readAtlas(rigTemplatesRoot, id, version) {
 export const textureGenerateRoute = async (fastify, opts) => {
     const rigTemplatesRoot = resolve(opts.rigTemplatesRoot);
     const texturesDir = resolve(opts.texturesDir);
+    const registry = opts.adapters;
     await mkdir(texturesDir, { recursive: true });
     fastify.post("/api/texture/generate", async (request, reply) => {
         const body = request.body;
@@ -74,52 +74,78 @@ export const textureGenerateRoute = async (fastify, opts) => {
                 error: { code: "ATLAS_EMPTY", message: "atlas.textures[] 비어있음." },
             });
         }
-        // 대용량 PNG 는 느릴 수 있어 최대 변을 2048 로 캡. 실 운영은 prompt/seed hash 만 저장 후
-        // 벤더 어댑터가 원 해상도로 생성.
+        // 대용량 PNG 캡 (mock 속도 보호). 실 벤더 어댑터는 내부에서 자체 제한.
         const width = Math.min(t.width, 2048);
         const height = Math.min(t.height, 2048);
-        let pngBuf;
+        let run;
         try {
-            pngBuf = generateMockTexture({ prompt: prompt.trim(), seed, width, height });
+            run = await runTextureGenerate({
+                preset: { id: preset_id, version: preset_version },
+                prompt: prompt.trim(),
+                seed,
+                width,
+                height,
+            }, registry);
         }
         catch (err) {
+            if (err instanceof NoEligibleAdapterError) {
+                return reply.code(503).send({
+                    error: { code: "NO_ELIGIBLE_ADAPTER", message: err.message },
+                });
+            }
+            if (err instanceof AllAdaptersFailedError) {
+                return reply.code(502).send({
+                    error: {
+                        code: "ALL_ADAPTERS_FAILED",
+                        message: err.message,
+                        attempts: err.attempts,
+                    },
+                });
+            }
             return reply.code(500).send({
-                error: {
-                    code: "GENERATE_FAILED",
-                    message: "mock 생성 실패: " + err.message,
-                },
+                error: { code: "GENERATE_FAILED", message: err.message },
             });
         }
-        const sha256 = createHash("sha256").update(pngBuf).digest("hex");
+        const { result, adapter, attempts } = run;
         const textureId = "tex_" + randomUUID().replace(/-/g, "");
         const outPath = join(texturesDir, textureId + ".png");
-        await writeFile(outPath, pngBuf);
+        await writeFile(outPath, result.png);
+        // provenance 포함 manifest. attempts 는 generated_by.attempts 로 직접 포함시킬 수 없음 —
+        // writeTextureManifest 는 mode 기반 — 확장 필요. P3.3 에서는 우선 기본 mode 만.
+        const mode = adapter === "mock" ? "mock_generate" : "ai_generate";
         await writeTextureManifest({
             texturesDir,
             textureId,
-            atlasSha256: sha256,
-            width,
-            height,
-            bytes: pngBuf.length,
+            atlasSha256: result.sha256,
+            width: result.width,
+            height: result.height,
+            bytes: result.png.length,
             preset: { id: preset_id, version: preset_version },
-            mode: "mock_generate",
-            adapter: "mock",
+            mode,
+            adapter,
             prompt: prompt.trim(),
             seed,
-            notes: "P3.1 결정론적 mock 생성기 — 실 AI 벤더 아님.",
+            notes: "P3.3 adapter registry 경유 (" +
+                adapter +
+                "). attempts=" +
+                attempts.length +
+                ".",
         });
         return {
             texture_id: textureId,
-            sha256,
-            width,
-            height,
-            bytes: pngBuf.length,
+            sha256: result.sha256,
+            width: result.width,
+            height: result.height,
+            bytes: result.png.length,
             prompt: prompt.trim(),
             seed,
-            adapter: "mock",
+            adapter,
+            attempts,
             preset: { id: preset_id, version: preset_version },
             path: outPath,
-            note: "mock 생성 결과 (P3.1). 실 AI 벤더 통합은 P3.3+ 에서 ai-adapter-core 경유로 교체.",
+            note: adapter === "mock"
+                ? "mock 생성 (결정론적, 실 AI 아님)"
+                : "실 AI 벤더 " + adapter + " 경유",
         };
     });
 };
