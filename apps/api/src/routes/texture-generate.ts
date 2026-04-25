@@ -41,13 +41,70 @@ interface AtlasShape {
   readonly textures: readonly { readonly width: number; readonly height: number }[];
 }
 
-async function readAtlas(rigTemplatesRoot: string, id: string, version: string) {
+interface PresetParse {
+  readonly ns: "base" | "community" | "custom";
+  readonly slug: string;
+}
+
+function parsePresetId(id: string): PresetParse | null {
   const m = /^tpl\.(base|community|custom)\.v[0-9]+\.([a-z][a-z0-9_]{1,40})$/.exec(id);
   if (!m || !m[1] || !m[2]) return null;
-  const atlasPath = join(rigTemplatesRoot, m[1], m[2], "v" + version, "textures", "atlas.json");
+  return { ns: m[1] as PresetParse["ns"], slug: m[2] };
+}
+
+async function readAtlas(rigTemplatesRoot: string, id: string, version: string) {
+  const p = parsePresetId(id);
+  if (!p) return null;
+  const atlasPath = join(rigTemplatesRoot, p.ns, p.slug, "v" + version, "textures", "atlas.json");
   if (!existsSync(atlasPath)) return null;
   try {
     return JSON.parse(await readFile(atlasPath, "utf8")) as AtlasShape;
+  } catch {
+    return null;
+  }
+}
+
+interface PresetManifestShape {
+  readonly origin?: { readonly kind?: string };
+}
+
+/**
+ * Third-party preset 의 baseline 텍스처 PNG 를 reference 로 로드.
+ * model3.json 의 FileReferences.Textures[0] 가 가리키는 파일을 runtime_assets/ 에서 읽음.
+ * 실패 시 null — 어댑터는 reference 없이 text-only 로 동작 fallback.
+ */
+async function loadBaselineReference(
+  rigTemplatesRoot: string,
+  presetId: string,
+  presetVersion: string,
+): Promise<Buffer | null> {
+  const p = parsePresetId(presetId);
+  if (!p) return null;
+  const presetDir = join(rigTemplatesRoot, p.ns, p.slug, "v" + presetVersion);
+  const manifestPath = join(presetDir, "template.manifest.json");
+  if (!existsSync(manifestPath)) return null;
+  let manifest: PresetManifestShape;
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, "utf8")) as PresetManifestShape;
+  } catch {
+    return null;
+  }
+  if (manifest.origin?.kind !== "third-party") return null;
+  const runtimeAssets = join(presetDir, "runtime_assets");
+  // <slug>.model3.json 에서 Textures[0] 경로 읽음.
+  const candidates = [join(runtimeAssets, p.slug + ".model3.json"), join(runtimeAssets, "model3.json")];
+  let model3Path: string | null = null;
+  for (const c of candidates) if (existsSync(c)) { model3Path = c; break; }
+  if (!model3Path) return null;
+  try {
+    const m3 = JSON.parse(await readFile(model3Path, "utf8")) as {
+      FileReferences?: { Textures?: string[] };
+    };
+    const texRel = m3.FileReferences?.Textures?.[0];
+    if (!texRel) return null;
+    const texPath = join(runtimeAssets, texRel);
+    if (!existsSync(texPath)) return null;
+    return await readFile(texPath);
   } catch {
     return null;
   }
@@ -108,6 +165,10 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
     const width = Math.min(t.width, 2048);
     const height = Math.min(t.height, 2048);
 
+    // image-to-image: third-party preset (mao_pro) 면 baseline texture 를 reference 로 자동 주입.
+    // 어댑터 (nano-banana / openai-image edits) 가 prompt 와 함께 reference 를 받아 변형.
+    const referencePng = await loadBaselineReference(rigTemplatesRoot, preset_id, preset_version);
+
     let run;
     try {
       run = await runTextureGenerate(
@@ -117,6 +178,7 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
           seed,
           width,
           height,
+          ...(referencePng ? { referenceImage: { png: referencePng } } : {}),
         },
         registry,
       );
@@ -179,10 +241,12 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
       attempts,
       preset: { id: preset_id, version: preset_version },
       path: outPath,
+      reference_used: referencePng !== null,
+      reference_bytes: referencePng?.length ?? 0,
       note:
         adapter === "mock"
           ? "mock 생성 (결정론적, 실 AI 아님)"
-          : "실 AI 벤더 " + adapter + " 경유",
+          : "실 AI 벤더 " + adapter + (referencePng ? " (image-to-image, baseline reference 주입)" : " (text-to-image)"),
     };
   });
 };
