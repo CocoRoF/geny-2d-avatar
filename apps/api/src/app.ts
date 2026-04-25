@@ -27,6 +27,7 @@ import { createMockAdapter } from "./lib/adapters/mock-adapter.js";
 import { createPollinationsAdapter } from "./lib/adapters/pollinations-adapter.js";
 import { createNanoBananaAdapter } from "./lib/adapters/nano-banana-adapter.js";
 import { createOpenAIImageAdapter } from "./lib/adapters/openai-image-adapter.js";
+import { createRecolorAdapter } from "./lib/adapters/recolor-adapter.js";
 
 export interface AppOptions {
   readonly rigTemplatesRoot: string;
@@ -40,23 +41,29 @@ export interface AppOptions {
 
 /**
  * 기본 레지스트리 우선순위 (앞=primary):
- *   1. nano-banana (Google Gemini 2.5 Flash Image) — GEMINI_API_KEY 있을 때 supports=true
- *   2. openai-image (gpt-image-1 / dall-e-3)      — OPENAI_API_KEY 있을 때 supports=true
- *   3. pollinations@flux                          — 공개 HTTP, key 불필요
- *   4. mock                                       — 결정론 placeholder, 항상 fallback
+ *   1. nano-banana (Google Gemini 2.5 Flash Image)  — GEMINI_API_KEY 있을 때
+ *   2. openai-image (gpt-image-1 edits)             — OPENAI_API_KEY 있을 때
+ *   3. recolor (sharp 로컬 hue shift)               — referenceImage + 색 키워드 있을 때만
+ *   4. pollinations@flux                            — 공개 HTTP, key 불필요
+ *   5. mock                                         — 결정론 placeholder
  *
- * supports() 에 의해 key 없는 벤더는 자동 skip → 다음 어댑터 시도. 그래서 실 키 없는
- * 환경에서도 pollinations/mock 이 성공하는 한 /api/texture/generate 는 동작한다.
+ * recolor 가 AI 다음에 위치한 이유: AI 가 atlas 형식 보존하면 좋음 (헤어스타일 변경 등 가능).
+ * AI 가 ATLAS_RATIO_MISMATCH 로 거부하거나 실패하면 recolor 가 fallback 으로 동작 →
+ * atlas 보존 + 색 변경은 무조건 성공. AI 키 없으면 recolor → pollinations → mock 순.
+ *
+ * supports() 에 의해 key 없는 벤더는 자동 skip → 다음 어댑터 시도.
  *
  * 개별 disable:
  *   GENY_NANO_BANANA_DISABLED=true
  *   GENY_OPENAI_IMAGE_DISABLED=true
  *   GENY_POLLINATIONS_DISABLED=true
+ *   GENY_RECOLOR_DISABLED=true
  */
 export function createDefaultAdapterRegistry(): TextureAdapterRegistry {
   const r = new TextureAdapterRegistry();
   r.register(createNanoBananaAdapter());
   r.register(createOpenAIImageAdapter());
+  r.register(createRecolorAdapter());
   r.register(createPollinationsAdapter());
   r.register(createMockAdapter());
   return r;

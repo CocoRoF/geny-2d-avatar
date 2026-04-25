@@ -77,13 +77,17 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
             data: task.referenceImage.png.toString("base64"),
           },
         });
+        // atlas 형식 보존을 강하게 명시. 일반 image API 는 portrait 을 새로 그리는 경향이 강함.
         parts.push({
           text:
-            "Modify this Live2D character texture atlas based on the following description while keeping the same UV layout, parts arrangement, and overall composition. Description: " +
+            "CRITICAL INSTRUCTION: The input image is a Live2D character TEXTURE ATLAS — multiple character body parts arranged in fixed UV regions on a flat sheet. " +
+            "DO NOT generate a new character portrait. " +
+            "DO NOT change the layout or rearrange the parts. " +
+            "Output the SAME atlas sheet with the SAME pixel-region positions for every part. " +
+            "Output dimensions and aspect ratio MUST match the input image exactly. " +
+            "Apply ONLY the following modification to the colors/details of relevant regions: " +
             task.prompt +
-            " (seed=" +
-            task.seed +
-            "). Output a clean character texture atlas image with the same regions in the same positions as the input.",
+            ". Seed: " + task.seed + ".",
         });
       } else {
         parts.push({
@@ -180,9 +184,13 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
       }
 
       const rawBytes = Buffer.from(base64Image, "base64");
+      // image-to-image 요청 (referenceImage) 인 경우 atlas 형식 보존 강력히 요구 →
+      // 응답 aspect ratio 가 target 과 50% 이상 다르면 reject (portrait 출력 방지).
+      // text-to-image 면 aspect 자유 (cover crop).
       const png = await normalizeToPng(rawBytes, {
         targetWidth: task.width,
         targetHeight: task.height,
+        ...(task.referenceImage ? { maxAspectRatioDelta: 0.3 } : {}),
       });
       return {
         png,

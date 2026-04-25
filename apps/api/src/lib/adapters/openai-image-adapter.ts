@@ -180,6 +180,7 @@ export function createOpenAIImageAdapter(
       const png = await normalizeToPng(rawBytes, {
         targetWidth: task.width,
         targetHeight: task.height,
+        ...(task.referenceImage ? { maxAspectRatioDelta: 0.3 } : {}),
       });
       return {
         png,

@@ -2,6 +2,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import sharp from "sharp";
 import { createNanoBananaAdapter } from "../src/lib/adapters/nano-banana-adapter.js";
 import { createOpenAIImageAdapter } from "../src/lib/adapters/openai-image-adapter.js";
 import { generateMockTexture } from "../src/lib/mock-generator.js";
@@ -304,7 +305,7 @@ test("nano-banana.generate: referenceImage → image-to-image (inlineData + 변�
   );
   assert.match(
     (parts[1] as { text?: string }).text ?? "",
-    /Modify this Live2D character texture atlas/,
+    /TEXTURE ATLAS/,
     "image-to-image 변형 prompt",
   );
 });
@@ -365,6 +366,34 @@ test("openai-image.generate: referenceImage 없으면 /v1/images/generations JSO
   await a.generate(task());
   assert.match(capturedUrl, /\/v1\/images\/generations$/);
   assert.equal((capturedHeaders as Record<string, string>)["content-type"], "application/json");
+});
+
+test("nano-banana.generate: referenceImage + portrait 비율 응답 → ATLAS_RATIO_MISMATCH", async () => {
+  // 6942×17730 같은 portrait 비율을 시뮬레이션하기 위해 256×768 PNG 응답 (1:3 비율).
+  const portraitPng = await sharp({
+    create: { width: 256, height: 768, channels: 4, background: { r: 100, g: 150, b: 200, alpha: 1 } },
+  }).png().toBuffer();
+  const portraitB64 = portraitPng.toString("base64");
+  const a = createNanoBananaAdapter({
+    apiKey: "k",
+    fetchImpl: mockFetch(
+      async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: portraitB64 } }] } }],
+          }),
+          { status: 200 },
+        ),
+    ),
+  });
+  const refPng = Buffer.from(VALID_PNG_B64, "base64");
+  try {
+    // task target=256x256 (1:1) — 응답 1:3 은 30% 이상 차이 → reject 예상.
+    await a.generate(task({ width: 256, height: 256, referenceImage: { png: refPng } }));
+    assert.fail("should throw ATLAS_RATIO_MISMATCH");
+  } catch (err) {
+    assert.equal((err as { code?: string }).code, "ATLAS_RATIO_MISMATCH");
+  }
 });
 
 test("openai-image.generate: timeout → TIMEOUT", async () => {
