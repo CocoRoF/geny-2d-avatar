@@ -13,6 +13,7 @@
 import { spawnSync } from "node:child_process";
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   rmSync,
@@ -37,18 +38,29 @@ function step(label, fn) {
   return result;
 }
 
+/**
+ * 의존 패키지 dist 가 이미 존재하면 빌드 skip — 부모 (root pnpm dev) 가 직렬로
+ * `build:packages` 를 먼저 처리해 두면 prepare 는 자산 복사만 담당해 동시-빌드 충돌이 없음.
+ * standalone 실행 (예: 단독 `pnpm -F @geny/web-preview run build:public`) 에서는 dist 없으면 빌드.
+ */
+function buildIfMissing(name, distRel) {
+  const distAbs = resolve(repoRoot, distRel);
+  if (existsSync(distAbs)) {
+    process.stdout.write(`[web-preview/prepare] skip build ${name} (dist exists)\n`);
+    return;
+  }
+  step(`build ${name}`, () => {
+    runPnpm(["--filter", name, "run", "build"]);
+  });
+}
+
 step("clean public/", () => {
   rmSync(publicDir, { recursive: true, force: true });
   mkdirSync(publicDir, { recursive: true });
 });
 
-step("build @geny/exporter-core", () => {
-  runPnpm(["--filter", "@geny/exporter-core", "run", "build"]);
-});
-
-step("build @geny/web-avatar", () => {
-  runPnpm(["--filter", "@geny/web-avatar", "run", "build"]);
-});
+buildIfMissing("@geny/exporter-core", "packages/exporter-core/dist");
+buildIfMissing("@geny/web-avatar", "packages/web-avatar/dist");
 
 step("copy @geny/web-avatar dist → public/vendor", () => {
   const src = resolve(repoRoot, "packages/web-avatar/dist");
@@ -56,12 +68,8 @@ step("copy @geny/web-avatar dist → public/vendor", () => {
 });
 
 // P1.5 - Live2D 실 렌더 데모에 필요한 dist 추가 복사.
-step("build @geny/web-avatar-renderer", () => {
-  runPnpm(["--filter", "@geny/web-avatar-renderer", "run", "build"]);
-});
-step("build @geny/web-avatar-renderer-pixi", () => {
-  runPnpm(["--filter", "@geny/web-avatar-renderer-pixi", "run", "build"]);
-});
+buildIfMissing("@geny/web-avatar-renderer", "packages/web-avatar-renderer/dist");
+buildIfMissing("@geny/web-avatar-renderer-pixi", "packages/web-avatar-renderer-pixi/dist");
 step("copy @geny/web-avatar-renderer dist → public/vendor/renderer", () => {
   const src = resolve(repoRoot, "packages/web-avatar-renderer/dist");
   cpSync(src, join(vendorDir, "renderer"), { recursive: true });
