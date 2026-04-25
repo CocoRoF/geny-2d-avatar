@@ -20,6 +20,12 @@ export interface TextureTask {
   readonly seed: number;
   readonly width: number;
   readonly height: number;
+  /**
+   * image-to-image 변형용 reference PNG. 어댑터가 image input 을 지원하면 prompt 와 함께
+   * 보내 "이 이미지를 prompt 에 따라 수정" 하도록 요청한다. text-to-image 만 지원하는
+   * 어댑터 (pollinations) 는 무시.
+   */
+  readonly referenceImage?: { readonly png: Buffer; readonly mimeType?: string };
 }
 
 export interface TextureResult {

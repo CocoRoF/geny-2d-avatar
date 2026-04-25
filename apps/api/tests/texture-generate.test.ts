@@ -165,6 +165,63 @@ test("POST /api/texture/generate: 없는 preset → 404", async () => {
   }
 });
 
+// ===== image-to-image: third-party preset 의 baseline 자동 주입 =====
+
+test("POST /api/texture/generate: mao_pro third-party → reference_used=true", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.mao_pro",
+        preset_version: "1.0.0",
+        prompt: "blue hair anime girl",
+        seed: 7,
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const json = res.json() as {
+      reference_used: boolean;
+      reference_bytes: number;
+      adapter: string;
+    };
+    assert.equal(json.reference_used, true, "mao_pro 는 baseline reference 자동 주입");
+    assert.ok(json.reference_bytes > 100_000, "4096 PNG 라 100KB 이상");
+    // 테스트 환경은 mock 만 활성 → mock 어댑터는 reference 무시하지만 응답은 정상.
+    assert.equal(json.adapter, "mock");
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});
+
+test("POST /api/texture/generate: halfbody (derived) → reference_used=false", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.halfbody",
+        preset_version: "1.3.0",
+        prompt: "test",
+        seed: 1,
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const json = res.json() as { reference_used: boolean };
+    assert.equal(json.reference_used, false, "derived preset 은 reference 미주입 (.moc3 없음)");
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});
+
 test("POST /api/texture/generate: 결정론 - 동일 (preset/prompt/seed) → 동일 sha256", async () => {
   const textures = scratch();
   const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });

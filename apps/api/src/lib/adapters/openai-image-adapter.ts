@@ -70,27 +70,55 @@ export function createOpenAIImageAdapter(
       return true;
     },
     async generate(task: TextureTask) {
-      const body = {
-        model,
-        prompt: task.prompt,
-        n: 1,
-        size,
-        response_format: "b64_json",
-      };
+      const useEdit = !!task.referenceImage?.png;
+      // edits endpoint 는 multipart/form-data, generations 는 application/json.
+      // dall-e-3 는 edit 미지원 — gpt-image-1 만 가능. 이 어댑터는 model 에 따라 분기.
+      const endpoint = useEdit
+        ? "https://api.openai.com/v1/images/edits"
+        : "https://api.openai.com/v1/images/generations";
 
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), timeoutMs);
-      let res: Response;
-      try {
-        res = await f("https://api.openai.com/v1/images/generations", {
+      let requestInit: RequestInit;
+      if (useEdit) {
+        const fd = new FormData();
+        fd.append("model", model);
+        fd.append("prompt", task.prompt);
+        fd.append("n", "1");
+        fd.append("size", size);
+        fd.append("response_format", "b64_json");
+        fd.append(
+          "image",
+          new Blob([new Uint8Array(task.referenceImage!.png)], {
+            type: task.referenceImage!.mimeType ?? "image/png",
+          }),
+          "reference.png",
+        );
+        requestInit = {
+          method: "POST",
+          headers: { authorization: "Bearer " + apiKey },
+          body: fd,
+        };
+      } else {
+        requestInit = {
           method: "POST",
           headers: {
             authorization: "Bearer " + apiKey,
             "content-type": "application/json",
           },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
+          body: JSON.stringify({
+            model,
+            prompt: task.prompt,
+            n: 1,
+            size,
+            response_format: "b64_json",
+          }),
+        };
+      }
+
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      let res: Response;
+      try {
+        res = await f(endpoint, { ...requestInit, signal: controller.signal });
       } catch (err) {
         clearTimeout(t);
         const e = err as Error;

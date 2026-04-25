@@ -280,6 +280,93 @@ test("openai-image.generate: error 필드 → VENDOR_ERROR_4XX", async () => {
   }
 });
 
+test("nano-banana.generate: referenceImage → image-to-image (inlineData + 변형 prompt)", async () => {
+  let capturedBody: { contents: Array<{ parts: Array<Record<string, unknown>> }> } | null = null;
+  const a = createNanoBananaAdapter({
+    apiKey: "k",
+    fetchImpl: mockFetch(async (_url, init) => {
+      capturedBody = JSON.parse((init?.body as string) ?? "{}");
+      return new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: VALID_PNG_B64 } }] } }],
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  const refPng = Buffer.from(VALID_PNG_B64, "base64");
+  await a.generate(task({ referenceImage: { png: refPng } }));
+  const parts = capturedBody!.contents[0]!.parts;
+  assert.equal(parts.length, 2, "inlineData + text 두 part");
+  assert.ok(
+    (parts[0] as { inlineData?: { data?: string } }).inlineData?.data,
+    "첫 part 가 inlineData (reference)",
+  );
+  assert.match(
+    (parts[1] as { text?: string }).text ?? "",
+    /Modify this Live2D character texture atlas/,
+    "image-to-image 변형 prompt",
+  );
+});
+
+test("nano-banana.generate: referenceImage 없으면 text-only (단일 part)", async () => {
+  let capturedBody: { contents: Array<{ parts: Array<Record<string, unknown>> }> } | null = null;
+  const a = createNanoBananaAdapter({
+    apiKey: "k",
+    fetchImpl: mockFetch(async (_url, init) => {
+      capturedBody = JSON.parse((init?.body as string) ?? "{}");
+      return new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: VALID_PNG_B64 } }] } }],
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  await a.generate(task());
+  assert.equal(capturedBody!.contents[0]!.parts.length, 1);
+});
+
+test("openai-image.generate: referenceImage → /v1/images/edits multipart", async () => {
+  let capturedUrl = "";
+  let capturedBody: unknown = null;
+  let capturedHeaders: Record<string, string> = {};
+  const a = createOpenAIImageAdapter({
+    apiKey: "k",
+    fetchImpl: mockFetch(async (url, init) => {
+      capturedUrl = url;
+      capturedHeaders = (init?.headers ?? {}) as Record<string, string>;
+      capturedBody = init?.body;
+      return new Response(JSON.stringify({ data: [{ b64_json: VALID_PNG_B64 }] }), { status: 200 });
+    }),
+  });
+  const refPng = Buffer.from(VALID_PNG_B64, "base64");
+  await a.generate(task({ referenceImage: { png: refPng } }));
+  assert.match(capturedUrl, /\/v1\/images\/edits$/, "edits 엔드포인트");
+  assert.equal(
+    (capturedHeaders as Record<string, string>)["content-type"],
+    undefined,
+    "multipart 에서는 content-type 자동 (boundary 포함)",
+  );
+  assert.ok(capturedBody instanceof FormData, "body 가 FormData");
+});
+
+test("openai-image.generate: referenceImage 없으면 /v1/images/generations JSON", async () => {
+  let capturedUrl = "";
+  let capturedHeaders: Record<string, string> = {};
+  const a = createOpenAIImageAdapter({
+    apiKey: "k",
+    fetchImpl: mockFetch(async (url, init) => {
+      capturedUrl = url;
+      capturedHeaders = (init?.headers ?? {}) as Record<string, string>;
+      return new Response(JSON.stringify({ data: [{ b64_json: VALID_PNG_B64 }] }), { status: 200 });
+    }),
+  });
+  await a.generate(task());
+  assert.match(capturedUrl, /\/v1\/images\/generations$/);
+  assert.equal((capturedHeaders as Record<string, string>)["content-type"], "application/json");
+});
+
 test("openai-image.generate: timeout → TIMEOUT", async () => {
   const abortErr = new Error("aborted");
   abortErr.name = "AbortError";

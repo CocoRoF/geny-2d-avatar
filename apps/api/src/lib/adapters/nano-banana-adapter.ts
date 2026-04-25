@@ -65,21 +65,36 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
         "https://generativelanguage.googleapis.com/v1beta/models/" +
         encodeURIComponent(model) +
         ":generateContent";
-      const body = {
-        contents: [
-          {
-            parts: [
-              {
-                text:
-                  task.prompt +
-                  " (seed=" +
-                  task.seed +
-                  ", texture atlas for character avatar, centered subject, transparent or clean background)",
-              },
-            ],
+      // image-to-image: referenceImage 가 있으면 inlineData 로 함께 보내 변형 요청.
+      const parts: Array<
+        | { text: string }
+        | { inlineData: { mimeType: string; data: string } }
+      > = [];
+      if (task.referenceImage?.png) {
+        parts.push({
+          inlineData: {
+            mimeType: task.referenceImage.mimeType ?? "image/png",
+            data: task.referenceImage.png.toString("base64"),
           },
-        ],
-      };
+        });
+        parts.push({
+          text:
+            "Modify this Live2D character texture atlas based on the following description while keeping the same UV layout, parts arrangement, and overall composition. Description: " +
+            task.prompt +
+            " (seed=" +
+            task.seed +
+            "). Output a clean character texture atlas image with the same regions in the same positions as the input.",
+        });
+      } else {
+        parts.push({
+          text:
+            task.prompt +
+            " (seed=" +
+            task.seed +
+            ", texture atlas for character avatar, centered subject, transparent or clean background)",
+        });
+      }
+      const body = { contents: [{ parts }] };
 
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), timeoutMs);
