@@ -109,12 +109,16 @@
     <!-- Cubism Core - Live2D 공식 CDN (비상업 사용 전제). 오프라인 시 ./public/vendor/live2dcubismcore.min.js 로 변경. -->
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js" onerror="window.__coreLoadFailed = true;"></script>
 
+    <!--
+      pixi.js single instance 강제. esm.sh ?external= 로 의존성 외부화.
+    -->
     <script type="importmap">
       {
         "imports": {
           "pixi.js": "https://esm.sh/pixi.js@8.18.1",
-          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism",
-          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism"
+          "@pixi/sound": "https://esm.sh/@pixi/sound@6.0.1?external=pixi.js",
+          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?external=pixi.js,@pixi/sound",
+          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?external=pixi.js,@pixi/sound"
         }
       }
     </script>

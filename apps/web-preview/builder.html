@@ -524,12 +524,17 @@
     -->
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js" onerror="window.__coreLoadFailed = true;"></script>
 
+    <!--
+      pixi.js 는 single instance 여야 batcher 등 extension 의 중복 등록을 피할 수 있다.
+      esm.sh 의 ?external= 로 pixi-live2d-display-advanced 의 deps 를 외부화 → importmap 의 pixi.js 한 인스턴스만 사용.
+    -->
     <script type="importmap">
       {
         "imports": {
           "pixi.js": "https://esm.sh/pixi.js@8.18.1",
-          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism",
-          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism"
+          "@pixi/sound": "https://esm.sh/@pixi/sound@6.0.1?external=pixi.js",
+          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?external=pixi.js,@pixi/sound",
+          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?external=pixi.js,@pixi/sound"
         }
       }
     </script>
