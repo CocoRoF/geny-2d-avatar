@@ -1,21 +1,30 @@
 /**
- * OpenAI Image Generation 텍스처 어댑터.
+ * OpenAI Image (gpt-image-1) 텍스처 어댑터.
  *
- * Models: gpt-image-1 (권장, 최신) / dall-e-3 (안정).
- * Endpoint: https://api.openai.com/v1/images/generations
- * Auth: Authorization: Bearer $OPENAI_API_KEY
+ * 모델: gpt-image-1 (organization verification 필요).
+ * 두 endpoint:
+ *   POST /v1/images/generations  — text-to-image (referenceImage 없을 때)
+ *   POST /v1/images/edits        — image-to-image (referenceImage 있을 때)
  *
- * 응답 구조:
- *   { created: <ts>, data: [{ b64_json: "<base64>" }] }   # response_format=b64_json
- *   또는 { url: "<signed>" }                              # response_format=url (기본)
- *
- * 본 어댑터는 b64_json 으로 강제 요청. 받은 bytes 를 sharp 로 normalizeToPng → task 크기.
+ * 핵심 사양 (2025-2026 검증):
+ *   - response_format 은 gpt-image-1 에서 **deprecated** — 보내면 일부 케이스 400.
+ *     gpt-image-1 은 항상 b64_json 으로 응답. output_format (png/jpeg/webp) 으로 형식 제어.
+ *   - **input_fidelity: "high"** — image edits 의 핵심. 빠뜨리면 layout 무시하고 regenerate.
+ *     사용자가 본 "atlas 보존 안 됨" 의 직접 원인.
+ *   - size: "1024x1024" / "1536x1024" / "1024x1536" / "auto" 만 유효.
+ *     "2048x2048" 같은 값은 거부됨 (256x256 / 512x512 도 dall-e-2 전용).
+ *   - quality: "low" / "medium" / "high" / "auto"
+ *   - output_format: "png" / "jpeg" / "webp" (default png)
+ *   - background: "transparent" / "opaque" / "auto" (transparent 는 png/webp 만)
+ *   - image 필드: Blob/File 로 보내야 함. 파일명 + MIME type 필수.
+ *   - Content-Type 헤더 직접 지정 금지 (FormData 가 boundary 자동 설정).
  *
  * 환경변수:
  *   OPENAI_API_KEY                         — 없으면 supports=false
- *   GENY_OPENAI_IMAGE_MODEL                — 기본 "gpt-image-1" (또는 "dall-e-3")
- *   GENY_OPENAI_IMAGE_SIZE                 — 기본 "1024x1024"
- *   GENY_OPENAI_IMAGE_TIMEOUT_MS           — 기본 60000
+ *   GENY_OPENAI_IMAGE_MODEL                — 기본 "gpt-image-1"
+ *   GENY_OPENAI_IMAGE_SIZE                 — 기본 "1024x1024" (gpt-image-1 호환 값만)
+ *   GENY_OPENAI_IMAGE_QUALITY              — 기본 "high"
+ *   GENY_OPENAI_IMAGE_TIMEOUT_MS           — 기본 120000 (edit 은 30~90s 소요)
  *   GENY_OPENAI_IMAGE_DISABLED=true        — 강제 off
  */
 
@@ -25,23 +34,21 @@ import { normalizeToPng } from "../image-post.js";
 
 const DEFAULT_MODEL = "gpt-image-1";
 const DEFAULT_SIZE = "1024x1024";
+const DEFAULT_QUALITY = "high";
+const VALID_SIZES = new Set(["1024x1024", "1536x1024", "1024x1536", "auto"]);
 
 export interface OpenAIImageAdapterOptions {
   readonly apiKey?: string;
   readonly model?: string;
-  /** OpenAI 요청 size (e.g., "1024x1024" / "1792x1024"). 벤더 반환 후 sharp 로 재조정. */
   readonly size?: string;
+  readonly quality?: string;
   readonly timeoutMs?: number;
   readonly enabled?: boolean;
   readonly fetchImpl?: typeof fetch;
 }
 
 interface OpenAIImageResponse {
-  readonly data?: ReadonlyArray<{
-    readonly b64_json?: string;
-    readonly revised_prompt?: string;
-    readonly url?: string;
-  }>;
+  readonly data?: ReadonlyArray<{ readonly b64_json?: string; readonly url?: string }>;
   readonly error?: {
     readonly message?: string;
     readonly type?: string;
@@ -54,10 +61,13 @@ export function createOpenAIImageAdapter(
 ): TextureAdapter {
   const apiKey = opts.apiKey ?? process.env.OPENAI_API_KEY ?? "";
   const model = opts.model ?? process.env.GENY_OPENAI_IMAGE_MODEL ?? DEFAULT_MODEL;
-  const size = opts.size ?? process.env.GENY_OPENAI_IMAGE_SIZE ?? DEFAULT_SIZE;
+  const rawSize = opts.size ?? process.env.GENY_OPENAI_IMAGE_SIZE ?? DEFAULT_SIZE;
+  // gpt-image-1 호환 size 만 허용. 잘못된 값이면 default 로 폴백.
+  const size = VALID_SIZES.has(rawSize) ? rawSize : DEFAULT_SIZE;
+  const quality = opts.quality ?? process.env.GENY_OPENAI_IMAGE_QUALITY ?? DEFAULT_QUALITY;
   const timeoutMs =
     opts.timeoutMs ??
-    Number.parseInt(process.env.GENY_OPENAI_IMAGE_TIMEOUT_MS ?? "60000", 10);
+    Number.parseInt(process.env.GENY_OPENAI_IMAGE_TIMEOUT_MS ?? "120000", 10);
   const enabled = opts.enabled ?? process.env.GENY_OPENAI_IMAGE_DISABLED !== "true";
   const f = opts.fetchImpl ?? fetch;
 
@@ -71,20 +81,23 @@ export function createOpenAIImageAdapter(
     },
     async generate(task: TextureTask) {
       const useEdit = !!task.referenceImage?.png;
-      // edits endpoint 는 multipart/form-data, generations 는 application/json.
-      // dall-e-3 는 edit 미지원 — gpt-image-1 만 가능. 이 어댑터는 model 에 따라 분기.
       const endpoint = useEdit
         ? "https://api.openai.com/v1/images/edits"
         : "https://api.openai.com/v1/images/generations";
 
       let requestInit: RequestInit;
       if (useEdit) {
+        // multipart/form-data. image 는 Blob (Buffer 직접 X). Content-Type 자동.
         const fd = new FormData();
         fd.append("model", model);
         fd.append("prompt", task.prompt);
         fd.append("n", "1");
         fd.append("size", size);
-        fd.append("response_format", "b64_json");
+        fd.append("quality", quality);
+        // 핵심: image 의 layout/composition 보존을 위한 high fidelity. 빠뜨리면 regenerate.
+        fd.append("input_fidelity", "high");
+        fd.append("output_format", "png");
+        fd.append("background", "transparent");
         fd.append(
           "image",
           new Blob([new Uint8Array(task.referenceImage!.png)], {
@@ -92,12 +105,14 @@ export function createOpenAIImageAdapter(
           }),
           "reference.png",
         );
+        // response_format 은 gpt-image-1 deprecated — 보내지 않음.
         requestInit = {
           method: "POST",
           headers: { authorization: "Bearer " + apiKey },
           body: fd,
         };
       } else {
+        // text-to-image generations. JSON body. response_format 도 deprecated.
         requestInit = {
           method: "POST",
           headers: {
@@ -109,7 +124,9 @@ export function createOpenAIImageAdapter(
             prompt: task.prompt,
             n: 1,
             size,
-            response_format: "b64_json",
+            quality,
+            output_format: "png",
+            background: "transparent",
           }),
         };
       }
@@ -136,7 +153,6 @@ export function createOpenAIImageAdapter(
 
       const rawText = await res.text();
       if (!res.ok) {
-        // gpt-image-1 은 org verification 필요 — 403 시 fallback 권장 (다음 어댑터).
         const code =
           res.status >= 500
             ? "VENDOR_ERROR_5XX"
@@ -144,7 +160,7 @@ export function createOpenAIImageAdapter(
               ? "RATE_LIMITED"
               : "VENDOR_ERROR_4XX";
         const err = new Error(
-          "openai-image HTTP " + res.status + ": " + rawText.slice(0, 200),
+          "openai-image HTTP " + res.status + ": " + rawText.slice(0, 300),
         ) as Error & { code?: string };
         err.code = code;
         throw err;
@@ -170,7 +186,8 @@ export function createOpenAIImageAdapter(
       const b64 = parsed.data?.[0]?.b64_json;
       if (!b64) {
         const err = new Error(
-          "openai-image 응답에 data[0].b64_json 없음. size=" + size,
+          "openai-image 응답에 data[0].b64_json 없음. size=" + size +
+            " quality=" + quality + " endpoint=" + (useEdit ? "edits" : "generations"),
         ) as Error & { code?: string };
         err.code = "INVALID_OUTPUT";
         throw err;
