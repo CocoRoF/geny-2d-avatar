@@ -9,11 +9,15 @@
   },
   "scripts": {
     "validate:schemas": "node scripts/validate-schemas.mjs",
-    "test:golden": "node scripts/test-golden.mjs"
+    "test:golden": "node scripts/test-golden.mjs",
+    "setup": "pnpm install && pnpm -F @geny/web-preview run build:public",
+    "dev": "concurrently --kill-others --names api,web -c blue,green \"pnpm -F @geny/api dev\" \"pnpm -F @geny/web-preview run serve\"",
+    "start": "pnpm setup && pnpm dev"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "concurrently": "^9.2.1",
     "ioredis": "^5"
   }
 }

@@ -47,18 +47,37 @@ corepack enable && corepack prepare pnpm@9.12.0 --activate
 ```bash
 git clone https://github.com/CocoRoF/geny-2d-avatar.git
 cd geny-2d-avatar
-pnpm install --frozen-lockfile
 
-# 스키마 + 기존 골든 회귀
-pnpm run validate:schemas
-pnpm run test:golden
+# (옵션) AI 벤더 키 .env 에 등록
+cp .env.example .env
+#   GEMINI_API_KEY=AIza...
+#   OPENAI_API_KEY=sk-...
+# 둘 다 비워도 pollinations + mock 폴백으로 동작
+
+# 한 줄 — 의존성 설치 + 자산 빌드 + API + Web 동시 기동
+pnpm start
+# 또는 이미 setup 완료 상태에서:
+pnpm dev
 ```
 
-Phase 1 이후 활성화:
+준비되면 출력:
+```
+[web-preview] http://localhost:4173/
+[web-preview] ➜ Builder UI:    http://localhost:4173/builder.html
+[web-preview] ➜ Live2D Demo:   http://localhost:4173/live2d-demo.html
+[geny/api]    listening on http://0.0.0.0:3000
+[geny/api]    adapter keys:
+  GEMINI_API_KEY    : ✓ set
+  OPENAI_API_KEY    : ✓ set
+```
+
+브라우저에서 [http://localhost:4173/builder.html](http://localhost:4173/builder.html) 접속 → 프리셋 카드 클릭 → prompt 입력 → Enter.
+
+기타 운영 명령:
 ```bash
-# 로컬 웹 UI (Phase 2+)
-pnpm -F apps/web-editor dev    # http://localhost:5173
-pnpm -F apps/api dev            # http://localhost:3000
+pnpm setup                # install + 자산 빌드만
+pnpm run validate:schemas # 스키마 회귀
+pnpm run test:golden      # 골든 회귀
 ```
 
 ---
