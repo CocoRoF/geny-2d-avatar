@@ -525,22 +525,11 @@
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js" onerror="window.__coreLoadFailed = true;"></script>
 
     <!--
-      pixi.js single instance 강제. esm.sh 의 두 가지 함정:
-        1. wrapper URL (esm.sh/pixi.js@8.18.1) 과 inner URL (esm.sh/pixi.js@8.18.1/es2022/pixi.mjs) 가 다름 → 두 module instance.
-        2. external 로 외부화해도 cubism 이 import 하는 URL 과 importmap 매핑 URL 이 정확히 같아야 같은 module.
-      해결: importmap 의 pixi.js / @pixi/sound 를 cubism (with ?deps=) 가 import 하는 정확한 inner URL 로 매핑.
-      (?deps= 는 cubism 안 import 를 명시한 버전으로 고정시킴 → inner URL 안정적.)
+      pixi.js + pixi-live2d-display-advanced 단일 IIFE 번들 (esbuild 가 prepare.mjs 에서 생성).
+      CDN ESM 의 sub-module 인스턴스 분리 (PIXI v8 Extensions 의 batcher 충돌) 회피.
+      window.GenyPixi.{PIXI, Live2DModel} 글로벌 노출.
     -->
-    <script type="importmap">
-      {
-        "imports": {
-          "pixi.js": "https://esm.sh/pixi.js@8.18.1/es2022/pixi.mjs",
-          "@pixi/sound": "https://esm.sh/@pixi/sound@6.0.1/X-ZHBpeGkuanNAOC4xOC4x/es2022/sound.mjs",
-          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?deps=pixi.js@8.18.1,@pixi/sound@6.0.1",
-          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?deps=pixi.js@8.18.1,@pixi/sound@6.0.1"
-        }
-      }
-    </script>
+    <script src="./public/vendor/pixi-live2d-bundle.js" onerror="window.__pixiBundleFailed = true;"></script>
 
     <script type="module">
       // API base - ?api=... 쿼리로 override 가능.
@@ -1409,21 +1398,23 @@
             previewStatus,
             "err",
             "❌ Cubism Core 미로드. 런타임 프리뷰 비활성.\n\n" +
-              "해결:\n  1. Live2D SDK for Web → Core/live2dcubismcore.min.js 다운로드\n" +
-              "  2. vendor/live2dcubismcore/ 에 복사\n" +
-              "  3. pnpm exec node scripts/setup-cubism-core.mjs\n" +
-              "  4. pnpm -F @geny/web-preview run build:public",
+              "Live2D 공식 CDN 차단되었거나 오프라인 환경. setup-cubism-core.mjs 로 로컬 배치.",
           );
           throw new Error("Cubism Core missing");
         }
-        const [{ Application }, { Live2DModel }, rendererMod] = await Promise.all([
-          import("pixi.js"),
-          // /cubism = Cubism 4/5 전용 sub-entry. main 엔트리는 Cubism 2 runtime 도 요구.
-          import("pixi-live2d-display-advanced/cubism"),
-          import("./public/vendor/renderer-pixi/index.js"),
-        ]);
+        if (window.__pixiBundleFailed || typeof window.GenyPixi === "undefined") {
+          setStatus(
+            previewStatus,
+            "err",
+            "❌ pixi-live2d-bundle.js 로드 실패. pnpm -F @geny/web-preview run build:public 으로 생성 필요.",
+          );
+          throw new Error("GenyPixi bundle missing");
+        }
+        const { PIXI, Live2DModel } = window.GenyPixi;
+        // renderer-pixi 패키지 (single ES module 그래프) 만 별도 동적 로드.
+        const rendererMod = await import("./public/vendor/renderer-pixi/index.js");
         pixiModules = {
-          Application,
+          Application: PIXI.Application,
           Live2DModel,
           createPixiLive2DRenderer: rendererMod.createPixiLive2DRenderer,
         };

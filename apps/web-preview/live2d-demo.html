@@ -110,25 +110,19 @@
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js" onerror="window.__coreLoadFailed = true;"></script>
 
     <!--
-      pixi.js single instance — importmap 을 cubism 이 사용하는 inner URL 로 정확히 매핑.
-      자세한 이유는 builder.html 의 importmap 주석 참고.
+      pixi.js + pixi-live2d-display-advanced 단일 IIFE 번들 (esbuild). window.GenyPixi 글로벌.
+      CDN ESM 의 sub-module 인스턴스 분리 (batcher 충돌) 회피.
     -->
-    <script type="importmap">
-      {
-        "imports": {
-          "pixi.js": "https://esm.sh/pixi.js@8.18.1/es2022/pixi.mjs",
-          "@pixi/sound": "https://esm.sh/@pixi/sound@6.0.1/X-ZHBpeGkuanNAOC4xOC4x/es2022/sound.mjs",
-          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?deps=pixi.js@8.18.1,@pixi/sound@6.0.1",
-          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?deps=pixi.js@8.18.1,@pixi/sound@6.0.1"
-        }
-      }
-    </script>
+    <script src="./public/vendor/pixi-live2d-bundle.js" onerror="window.__pixiBundleFailed = true;"></script>
 
     <script type="module">
-      import { Application } from "pixi.js";
-      // /cubism = Cubism 4/5 전용 sub-entry.
-      import { Live2DModel } from "pixi-live2d-display-advanced/cubism";
-      import { createPixiLive2DRenderer } from "./public/vendor/renderer-pixi/index.js";
+      if (window.__pixiBundleFailed || typeof window.GenyPixi === "undefined") {
+        document.body.innerHTML = '<p style="padding:24px;color:#a00;">pixi-live2d-bundle.js 로드 실패. <code>pnpm -F @geny/web-preview run build:public</code> 으로 생성.</p>';
+        throw new Error("pixi bundle missing");
+      }
+      const { PIXI, Live2DModel } = window.GenyPixi;
+      const Application = PIXI.Application;
+      const { createPixiLive2DRenderer } = await import("./public/vendor/renderer-pixi/index.js");
 
       const statusEl = document.getElementById("status");
       const stageEl = document.getElementById("stage");

@@ -166,7 +166,9 @@ export function defaultResolveModelUrl(detail: RendererReadyEventDetail): string
 // ------ 기본 createApp / loadModel (런타임 동적 import) ------
 
 async function defaultCreatePixiApp(opts: PixiLive2DAppOptions): Promise<PixiLive2DAppHandle> {
-  const pixi = (await import("pixi.js")) as typeof import("pixi.js");
+  // window.GenyPixi.PIXI 가 있으면 단일 번들 인스턴스 사용 (single PIXI graph 보장).
+  const g = (globalThis as { GenyPixi?: { PIXI?: typeof import("pixi.js") } }).GenyPixi;
+  const pixi = g?.PIXI ?? ((await import("pixi.js")) as typeof import("pixi.js"));
   const app = new pixi.Application();
   await app.init({
     background: opts.backgroundColor ?? 0xf7f8fa,
@@ -194,8 +196,13 @@ async function defaultCreatePixiApp(opts: PixiLive2DAppOptions): Promise<PixiLiv
 }
 
 async function defaultLoadModel(modelUrl: string): Promise<Live2DModelLike> {
-  // /cubism = Cubism 4/5 전용 sub-entry. main 엔트리는 Cubism 2 (live2d.min.js) 도 요구해서
-  // mao_pro 같은 Cubism 4/5 모델 로드 시 "Could not find Cubism 2 runtime" 으로 실패.
+  // 우선 window.GenyPixi (esbuild 단일 번들) 가 있으면 그 Live2DModel 사용 (single instance).
+  // CDN ESM 사용 시 sub-module 분리로 PIXI extension (batcher) 충돌이 발생해 회피 불가.
+  const g = (globalThis as { GenyPixi?: { Live2DModel?: { from: (url: string) => Promise<Live2DModelLike> } } }).GenyPixi;
+  if (g?.Live2DModel?.from) {
+    return g.Live2DModel.from(modelUrl);
+  }
+  // fallback (테스트/Node 환경 등): /cubism sub-entry 동적 import.
   const mod = await import("pixi-live2d-display-advanced/cubism");
   const Live2DModel = (mod as { Live2DModel: { from: (url: string) => Promise<Live2DModelLike> } })
     .Live2DModel;
