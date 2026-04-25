@@ -11,7 +11,7 @@
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "test:golden": "node scripts/test-golden.mjs",
     "setup": "pnpm install && pnpm -F @geny/web-preview run build:public",
-    "dev": "concurrently --kill-others --names api,web -c blue,green \"pnpm -F @geny/api dev\" \"pnpm -F @geny/web-preview run serve\"",
+    "dev": "concurrently --kill-others --names api,web -c blue,green \"pnpm -F @geny/api dev\" \"pnpm -F @geny/web-preview run dev\"",
     "start": "pnpm setup && pnpm dev"
   },
   "devDependencies": {
