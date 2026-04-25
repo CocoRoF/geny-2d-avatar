@@ -112,15 +112,17 @@
     <script type="importmap">
       {
         "imports": {
-          "pixi.js": "https://cdn.jsdelivr.net/npm/pixi.js@8.18.1/+esm",
-          "pixi-live2d-display-advanced": "https://cdn.jsdelivr.net/npm/pixi-live2d-display-advanced@2.0.0-beta.2/+esm"
+          "pixi.js": "https://esm.sh/pixi.js@8.18.1",
+          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism",
+          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism"
         }
       }
     </script>
 
     <script type="module">
       import { Application } from "pixi.js";
-      import { Live2DModel } from "pixi-live2d-display-advanced";
+      // /cubism = Cubism 4/5 전용 sub-entry.
+      import { Live2DModel } from "pixi-live2d-display-advanced/cubism";
       import { createPixiLive2DRenderer } from "./public/vendor/renderer-pixi/index.js";
 
       const statusEl = document.getElementById("status");
