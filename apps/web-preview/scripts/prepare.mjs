@@ -78,6 +78,27 @@ step("copy @geny/web-avatar-renderer-pixi dist → public/vendor/renderer-pixi",
   const src = resolve(repoRoot, "packages/web-avatar-renderer-pixi/dist");
   cpSync(src, join(vendorDir, "renderer-pixi"), { recursive: true });
 });
+
+// pixi.js + pixi-live2d-display-advanced 를 단일 IIFE 로 esbuild bundle.
+// CDN ESM (esm.sh / jsdelivr) 의 sub-module 인스턴스 분리로 발생한 batcher
+// extension 충돌을 회피. globalThis.GenyPixi.{PIXI, Live2DModel} 로 노출.
+await (async () => {
+  const t0 = Date.now();
+  process.stdout.write("[web-preview/prepare] bundle pixi + live2d → public/vendor/pixi-live2d-bundle.js… ");
+  const esbuild = await import("esbuild");
+  await esbuild.build({
+    entryPoints: [join(here, "pixi-bundle-entry.mjs")],
+    bundle: true,
+    format: "iife",
+    globalName: "GenyPixi",
+    outfile: join(vendorDir, "pixi-live2d-bundle.js"),
+    minify: true,
+    platform: "browser",
+    target: ["es2022"],
+    legalComments: "none",
+  });
+  process.stdout.write(`done (${Date.now() - t0}ms)\n`);
+})();
 step("copy mao_pro runtime_assets → public/presets/mao_pro/", () => {
   // Live2D Framework 가 브라우저에서 model3.json 을 로드할 때 상대경로로
   // moc3/texture/motions/expressions 에 접근하므로 전체 디렉토리 복사.
