@@ -28,8 +28,13 @@ import {
   runTextureGenerate,
   AllAdaptersFailedError,
   NoEligibleAdapterError,
-  type TextureAdapterRegistry,
+  TextureAdapterRegistry,
 } from "../lib/texture-adapter.js";
+import { createNanoBananaAdapter } from "../lib/adapters/nano-banana-adapter.js";
+import { createOpenAIImageAdapter } from "../lib/adapters/openai-image-adapter.js";
+import { createPollinationsAdapter } from "../lib/adapters/pollinations-adapter.js";
+import { createRecolorAdapter } from "../lib/adapters/recolor-adapter.js";
+import { createMockAdapter } from "../lib/adapters/mock-adapter.js";
 
 export interface TextureGenerateRouteOptions {
   readonly rigTemplatesRoot: string;
@@ -110,6 +115,36 @@ async function loadBaselineReference(
   }
 }
 
+/**
+ * 단일 어댑터만 들어있는 일회용 레지스트리 생성. 사용자가 명시적으로 adapter/model 을 선택했을 때 사용.
+ * 알 수 없는 vendor 면 null.
+ */
+function buildSingleAdapterRegistry(
+  vendor: string,
+  model: string | undefined,
+): TextureAdapterRegistry | null {
+  const r = new TextureAdapterRegistry();
+  switch (vendor) {
+    case "nano-banana":
+      r.register(createNanoBananaAdapter(model ? { model } : {}));
+      return r;
+    case "openai-image":
+      r.register(createOpenAIImageAdapter(model ? { model } : {}));
+      return r;
+    case "pollinations":
+      r.register(createPollinationsAdapter());
+      return r;
+    case "recolor":
+      r.register(createRecolorAdapter());
+      return r;
+    case "mock":
+      r.register(createMockAdapter());
+      return r;
+    default:
+      return null;
+  }
+}
+
 export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOptions> = async (
   fastify,
   opts,
@@ -126,6 +161,10 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
           preset_version?: string;
           prompt?: string;
           seed?: number;
+          /** 명시적 어댑터 선택 (nano-banana / openai-image / pollinations / recolor / mock). 미지정 = registry priority chain. */
+          adapter?: string;
+          /** 해당 어댑터의 모델 override (예: gpt-image-2, gemini-3-pro-image-preview). */
+          model?: string;
         }
       | undefined;
 
@@ -166,8 +205,22 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
     const height = Math.min(t.height, 2048);
 
     // image-to-image: third-party preset (mao_pro) 면 baseline texture 를 reference 로 자동 주입.
-    // 어댑터 (nano-banana / openai-image edits) 가 prompt 와 함께 reference 를 받아 변형.
     const referencePng = await loadBaselineReference(rigTemplatesRoot, preset_id, preset_version);
+
+    // 명시적 adapter / model 선택이면 일회용 registry 만들어 그 어댑터만 호출. 없으면 기본 registry priority.
+    const useRegistry = !body.adapter
+      ? registry
+      : buildSingleAdapterRegistry(body.adapter, body.model);
+    if (useRegistry === null) {
+      return reply.code(400).send({
+        error: {
+          code: "UNKNOWN_ADAPTER",
+          message:
+            "지원되지 않는 adapter: " + body.adapter +
+            ". 가능: nano-banana / openai-image / pollinations / recolor / mock",
+        },
+      });
+    }
 
     let run;
     try {
@@ -180,7 +233,7 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
           height,
           ...(referencePng ? { referenceImage: { png: referencePng } } : {}),
         },
-        registry,
+        useRegistry,
       );
     } catch (err) {
       if (err instanceof NoEligibleAdapterError) {
