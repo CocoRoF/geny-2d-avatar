@@ -336,7 +336,7 @@
         border-radius: 6px;
         background: #f7f8fa;
         width: 100%;
-        max-width: 480px;
+        max-width: 600px;
         aspect-ratio: 3 / 4;
         display: flex;
         align-items: center;
@@ -344,6 +344,11 @@
         color: #888;
         font-size: 0.9rem;
         overflow: hidden;
+      }
+      .preview-stage canvas {
+        max-width: 100%;
+        height: auto;
+        display: block;
       }
       .preview-controls {
         display: flex;
@@ -1462,18 +1467,24 @@
           return;
         }
         livePanel.style.display = "block";
+        const STAGE_W = 600;
+        const STAGE_H = 800;
         try {
           const mods = await loadPixiModules();
           // 기존 렌더 파괴.
           destroyCurrentModel();
-          setStatus(previewStatus, "info", "Live2D 모델 로드 중… (texture_id=" + textureId + ")");
+          setStatus(
+            previewStatus,
+            "info",
+            "Live2D 모델 로드 중… (texture_id=" + (textureId ?? "원본 baseline") + ")",
+          );
           previewStage.textContent = "";
           // PIXI Application 생성.
           const app = new mods.Application();
           await app.init({
             background: 0xf7f8fa,
-            width: 480,
-            height: 640,
+            width: STAGE_W,
+            height: STAGE_H,
             antialias: true,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
@@ -1487,22 +1498,37 @@
             encodeURIComponent(preset.version) + "/model3.json" +
             (textureId ? "?texture_id=" + encodeURIComponent(textureId) : "");
           const model = await mods.Live2DModel.from(modelUrl);
-          // mao_pro 는 canvas 2400x3200 정도. 480x640 stage 맞춤 + 중앙.
-          model.scale.set(0.2);
-          model.x = 240;
-          model.y = 320;
           app.stage.addChild(model);
+          // 모델 raw 사이즈 측정 후 stage 에 fit. 안전을 위해 90% 면적 사용.
+          // pixi-live2d-display-advanced 의 model.width/height 는 canvas 단위 raw size.
+          const rawW = model.width || 1;
+          const rawH = model.height || 1;
+          const fitScale = Math.min(STAGE_W / rawW, STAGE_H / rawH) * 0.9;
+          model.scale.set(fitScale);
+          // anchor 가 (0.5, 0.5) 가능한 경우 중앙 정렬. 없으면 pivot 으로.
+          if (model.anchor && typeof model.anchor.set === "function") {
+            model.anchor.set(0.5, 0.5);
+          } else {
+            model.pivot.set(rawW / 2, rawH / 2);
+          }
+          model.x = STAGE_W / 2;
+          model.y = STAGE_H / 2;
           currentModel = model;
           rendererReady = true;
           wirePreviewControls(model);
           setStatus(
             previewStatus,
             "ok",
-            "✅ 렌더 성공. texture_id=" + textureId + "\n파라미터/모션/표정 컨트롤을 조작해보세요.",
+            "✅ 렌더 성공\n" +
+              "  texture_id: " + (textureId ?? "원본 baseline") + "\n" +
+              "  raw: " + Math.round(rawW) + "×" + Math.round(rawH) +
+              " · scale: " + fitScale.toFixed(3) +
+              " · stage: " + STAGE_W + "×" + STAGE_H + "\n" +
+              "파라미터/모션/표정 컨트롤을 조작해보세요.",
           );
         } catch (err) {
-          setStatus(previewStatus, "err", "렌더 실패: " + err.message);
-          console.error(err);
+          setStatus(previewStatus, "err", "렌더 실패: " + (err && err.message ? err.message : String(err)));
+          console.error("[live-preview] render failed:", err);
         }
       }
 
