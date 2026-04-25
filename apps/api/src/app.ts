@@ -15,6 +15,7 @@ import fastifyCors from "@fastify/cors";
 import type { FastifyInstance } from "fastify";
 import { presetsRoute } from "./routes/presets.js";
 import { presetAtlasRoute } from "./routes/preset-atlas.js";
+import { modelsRoute } from "./routes/models.js";
 import { textureUploadRoute } from "./routes/texture-upload.js";
 import { textureGenerateRoute } from "./routes/texture-generate.js";
 import { textureGenerateSlotsRoute } from "./routes/texture-generate-slots.js";
@@ -84,6 +85,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
 
   await fastify.register(presetsRoute, { rigTemplatesRoot: opts.rigTemplatesRoot });
   await fastify.register(presetAtlasRoute, { rigTemplatesRoot: opts.rigTemplatesRoot });
+  await fastify.register(modelsRoute, { adapters });
   await fastify.register(textureUploadRoute, {
     rigTemplatesRoot: opts.rigTemplatesRoot,
     texturesDir,

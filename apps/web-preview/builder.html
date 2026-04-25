@@ -285,6 +285,14 @@
             <div class="form-row" style="margin-bottom: 6px;">
               <input type="text" id="iter-prompt" placeholder="프롬프트 (예: silver short hair)" style="font-size: 0.85rem;" />
             </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: center; margin-bottom: 6px;">
+              <select id="iter-adapter" style="font-size: 0.85rem;" title="어댑터 선택">
+                <option value="">자동 (priority chain)</option>
+              </select>
+              <select id="iter-model" style="font-size: 0.85rem;" title="모델 선택" disabled>
+                <option value="">기본 모델</option>
+              </select>
+            </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center;">
               <input type="text" id="iter-seed" placeholder="seed (빈값: 자동)" style="font-size: 0.85rem;" />
               <select id="iter-mode" style="font-size: 0.85rem;">
@@ -294,7 +302,7 @@
               <button id="iter-btn" type="button" disabled style="padding: 6px 12px; font-size: 0.85rem;">생성 ⏎</button>
             </div>
             <div style="font-size: 0.75rem; color: #888; margin-top: 4px;">
-              seed 빈값 = 랜덤 / 슬롯 모드는 4 · 슬롯 재생성 패널의 선택 따라감
+              어댑터 = 자동이면 활성 어댑터 우선순위로 시도. 명시 선택 시 그 어댑터만 호출.
             </div>
           </div>
           <div class="preview-row">
@@ -674,7 +682,14 @@
               "canvas " + p.canvas.width + "×" + p.canvas.height + " · atlas " + atlasSize + "<br>" +
               slotCount + " slot · " + p.motion_count + " motion · " + p.expression_count + " expr" +
             "</div>";
-          card.addEventListener("click", () => {
+          card.addEventListener("click", (ev) => {
+            // 카드의 썸네일 이미지를 직접 클릭 → lightbox 확대.
+            const target = ev.target;
+            if (target instanceof HTMLImageElement && target.classList.contains("thumb")) {
+              ev.stopPropagation();
+              window.openLightbox(target.src, p.id + "@" + p.version + " · baseline texture");
+              return;
+            }
             presetSelect.value = key;
             presetSelect.dispatchEvent(new Event("change"));
             renderCards();
@@ -950,6 +965,12 @@
       const slotCountLabel = document.getElementById("slot-count-label");
       const slotRegenBtn = document.getElementById("slot-regen-btn");
       const slotCanvas = document.getElementById("slot-canvas");
+      slotCanvas.addEventListener("click", () => {
+        const tid = slotState?.textureId;
+        if (!tid) return;
+        const url = API + "/api/texture/" + encodeURIComponent(tid) + ".png";
+        window.openLightbox(url, "현재 텍스처 · " + tid);
+      });
       const slotOverlay = document.getElementById("slot-overlay");
       const slotStatus = document.getElementById("slot-status");
 
@@ -1256,7 +1277,16 @@
             "<span class='hist-label'>" + h.label + "</span>" +
             "<span class='ts'>" + h.source + " · " + h.texture_id.slice(0, 12) + "… · " + tstr + "</span>" +
             "</span>";
-          li.addEventListener("click", () => jumpToHistory(i));
+          li.addEventListener("click", (ev) => {
+            // 썸네일 이미지 클릭 → 확대. body 클릭 → 히스토리 점프.
+            const target = ev.target;
+            if (target instanceof HTMLImageElement && target.classList.contains("thumb")) {
+              ev.stopPropagation();
+              window.openLightbox(target.src, h.label + " · " + h.texture_id);
+              return;
+            }
+            jumpToHistory(i);
+          });
           li.style.cursor = "pointer";
           historyList.appendChild(li);
         }
@@ -1608,7 +1638,53 @@
       const iterPromptInput = document.getElementById("iter-prompt");
       const iterSeedInput = document.getElementById("iter-seed");
       const iterModeSelect = document.getElementById("iter-mode");
+      const iterAdapterSelect = document.getElementById("iter-adapter");
+      const iterModelSelect = document.getElementById("iter-model");
       const iterBtn = document.getElementById("iter-btn");
+
+      // ===== /api/models 로 어댑터/모델 메타 로드 + dropdown 채움 =====
+      let modelsByAdapter = {}; // { vendor: { active, models: [...] } }
+      try {
+        const r = await fetch(API + "/api/models");
+        if (r.ok) {
+          const body = await r.json();
+          for (const a of body.adapters ?? []) {
+            modelsByAdapter[a.vendor] = a;
+            const opt = document.createElement("option");
+            opt.value = a.vendor;
+            const status = a.active ? "✓" : "✗";
+            opt.textContent =
+              status + " " + a.vendor + " (" + a.activeModel + ")" +
+              (a.active ? "" : " — " + (a.inactiveReason ?? "비활성"));
+            opt.disabled = !a.active;
+            iterAdapterSelect.appendChild(opt);
+          }
+        }
+      } catch (err) {
+        console.warn("[builder] /api/models load failed:", err);
+      }
+
+      iterAdapterSelect.addEventListener("change", () => {
+        const v = iterAdapterSelect.value;
+        // 모델 드롭다운 다시 채움.
+        iterModelSelect.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = v ? "어댑터 default 사용" : "(자동 모드)";
+        iterModelSelect.appendChild(placeholder);
+        if (v && modelsByAdapter[v]) {
+          for (const m of modelsByAdapter[v].availableModels ?? []) {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            const flag = m.recommended ? " ★" : m.premium ? " 💎" : m.deprecated ? " ⚠" : "";
+            opt.textContent = m.label + flag;
+            iterModelSelect.appendChild(opt);
+          }
+          iterModelSelect.disabled = false;
+        } else {
+          iterModelSelect.disabled = true;
+        }
+      });
 
       // preset 선택되거나 generate 탭 prompt 가 채워지면 iterBtn 활성화.
       function updateIterateState() {
@@ -1648,9 +1724,19 @@
         const seedRaw = iterSeedInput.value.trim();
         const seed = seedRaw === "" ? Math.floor(Math.random() * 1000000) : Number(seedRaw) || 0;
         const mode = iterModeSelect.value;
+        const adapter = iterAdapterSelect.value || undefined; // "" → undefined → 자동 chain
+        const modelOverride = iterModelSelect.value || undefined;
 
         iterBtn.disabled = true;
-        setStatus(previewStatus, "info", "반복 생성 중… mode=" + mode + " seed=" + seed);
+        const t0 = Date.now();
+        setStatus(
+          previewStatus,
+          "info",
+          "반복 생성 중…\n  mode=" + mode + " seed=" + seed +
+            "\n  adapter=" + (adapter ?? "auto") +
+            (modelOverride ? "\n  model=" + modelOverride : ""),
+        );
+        console.log("[generate] request", { mode, seed, adapter, model: modelOverride, prompt });
         try {
           if (mode === "slots") {
             // 슬롯 모드: slotState 가 없거나 선택된 슬롯이 없으면 경고.
@@ -1674,6 +1760,8 @@
                 prompt,
                 seed,
                 slots: selected,
+                ...(adapter ? { adapter } : {}),
+                ...(modelOverride ? { model: modelOverride } : {}),
               }),
             });
             const body = await r.json();
@@ -1701,6 +1789,8 @@
                 preset_version: version,
                 prompt,
                 seed,
+                ...(adapter ? { adapter } : {}),
+                ...(modelOverride ? { model: modelOverride } : {}),
               }),
             });
             const body = await r.json();
@@ -1714,6 +1804,27 @@
             });
             await rebuildWithCurrentTexture("반복 생성");
             reloadLivePreview({ preset: { id, version }, textureId: body.texture_id });
+            // 상세 로그.
+            const elapsed = Date.now() - t0;
+            const attemptsLog = (body.attempts ?? [])
+              .map((a, i) => "    " + (i + 1) + ". " + (a.status === "success" ? "✓" : "✗") + " " +
+                a.adapter + (a.error_code ? " [" + a.error_code + "]" : "") + " · " + (a.latency_ms ?? 0) + "ms")
+              .join("\n");
+            console.log("[generate] response", body);
+            setStatus(
+              previewStatus,
+              "ok",
+              "✅ 반복 생성 완료\n" +
+                "  adapter: " + body.adapter + "\n" +
+                "  texture_id: " + body.texture_id + "\n" +
+                "  sha256: " + body.sha256.slice(0, 16) + "…\n" +
+                "  size: " + body.width + "x" + body.height + " · " + (body.bytes ?? 0).toLocaleString() + " bytes\n" +
+                "  reference_used: " + (body.reference_used ? "✓ (image-to-image)" : "✗ (text-to-image)") + "\n" +
+                "  prompt: \"" + body.prompt + "\" · seed=" + body.seed + "\n" +
+                "  total: " + elapsed + "ms\n" +
+                (attemptsLog ? "  attempts:\n" + attemptsLog : ""),
+            );
+            return;
           }
           setStatus(previewStatus, "ok", "✅ 반복 생성 완료 (seed=" + seed + ")");
           // 다음 iteration 을 위해 seed 필드를 비워두면 자동 랜덤.
@@ -1724,6 +1835,95 @@
           iterBtn.disabled = !presetSelect.value;
         }
       });
+    </script>
+    <!-- Lightbox: 클릭 시 이미지 확대 모달 -->
+    <style>
+      .lightbox-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: zoom-out;
+        animation: lightbox-fade 0.15s ease-out;
+      }
+      @keyframes lightbox-fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .lightbox-overlay img {
+        max-width: 92vw;
+        max-height: 88vh;
+        object-fit: contain;
+        cursor: default;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        background: repeating-linear-gradient(
+          45deg, rgba(255,255,255,0.04) 0 8px, rgba(255,255,255,0.08) 8px 16px
+        );
+      }
+      .lightbox-overlay .lightbox-close {
+        position: absolute;
+        top: 20px;
+        right: 24px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-size: 26px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 6px 14px;
+        border-radius: 4px;
+      }
+      .lightbox-overlay .lightbox-caption {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85rem;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 8px 14px;
+        border-radius: 4px;
+        max-width: 80vw;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      /* 클릭 가능한 이미지에 hover 단서 */
+      .preset-card img.thumb,
+      #history-list img.thumb,
+      #slot-canvas {
+        cursor: zoom-in;
+      }
+    </style>
+    <script>
+      // 전역 lightbox 헬퍼.
+      window.openLightbox = function (imageUrl, caption) {
+        const overlay = document.createElement("div");
+        overlay.className = "lightbox-overlay";
+        overlay.innerHTML =
+          '<button class="lightbox-close" type="button" aria-label="닫기">×</button>' +
+          '<img src="' + imageUrl + '" alt="' + (caption || "image") + '" />' +
+          (caption ? '<div class="lightbox-caption">' + caption + '</div>' : "");
+        document.body.appendChild(overlay);
+        const close = () => {
+          overlay.remove();
+          document.removeEventListener("keydown", onKey);
+        };
+        const onKey = (ev) => {
+          if (ev.key === "Escape") close();
+        };
+        document.addEventListener("keydown", onKey);
+        overlay.addEventListener("click", (ev) => {
+          if (ev.target === overlay) close();
+        });
+        overlay.querySelector(".lightbox-close").addEventListener("click", close);
+        // 이미지 자체 click 은 닫지 않음 (확대 상태 유지).
+        overlay.querySelector("img").addEventListener("click", (ev) => ev.stopPropagation());
+      };
     </script>
   </body>
 </html>
