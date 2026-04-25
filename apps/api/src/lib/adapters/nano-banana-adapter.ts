@@ -1,24 +1,27 @@
 /**
- * nano-banana (Google Gemini 2.5 Flash Image) 텍스처 어댑터.
+ * nano-banana (Google Gemini) 텍스처 어댑터 — 2026 최신 모델 라인업 지원.
  *
- * 모델: gemini-2.5-flash-image (속칭 "nano banana"). image-to-image edit + text-to-image.
+ * 모델 (current lineup, April 2026):
+ *   gemini-2.5-flash-image          — Stable. Aspect-ratio bug 있음 (1:1 collapse). atlas 보존 약함.
+ *   gemini-2.5-flash-image-preview  — Deprecated. 이전 별칭.
+ *   gemini-3.1-flash-image-preview  — Preview (Nano Banana 2). atlas 보존 안정적, 14 ratio + imageSize 지원.
+ *   gemini-3-pro-image-preview      — Preview (Nano Banana Pro). 최고 품질 layout 보존. 비싸지만 thinkingConfig 지원.
+ *
  * Endpoint: https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent
- * Auth: x-goog-api-key 헤더 (env GEMINI_API_KEY / GOOGLE_API_KEY)
+ * Auth: x-goog-api-key 헤더.
  *
- * 핵심 사양 (2025-2026 검증):
- *   - generationConfig.responseModalities = ["IMAGE"] **필수**. 빠뜨리면 텍스트만 반환
- *     ("이미지 안 나오는" 가장 흔한 원인).
- *   - parts 순서: 공식 문서 패턴은 **text 먼저, image 나중**.
- *   - prompt 는 "Using the provided image, ..." 로 시작해야 edit 의도로 인식
- *     ("change only the X" / "keep everything else" 패턴 강력 권장).
- *   - 출력 aspect ratio 는 입력 이미지 비율을 따름 — atlas (1:1) 보내면 1:1 출력.
- *     `imageConfig.aspectRatio` 는 edit 시 신뢰성 낮음 (Google 자체 권고).
- *   - 응답 finishReason 이 "STOP" 가 아니면 실패 (NO_IMAGE / IMAGE_SAFETY 등).
- *   - inline_data / inlineData 두 키 모두 응답에 나타날 수 있음 — 둘 다 처리.
+ * default model = "gemini-3.1-flash-image-preview":
+ *   atlas-friendly aspect ratio 처리 + 적정 가격. 2.5-flash-image 의 1:1 collapse bug 회피.
+ *   사용자가 더 좋은 품질 원하면 GENY_NANO_BANANA_MODEL=gemini-3-pro-image-preview override.
+ *
+ * 모델별 옵션 호환:
+ *   - imageConfig (aspectRatio, imageSize): 3.1+ 만 지원. 2.5 는 무시 / aspect-ratio bug.
+ *   - thinkingConfig: 3.1+ 와 3-pro 지원.
+ *   - 14가지 aspect ratio (1:4, 4:1, 1:8, 8:1 추가): 3.1 만.
  *
  * 환경변수:
- *   GEMINI_API_KEY 또는 GOOGLE_API_KEY   — 없으면 supports=false (fallback)
- *   GENY_NANO_BANANA_MODEL                — 기본 "gemini-2.5-flash-image"
+ *   GEMINI_API_KEY 또는 GOOGLE_API_KEY    — 없으면 supports=false (fallback)
+ *   GENY_NANO_BANANA_MODEL                — 기본 "gemini-3.1-flash-image-preview"
  *   GENY_NANO_BANANA_TIMEOUT_MS           — 기본 60000
  *   GENY_NANO_BANANA_DISABLED=true        — 강제 off
  */
@@ -27,7 +30,7 @@ import { createHash } from "node:crypto";
 import type { TextureAdapter, TextureTask } from "../texture-adapter.js";
 import { normalizeToPng } from "../image-post.js";
 
-const DEFAULT_MODEL = "gemini-2.5-flash-image";
+const DEFAULT_MODEL = "gemini-3.1-flash-image-preview";
 
 export interface NanoBananaAdapterOptions {
   readonly apiKey?: string;
@@ -55,6 +58,40 @@ interface GeminiResponse {
   readonly error?: { readonly code?: number; readonly message?: string; readonly status?: string };
 }
 
+interface ModelCapabilities {
+  /** imageConfig (aspectRatio + imageSize) 지원 여부. 3.1+ 만 신뢰성 있음. */
+  readonly supportsImageConfig: boolean;
+  /** thinkingConfig 지원 여부. 3.1+ 와 3-pro. */
+  readonly supportsThinking: boolean;
+  /** atlas-recommended imageSize 값. */
+  readonly recommendedImageSize: "1K" | "2K" | "4K";
+}
+
+function detectCapabilities(model: string): ModelCapabilities {
+  // gemini-3-pro: 최고 품질, thinking 지원, 4K 까지.
+  if (model.startsWith("gemini-3-pro-image")) {
+    return {
+      supportsImageConfig: true,
+      supportsThinking: true,
+      recommendedImageSize: "2K",
+    };
+  }
+  // gemini-3.1+: imageConfig + thinking 지원.
+  if (model.startsWith("gemini-3.1-flash-image") || model.startsWith("gemini-3-")) {
+    return {
+      supportsImageConfig: true,
+      supportsThinking: true,
+      recommendedImageSize: "2K",
+    };
+  }
+  // gemini-2.5: legacy. imageConfig 신뢰성 낮음 → 보내지 않음 (output 비율은 입력 따라감).
+  return {
+    supportsImageConfig: false,
+    supportsThinking: false,
+    recommendedImageSize: "1K",
+  };
+}
+
 function buildEditPrompt(userPrompt: string, seed: number): string {
   // 공식 권장 패턴: "Using the provided image, change only the X. Keep everything else..."
   // atlas 보존을 강하게 anchor.
@@ -64,9 +101,11 @@ function buildEditPrompt(userPrompt: string, seed: number): string {
     "produce an edited atlas where " +
     userPrompt.trim() +
     ". " +
-    "Keep the layout, the part positions, and the aspect ratio of the input image exactly the same. " +
-    "Do not change the input aspect ratio. Do not generate a portrait or a new composition. " +
-    "Preserve every part in the same pixel region; only modify the colors and details inside the relevant region. " +
+    "Hard constraints: " +
+    "(1) Do NOT change the position, scale, rotation, or shape of any part. " +
+    "(2) Do NOT change the input aspect ratio. " +
+    "(3) Preserve transparent (alpha=0) background pixels exactly. " +
+    "(4) Do not generate a portrait or a new composition; only modify pixels inside relevant existing regions. " +
     "Seed: " + seed + "."
   );
 }
@@ -83,6 +122,7 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
   const apiKey =
     opts.apiKey ?? process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY ?? "";
   const model = opts.model ?? process.env.GENY_NANO_BANANA_MODEL ?? DEFAULT_MODEL;
+  const caps = detectCapabilities(model);
   const timeoutMs =
     opts.timeoutMs ?? Number.parseInt(process.env.GENY_NANO_BANANA_TIMEOUT_MS ?? "60000", 10);
   const enabled = opts.enabled ?? process.env.GENY_NANO_BANANA_DISABLED !== "true";
@@ -103,7 +143,6 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
         ":generateContent";
 
       // parts: 공식 패턴 = text 먼저, image 나중.
-      // image-to-image edit 인지 text-to-image generate 인지에 따라 prompt 형식 분기.
       const parts: Array<
         | { text: string }
         | { inline_data: { mime_type: string; data: string } }
@@ -120,12 +159,30 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
         parts.push({ text: buildGeneratePrompt(task.prompt, task.seed) });
       }
 
+      // generationConfig: responseModalities 필수, imageConfig 는 3.1+ 만.
+      const generationConfig: Record<string, unknown> = {
+        responseModalities: ["IMAGE"],
+      };
+      if (caps.supportsImageConfig) {
+        generationConfig.imageConfig = {
+          aspectRatio: "1:1",
+          imageSize: caps.recommendedImageSize,
+        };
+      }
+      if (caps.supportsThinking) {
+        generationConfig.thinkingConfig = { thinkingLevel: "high" };
+      }
+
       const body = {
         contents: [{ parts }],
-        generationConfig: {
-          // 필수. 빠뜨리면 IMAGE 모달리티 응답 안 나옴.
-          responseModalities: ["IMAGE"],
-        },
+        generationConfig,
+        // safetySettings: 화이트 박스 캐릭터 텍스처에서 false-positive 줄이기 위해 BLOCK_ONLY_HIGH.
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+        ],
       };
 
       const controller = new AbortController();
@@ -203,7 +260,7 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
         throw err;
       }
 
-      // 첫 candidate 의 inline_data (또는 inlineData) 찾기. 두 케이스 모두 응답될 수 있음.
+      // 첫 candidate 의 inline_data (또는 inlineData) 찾기.
       let base64Image: string | undefined;
       let mimeType = "";
       for (const p of cand?.content?.parts ?? []) {
@@ -229,7 +286,6 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
       }
 
       const rawBytes = Buffer.from(base64Image, "base64");
-      // edit 모드는 입력 비율과 정확히 같은 비율 응답 기대 → ratio 미스매치 시 reject.
       const png = await normalizeToPng(rawBytes, {
         targetWidth: task.width,
         targetHeight: task.height,

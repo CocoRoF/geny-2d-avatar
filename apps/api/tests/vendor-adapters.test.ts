@@ -354,6 +354,65 @@ test("nano-banana.generate: finishReason !== STOP → INVALID_OUTPUT", async () 
   }
 });
 
+test("nano-banana.generate: gemini-3.1-flash-image-preview → imageConfig + thinkingConfig 포함", async () => {
+  let capturedBody:
+    | { generationConfig?: { imageConfig?: { aspectRatio?: string; imageSize?: string }; thinkingConfig?: { thinkingLevel?: string } } }
+    | null = null;
+  const a = createNanoBananaAdapter({
+    apiKey: "k",
+    model: "gemini-3.1-flash-image-preview",
+    fetchImpl: mockFetch(async (_url, init) => {
+      capturedBody = JSON.parse((init?.body as string) ?? "{}");
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: { parts: [{ inline_data: { mime_type: "image/png", data: VALID_PNG_B64 } }] },
+              finishReason: "STOP",
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  await a.generate(task());
+  assert.equal(capturedBody!.generationConfig?.imageConfig?.aspectRatio, "1:1");
+  assert.equal(capturedBody!.generationConfig?.imageConfig?.imageSize, "2K");
+  assert.equal(capturedBody!.generationConfig?.thinkingConfig?.thinkingLevel, "high");
+});
+
+test("nano-banana.generate: gemini-2.5-flash-image (legacy) → imageConfig 미전송 (aspect bug 회피)", async () => {
+  let capturedBody:
+    | { generationConfig?: { imageConfig?: unknown; thinkingConfig?: unknown } }
+    | null = null;
+  const a = createNanoBananaAdapter({
+    apiKey: "k",
+    model: "gemini-2.5-flash-image",
+    fetchImpl: mockFetch(async (_url, init) => {
+      capturedBody = JSON.parse((init?.body as string) ?? "{}");
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: { parts: [{ inline_data: { mime_type: "image/png", data: VALID_PNG_B64 } }] },
+              finishReason: "STOP",
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }),
+  });
+  await a.generate(task());
+  assert.equal(
+    capturedBody!.generationConfig?.imageConfig,
+    undefined,
+    "2.5 는 imageConfig 안 보냄 (aspect-ratio bug)",
+  );
+  assert.equal(capturedBody!.generationConfig?.thinkingConfig, undefined);
+});
+
 test("nano-banana.generate: 응답 inline_data (snake_case) 와 inlineData (camelCase) 모두 처리", async () => {
   // snake_case 응답.
   const a1 = createNanoBananaAdapter({
@@ -420,7 +479,8 @@ test("openai-image.generate: referenceImage → /v1/images/edits multipart + inp
   const fd = capturedBody as FormData;
   // 핵심: input_fidelity=high 가 layout 보존 보장.
   assert.equal(fd.get("input_fidelity"), "high", "input_fidelity=high (layout 보존)");
-  assert.equal(fd.get("model"), "gpt-image-1");
+  // default model 은 atlas-friendly 한 gpt-image-1.5 (transparent + input_fidelity high 둘 다 지원).
+  assert.equal(fd.get("model"), "gpt-image-1.5");
   assert.equal(fd.get("size"), "1024x1024");
   assert.equal(fd.get("quality"), "high");
   assert.equal(fd.get("output_format"), "png");
@@ -430,6 +490,44 @@ test("openai-image.generate: referenceImage → /v1/images/edits multipart + inp
   // image 필드는 Blob (Buffer 아님).
   const img = fd.get("image");
   assert.ok(img instanceof Blob, "image 가 Blob");
+});
+
+test("openai-image.generate: gpt-image-2 → input_fidelity / background 미전송 (모델별 분기)", async () => {
+  let capturedBody: unknown = null;
+  const a = createOpenAIImageAdapter({
+    apiKey: "k",
+    model: "gpt-image-2",
+    fetchImpl: mockFetch(async (_url, init) => {
+      capturedBody = init?.body;
+      return new Response(JSON.stringify({ data: [{ b64_json: VALID_PNG_B64 }] }), { status: 200 });
+    }),
+  });
+  const refPng = Buffer.from(VALID_PNG_B64, "base64");
+  await a.generate(task({ referenceImage: { png: refPng } }));
+  assert.ok(capturedBody instanceof FormData);
+  const fd = capturedBody as FormData;
+  assert.equal(fd.get("model"), "gpt-image-2");
+  // gpt-image-2 는 input_fidelity 미지원 (항상 high 동작) — 보내지 않아야 함.
+  assert.equal(fd.get("input_fidelity"), null, "gpt-image-2 는 input_fidelity 미전송");
+  // gpt-image-2 는 background:transparent 미지원 — 보내지 않아야 함.
+  assert.equal(fd.get("background"), null, "gpt-image-2 는 background 미전송");
+});
+
+test("openai-image.generate: gpt-image-1.5 → input_fidelity=high + background=transparent", async () => {
+  let capturedBody: unknown = null;
+  const a = createOpenAIImageAdapter({
+    apiKey: "k",
+    model: "gpt-image-1.5",
+    fetchImpl: mockFetch(async (_url, init) => {
+      capturedBody = init?.body;
+      return new Response(JSON.stringify({ data: [{ b64_json: VALID_PNG_B64 }] }), { status: 200 });
+    }),
+  });
+  const refPng = Buffer.from(VALID_PNG_B64, "base64");
+  await a.generate(task({ referenceImage: { png: refPng } }));
+  const fd = capturedBody as FormData;
+  assert.equal(fd.get("input_fidelity"), "high");
+  assert.equal(fd.get("background"), "transparent");
 });
 
 test("openai-image.generate: referenceImage 없으면 /v1/images/generations JSON", async () => {
