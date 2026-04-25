@@ -154,6 +154,35 @@
         color: #aaa;
         font-size: 0.8rem;
         font-family: ui-monospace, monospace;
+        text-align: center;
+      }
+      img.thumb {
+        object-fit: cover;
+        border: 1px solid #ddd;
+      }
+      .preset-card .status-badge {
+        font-size: 0.72rem;
+        font-weight: 500;
+        padding: 3px 8px;
+        border-radius: 4px;
+        margin: -2px 0 2px;
+        text-align: center;
+      }
+      .preset-card .status-badge.ready {
+        background: #e4f6dc;
+        color: #2a6d1f;
+        border: 1px solid #b9e0a3;
+      }
+      .preset-card .status-badge.schema-only {
+        background: #fff4d9;
+        color: #8a5c00;
+        border: 1px solid #f0d589;
+      }
+      .preset-card.status-ready { border-color: #b9e0a3; }
+      .preset-card.status-ready:hover { border-color: #2a6d1f; box-shadow: 0 2px 6px rgba(42, 109, 31, 0.15); }
+      .preset-card.status-ready.selected {
+        border-color: #2a6d1f;
+        background: #f0f9ea;
       }
       .preset-card .name {
         font-weight: 600;
@@ -216,7 +245,7 @@
         <input type="text" id="bundle-name-input" placeholder="기본: preset slug" disabled />
       </div>
 
-      <button id="go-btn" disabled>텍스처 준비 + 빌드</button>
+      <button id="go-btn" disabled>💾 텍스처 준비 + Save (Live2D 모델 만들기)</button>
       <div id="status-box" class="status info" style="display: none;"></div>
     </section>
     <style>
@@ -352,8 +381,11 @@
     </style>
 
     <section>
-      <h2>3 · 결과</h2>
-      <div id="result" style="color: #999;">빌드 결과가 여기에 표시됩니다.</div>
+      <h2>3 · Save 결과 (Live2D 모델 zip)</h2>
+      <p style="font-size: 0.85rem; color: #666; margin: 0 0 8px;">
+        프리셋 뼈대 (.moc3 / motions / expressions / physics / pose) + 새 텍스처 = 완성된 Live2D 모델. zip 으로 다운로드해 외부 Live2D Viewer / Cubism Viewer 에 드롭하면 그대로 재생.
+      </p>
+      <div id="result" style="color: #999;">Save 결과가 여기에 표시됩니다.</div>
     </section>
 
     <section id="history-panel" style="display: none;">
@@ -582,6 +614,15 @@
         }
       }
 
+      function presetReadyStatus(p) {
+        // third-party = .moc3 동봉 → 완성된 프로토타입 (Save 완전 동작)
+        // derived = .moc3 미저작 → schema sketch (Save 시 zip 만들지만 외부 viewer 재생 불가)
+        if (p.origin === "third-party") {
+          return { ready: true, label: "✅ Save 완전 동작", cls: "ready" };
+        }
+        return { ready: false, label: "🚧 .moc3 미저작 (schema only)", cls: "schema-only" };
+      }
+
       function renderCards() {
         presetCards.innerHTML = "";
         const selectedKey = presetSelect.value;
@@ -595,12 +636,32 @@
         for (const p of visible) {
           const key = p.id + "@" + p.version;
           const card = document.createElement("div");
-          card.className = "preset-card" + (selectedKey === key ? " selected" : "");
+          const status = presetReadyStatus(p);
+          card.className =
+            "preset-card status-" + status.cls + (selectedKey === key ? " selected" : "");
           card.dataset.key = key;
           const atlasSize = p.atlas ? p.atlas.width + "×" + p.atlas.height : "-";
           const slotCount = p.atlas?.slot_count ?? 0;
+          // third-party 면 실 base.png 썸네일을 /api/live2d/<id>/<v>/<texture_path> 로 표시.
+          // derived 는 4×4 placeholder 라 줄무늬로 폴백.
+          const thumbHtml = status.ready
+            ? "<img class='thumb' src='" +
+              API +
+              "/api/live2d/" +
+              encodeURIComponent(p.id) +
+              "/" +
+              encodeURIComponent(p.version) +
+              "/" +
+              (p.id === "tpl.base.v1.mao_pro" ? "mao_pro.4096/texture_00.png" : "") +
+              "' alt='" + p.id + " base texture' loading='lazy' />"
+            : "<div class='thumb'>" +
+              p.id.split(".").pop() +
+              "<br>" +
+              atlasSize +
+              "<br><small>placeholder</small></div>";
           card.innerHTML =
-            "<div class='thumb'>" + p.id.split(".").pop() + "<br>" + atlasSize + "</div>" +
+            thumbHtml +
+            "<div class='status-badge " + status.cls + "'>" + status.label + "</div>" +
             "<div class='name'>" +
               "<span>" + (p.display_name.ko ?? p.display_name.en) + "</span>" +
               "<span class='origin " + p.origin + "'>" + p.origin + "</span>" +
@@ -656,7 +717,9 @@
         for (const b of tabBtns) b.classList.toggle("active", b.dataset.tab === name);
         for (const p of panels) p.style.display = p.dataset.panel === name ? "" : "none";
         goBtn.textContent =
-          name === "upload" ? "업로드 + 빌드" : "Mock 생성 + 빌드";
+          name === "upload"
+            ? "💾 업로드 + Save (Live2D 모델 만들기)"
+            : "💾 AI 생성 + Save (Live2D 모델 만들기)";
       }
       for (const b of tabBtns) {
         b.addEventListener("click", () => setActiveTab(b.dataset.tab));
@@ -674,15 +737,19 @@
         const p = presets.find((x) => x.id === id && x.version === version);
         if (!p) return;
         presetDetails.style.display = "block";
-        presetDetails.className = "status info";
+        const status = presetReadyStatus(p);
+        presetDetails.className = "status " + (status.ready ? "ok" : "info");
         const atlasSize = p.atlas ? p.atlas.width + "x" + p.atlas.height : "-";
+        const readyMsg = status.ready
+          ? "→ Save 시 .moc3 + 새 텍스처 → 외부 Live2D Viewer 즉시 재생 가능 (프로토타입 완성 경로)"
+          : "→ ⚠️ .moc3 미저작 — Save 시 zip 만들어지지만 외부 viewer 재생 불가. Cubism Editor 저작 후 runtime_assets/ 추가 필요 (docs/06)";
         presetDetails.textContent =
-          "✓ " + p.display_name.en + "\n" +
+          status.label + " " + p.display_name.en + "\n" +
           "  family: " + p.family + " · origin: " + p.origin + "\n" +
           "  canvas: " + p.canvas.width + "x" + p.canvas.height + "\n" +
           "  atlas texture: " + atlasSize + " (slots: " + (p.atlas?.slot_count ?? 0) + ")\n" +
           "  motions: " + p.motion_count + " · expressions: " + p.expression_count + "\n\n" +
-          "→ PNG 업로드 크기는 atlas " + atlasSize + " 일치 필수 / Mock 생성은 max 2048 캡.";
+          readyMsg;
         setControlsEnabled(true);
         bundleNameInput.placeholder = "기본: " + id.split(".").pop();
         // Baseline preview: preset 선택 즉시 원본 텍스처로 렌더.
@@ -821,16 +888,22 @@
           const mfMsg = body.texture_manifest
             ? "\n  texture_manifest: " + body.texture_manifest.path + " (mode=" + body.texture_manifest.mode + ")"
             : "";
+          const modeMsg = body.mode === "third_party"
+            ? "\n  ✅ third-party (.moc3 동봉) — zip 을 외부 Live2D Viewer 에 드롭하면 즉시 재생"
+            : "\n  ⚠️ derived (.moc3 미포함) — 외부 viewer 재생 불가. 프리셋 저작 후 재시도 필요";
           setStatus(
             statusBox,
-            "ok",
-            "✅ 빌드 성공!\n  bundle_id: " + body.bundle_id + "\n  파일 수: " + body.file_count + mfMsg,
+            body.mode === "third_party" ? "ok" : "info",
+            "✅ Save 완료!\n  bundle_id: " + body.bundle_id +
+              "\n  파일 수: " + body.file_count +
+              "\n  model3.json: " + (body.model3_path ?? "?") +
+              modeMsg + mfMsg,
           );
           result.style.color = "inherit";
           result.innerHTML =
             "<div class='result-links'>" +
+            "<a href='" + API + body.download_url + "' download style='font-weight:600;font-size:1.05rem;'>⬇ Live2D 모델 zip 다운로드</a>" +
             "<a href='" + API + body.bundle_url + "' target='_blank'>bundle.json 열기</a>" +
-            "<a href='" + API + body.download_url + "' download>⬇ zip 다운로드</a>" +
             "</div>" +
             "<pre>" +
             JSON.stringify(
@@ -838,6 +911,8 @@
                 bundle_id: body.bundle_id,
                 preset: body.preset,
                 bundle_name: body.bundle_name,
+                mode: body.mode,
+                model3_path: body.model3_path,
                 file_count: body.file_count,
                 files: body.files.slice(0, 8).concat(
                   body.files.length > 8
