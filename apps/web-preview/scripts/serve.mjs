@@ -57,7 +57,10 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, () => {
+  // 첫 줄은 e2e-check.mjs 가 파싱 — 형식 유지.
   process.stdout.write(`[web-preview] http://localhost:${port}/\n`);
+  process.stdout.write(`[web-preview] ➜ Builder UI:    http://localhost:${port}/builder.html\n`);
+  process.stdout.write(`[web-preview] ➜ Live2D Demo:   http://localhost:${port}/live2d-demo.html\n`);
 });
 
 for (const sig of ["SIGINT", "SIGTERM"]) {
