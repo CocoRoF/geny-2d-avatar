@@ -85,18 +85,38 @@ step("copy @geny/web-avatar-renderer-pixi dist → public/vendor/renderer-pixi",
 await (async () => {
   const t0 = Date.now();
   process.stdout.write("[web-preview/prepare] bundle pixi + live2d → public/vendor/pixi-live2d-bundle.js… ");
-  const esbuild = await import("esbuild");
-  await esbuild.build({
-    entryPoints: [join(here, "pixi-bundle-entry.mjs")],
-    bundle: true,
-    format: "iife",
-    globalName: "GenyPixi",
-    outfile: join(vendorDir, "pixi-live2d-bundle.js"),
-    minify: true,
-    platform: "browser",
-    target: ["es2022"],
-    legalComments: "none",
-  });
+  let esbuild;
+  try {
+    esbuild = await import("esbuild");
+  } catch (err) {
+    process.stdout.write("\n");
+    process.stderr.write(
+      "[web-preview/prepare] ❌ esbuild not installed. " +
+        "Run `pnpm install` first (esbuild + pixi.js deps in apps/web-preview/package.json).\n" +
+        "  Original error: " + (err && err.message ? err.message : String(err)) + "\n",
+    );
+    process.exit(1);
+  }
+  try {
+    await esbuild.build({
+      entryPoints: [join(here, "pixi-bundle-entry.mjs")],
+      bundle: true,
+      format: "iife",
+      globalName: "GenyPixi",
+      outfile: join(vendorDir, "pixi-live2d-bundle.js"),
+      minify: true,
+      platform: "browser",
+      target: ["es2022"],
+      legalComments: "none",
+    });
+  } catch (err) {
+    process.stdout.write("\n");
+    process.stderr.write(
+      "[web-preview/prepare] ❌ esbuild bundle failed: " +
+        (err && err.message ? err.message : String(err)) + "\n",
+    );
+    process.exit(1);
+  }
   process.stdout.write(`done (${Date.now() - t0}ms)\n`);
 })();
 step("copy mao_pro runtime_assets → public/presets/mao_pro/", () => {
