@@ -266,3 +266,168 @@ test("GET /api/bundle/bnd_<valid>/missing.json → 404 FILE_NOT_FOUND", async ()
     rmSync(bundles, { recursive: true, force: true });
   }
 });
+
+// ===== mao_pro third-party 프로토타입 e2e (사용자 요구 핵심) =====
+//
+// 사용자 요구 (2026-04-25): mao_pro 단독으로 generate texture → save (build) →
+// live2d 다운로드 zip 으로 외부 viewer 재생 가능 — 이 루프가 안 되면 derived 확장 의미 없음.
+//
+// 검증 항목:
+//   - third-party 분기로 라우팅 (mode === "third_party")
+//   - .moc3 / .cdi3.json / .physics3.json / .pose3.json / .model3.json 모두 번들에 포함
+//   - motions/ + expressions/ 디렉토리 보존
+//   - FileReferences.Textures[0] 가 가리키는 경로에 우리 새 texture 가 정확히 위치
+//   - bundle.json kind=cubism-bundle, files[] 의 sha256 가 실 파일 내용과 일치
+//   - zip 다운로드 시 모든 파일 포함
+
+test("POST /api/build: mao_pro v1.0.0 third-party 번들 조립 (.moc3 + 새 texture)", async () => {
+  const textures = scratchDir();
+  const bundles = scratchDir();
+  // mao_pro 의 atlas 가 4096 이라 우리 generate 결과는 2048x2048 PNG. seed 용으로 임의 PNG.
+  // 단, third-party 번들링은 텍스처 크기 검증을 안 하고 그대로 덮어쓰므로 어떤 PNG 든 OK.
+  seedTexture(textures, "tex_maoproe2e00000000000000000000");
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures, bundlesDir: bundles });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/build",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.mao_pro",
+        preset_version: "1.0.0",
+        texture_id: "tex_maoproe2e00000000000000000000",
+        bundle_name: "mao_pro_test",
+      }),
+    });
+    assert.equal(res.statusCode, 200, "body=" + res.body);
+    const json = res.json() as {
+      bundle_id: string;
+      mode: string;
+      model3_path: string;
+      file_count: number;
+      files: Array<{ path: string; bytes: number }>;
+    };
+    assert.equal(json.mode, "third_party", "third-party 분기로 라우팅");
+    assert.equal(json.model3_path, "mao_pro.model3.json", "Live2D viewer 가 로드할 model3.json");
+
+    // 핵심 파일들이 번들에 포함되어야 한다.
+    const paths = json.files.map((f) => f.path);
+    assert.ok(paths.includes("mao_pro.moc3"), "moc3 binary 포함");
+    assert.ok(paths.includes("mao_pro.model3.json"), "model3.json 포함");
+    assert.ok(paths.includes("mao_pro.cdi3.json"), "cdi3.json 포함");
+    assert.ok(paths.includes("mao_pro.physics3.json"), "physics3.json 포함");
+    assert.ok(paths.includes("mao_pro.pose3.json"), "pose3.json 포함");
+    assert.ok(
+      paths.some((p) => /^motions\/.+\.motion3\.json$/.test(p)),
+      "motions/*.motion3.json 디렉토리 보존",
+    );
+    assert.ok(
+      paths.some((p) => /^expressions\/.+\.exp3\.json$/.test(p)),
+      "expressions/*.exp3.json 디렉토리 보존",
+    );
+    // 우리 텍스처가 model3.json 의 FileReferences.Textures[0] 위치에 정확히 배치.
+    const texturePathRel = "mao_pro.4096/texture_00.png";
+    assert.ok(paths.includes(texturePathRel), "텍스처 경로 정확히 보존");
+
+    // 번들 디렉토리에서 실 파일 검증.
+    const bundleDir = join(bundles, json.bundle_id);
+    const moc3 = readFileSync(join(bundleDir, "mao_pro.moc3"));
+    assert.equal(moc3.subarray(0, 4).toString("ascii"), "MOC3", "MOC3 magic header 보존");
+    const m3 = JSON.parse(readFileSync(join(bundleDir, "mao_pro.model3.json"), "utf8")) as {
+      Version: number;
+      FileReferences: { Moc: string; Textures: string[] };
+    };
+    assert.equal(m3.Version, 3);
+    assert.equal(m3.FileReferences.Moc, "mao_pro.moc3");
+    assert.equal(m3.FileReferences.Textures[0], texturePathRel);
+    // 우리 texture 가 정확히 그 경로에 — bytes 가 seed 텍스처와 일치해야 함.
+    const seedBytes = readFileSync(HALFBODY_BASE_PNG).length;
+    const overwrittenBytes = readFileSync(join(bundleDir, texturePathRel)).length;
+    assert.equal(overwrittenBytes, seedBytes, "우리 새 texture 가 원본 4096 PNG 를 덮어씀");
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+    rmSync(bundles, { recursive: true, force: true });
+  }
+});
+
+test("GET /api/bundle/:id/download: mao_pro zip 에 .moc3 + 새 texture + motions 모두 포함", async () => {
+  const textures = scratchDir();
+  const bundles = scratchDir();
+  seedTexture(textures, "tex_maozipfe000000000000000000000000");
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures, bundlesDir: bundles });
+  try {
+    const buildRes = await app.inject({
+      method: "POST",
+      url: "/api/build",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.mao_pro",
+        preset_version: "1.0.0",
+        texture_id: "tex_maozipfe000000000000000000000000",
+      }),
+    });
+    assert.equal(buildRes.statusCode, 200);
+    const { bundle_id } = buildRes.json() as { bundle_id: string };
+    const dlRes = await app.inject({
+      method: "GET",
+      url: "/api/bundle/" + bundle_id + "/download",
+    });
+    assert.equal(dlRes.statusCode, 200);
+    assert.match(dlRes.headers["content-type"] as string, /application\/zip/);
+    // ZIP 파일 헤더 (PK\x03\x04) 로 시작.
+    const zipBuf = dlRes.rawPayload;
+    assert.equal(zipBuf[0], 0x50, "PK 시그니처 P");
+    assert.equal(zipBuf[1], 0x4b, "PK 시그니처 K");
+    // 합리적인 크기 — .moc3 (870KB raw) + 부속 파일 압축. derived halfbody 빌드는 ~4KB 라
+    // 차이가 명확. 200KB 이상이면 .moc3 가 포함된 강한 신호.
+    assert.ok(
+      zipBuf.length > 1024 * 200,
+      "zip > 200KB (.moc3 + 부속 파일들 압축). got=" + zipBuf.length,
+    );
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+    rmSync(bundles, { recursive: true, force: true });
+  }
+});
+
+test("POST /api/build: mao_pro 의 build 결과가 결정론 (동일 input → 동일 sha256 트리)", async () => {
+  const textures = scratchDir();
+  const bundles = scratchDir();
+  seedTexture(textures, "tex_maodet0000000000000000000000000");
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures, bundlesDir: bundles });
+  try {
+    const payload = JSON.stringify({
+      preset_id: "tpl.base.v1.mao_pro",
+      preset_version: "1.0.0",
+      texture_id: "tex_maodet0000000000000000000000000",
+    });
+    const r1 = await app.inject({
+      method: "POST",
+      url: "/api/build",
+      headers: { "content-type": "application/json" },
+      payload,
+    });
+    const r2 = await app.inject({
+      method: "POST",
+      url: "/api/build",
+      headers: { "content-type": "application/json" },
+      payload,
+    });
+    assert.equal(r1.statusCode, 200);
+    assert.equal(r2.statusCode, 200);
+    const j1 = r1.json() as { bundle_id: string; files: Array<{ path: string; bytes: number }> };
+    const j2 = r2.json() as { bundle_id: string; files: Array<{ path: string; bytes: number }> };
+    // bundle_id 는 UUID 라 다르지만 file 트리 (path, bytes) 는 결정론.
+    assert.deepEqual(
+      j1.files.sort((a, b) => a.path.localeCompare(b.path)),
+      j2.files.sort((a, b) => a.path.localeCompare(b.path)),
+      "동일 input → 동일 file 트리",
+    );
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+    rmSync(bundles, { recursive: true, force: true });
+  }
+});

@@ -31,6 +31,10 @@ import {
 } from "@geny/exporter-core/avatar-bundle";
 import { readTextureManifest } from "../lib/texture-manifest.js";
 import { writeFile } from "node:fs/promises";
+import {
+  assembleThirdPartyBundle,
+  isThirdPartyPreset,
+} from "../lib/third-party-bundle.js";
 
 export interface BuildRouteOptions {
   readonly rigTemplatesRoot: string;
@@ -41,6 +45,7 @@ export interface BuildRouteOptions {
 interface ManifestShape {
   readonly id: string;
   readonly version: string;
+  readonly origin?: { readonly kind?: string };
 }
 
 async function readManifest(rigTemplatesRoot: string, id: string, version: string) {
@@ -48,11 +53,12 @@ async function readManifest(rigTemplatesRoot: string, id: string, version: strin
   if (!m || !m[1] || !m[2]) return null;
   const ns = m[1];
   const slug = m[2];
-  const path = join(rigTemplatesRoot, ns, slug, "v" + version, "template.manifest.json");
+  const presetDir = join(rigTemplatesRoot, ns, slug, "v" + version);
+  const path = join(presetDir, "template.manifest.json");
   if (!existsSync(path)) return null;
   try {
     const buf = await readFile(path, "utf8");
-    return { manifest: JSON.parse(buf) as ManifestShape, slug };
+    return { manifest: JSON.parse(buf) as ManifestShape, slug, presetDir };
   } catch {
     return null;
   }
@@ -119,39 +125,72 @@ export const buildRoute: FastifyPluginAsync<BuildRouteOptions> = async (fastify,
     const bundleOutDir = join(bundlesDir, bundleId);
     await mkdir(bundleOutDir, { recursive: true });
 
-    // AvatarExportSpec 작성. avatar_id 패턴은 av_<ULID> (schema) — 간이 데모용으로 null.
-    // 실 프로덕션은 ULID 생성 유틸이 필요 (sample-01-aria 처럼).
-    const spec: AvatarExportSpec = {
-      schema_version: "v1",
-      avatar_id: (avatarId as `av_${string}`) ?? "av_01JBMBTC8W5FQ0RTYAX38P7Z5K",
-      template_id: preset_id as `tpl.${string}`,
-      template_version: preset_version,
-      bundle_name: bundleName,
-      moc_path: bundleName + ".moc3",
-      texture_paths: ["textures/" + bundleName + "_00.png"],
-      lipsync: "precise",
-    };
+    // 분기: third-party (mao_pro 처럼 Cubism 원본 형식) vs derived (우리 schema).
+    const thirdParty = isThirdPartyPreset(presetInfo.manifest);
 
-    // Bundle 조립.
-    let result;
-    try {
-      result = assembleAvatarBundle(spec, rigTemplatesRoot, bundleOutDir);
-    } catch (err) {
-      return reply.code(500).send({
-        error: {
-          code: "ASSEMBLE_FAILED",
-          message: "assembleAvatarBundle 실패: " + (err as Error).message,
-        },
-      });
-    }
+    let buildResult: { files: ReadonlyArray<{ path: string; bytes: number }>; mode: "third_party" | "derived"; model3_path?: string };
 
-    // 업로드 PNG 를 bundle 의 texture slot 위치로 복사.
-    const paths = spec.texture_paths ?? [];
-    const textureDestRel = paths[0]; // "textures/<name>_00.png"
-    if (textureDestRel) {
-      const textureDest = join(bundleOutDir, textureDestRel);
-      await mkdir(dirname(textureDest), { recursive: true });
-      await copyFile(texturePath, textureDest);
+    if (thirdParty) {
+      // mao_pro: runtime_assets 통째 복사 + 새 texture 덮어쓰기. 변환 안 함.
+      try {
+        const r = await assembleThirdPartyBundle({
+          presetDir: presetInfo.presetDir,
+          slug: presetInfo.slug,
+          presetId: preset_id,
+          presetVersion: preset_version,
+          textureSrcPath: texturePath,
+          outDir: bundleOutDir,
+          avatarId,
+        });
+        buildResult = {
+          files: r.files,
+          mode: "third_party",
+          model3_path: r.model3Path,
+        };
+      } catch (err) {
+        return reply.code(500).send({
+          error: {
+            code: "ASSEMBLE_FAILED",
+            message: "third-party 번들 조립 실패: " + (err as Error).message,
+          },
+        });
+      }
+    } else {
+      // derived: 우리 schema → Cubism format 변환.
+      const spec: AvatarExportSpec = {
+        schema_version: "v1",
+        avatar_id: (avatarId as `av_${string}`) ?? "av_01JBMBTC8W5FQ0RTYAX38P7Z5K",
+        template_id: preset_id as `tpl.${string}`,
+        template_version: preset_version,
+        bundle_name: bundleName,
+        moc_path: bundleName + ".moc3",
+        texture_paths: ["textures/" + bundleName + "_00.png"],
+        lipsync: "precise",
+      };
+      let result;
+      try {
+        result = assembleAvatarBundle(spec, rigTemplatesRoot, bundleOutDir);
+      } catch (err) {
+        return reply.code(500).send({
+          error: {
+            code: "ASSEMBLE_FAILED",
+            message: "assembleAvatarBundle 실패: " + (err as Error).message,
+          },
+        });
+      }
+      // 업로드 PNG 를 bundle 의 texture slot 위치로 복사.
+      const paths = spec.texture_paths ?? [];
+      const textureDestRel = paths[0]; // "textures/<name>_00.png"
+      if (textureDestRel) {
+        const textureDest = join(bundleOutDir, textureDestRel);
+        await mkdir(dirname(textureDest), { recursive: true });
+        await copyFile(texturePath, textureDest);
+      }
+      buildResult = {
+        files: result.files.map((f) => ({ path: f.path, bytes: f.bytes })),
+        mode: "derived",
+        model3_path: bundleName + ".model3.json",
+      };
     }
 
     // P3.2 - texture.manifest.json 을 bundle 에 첨부 (texture 의 provenance 보존).
@@ -170,8 +209,10 @@ export const buildRoute: FastifyPluginAsync<BuildRouteOptions> = async (fastify,
       preset: { id: preset_id, version: preset_version },
       texture_id,
       bundle_name: bundleName,
-      file_count: result.files.length,
-      files: result.files.map((f) => ({ path: f.path, bytes: f.bytes })),
+      mode: buildResult.mode,
+      model3_path: buildResult.model3_path,
+      file_count: buildResult.files.length,
+      files: buildResult.files,
       texture_manifest: textureManifestWritten
         ? { path: "texture.manifest.json", mode: textureManifest?.generated_by.mode }
         : null,
