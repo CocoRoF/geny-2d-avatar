@@ -11,8 +11,7 @@
     "build": "tsc -p tsconfig.build.json",
     "build:test": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist dist-test",
-    "build:deps": "pnpm -F @geny/exporter-core build",
-    "dev": "pnpm run build:deps && pnpm build && node --env-file-if-exists=../../.env --env-file-if-exists=.env dist/server.js",
+    "dev": "pnpm build && node --env-file-if-exists=../../.env --env-file-if-exists=.env dist/server.js",
     "start": "node --env-file-if-exists=../../.env --env-file-if-exists=.env dist/server.js",
     "test": "pnpm build:test && node --test --test-reporter=spec 'dist-test/tests/**/*.test.js'"
   },
