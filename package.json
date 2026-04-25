@@ -12,7 +12,7 @@
     "test:golden": "node scripts/test-golden.mjs",
     "build:packages": "pnpm -F @geny/exporter-core run build && pnpm -F @geny/web-avatar run build && pnpm -F @geny/web-avatar-renderer run build && pnpm -F @geny/web-avatar-renderer-pixi run build && pnpm -F @geny/api run build",
     "setup": "pnpm install && pnpm run build:packages && pnpm -F @geny/web-preview run build:public",
-    "dev": "pnpm run build:packages && pnpm -F @geny/web-preview run build:public && concurrently --kill-others --names api,web -c blue,green \"pnpm -F @geny/api start\" \"pnpm -F @geny/web-preview run serve\"",
+    "dev": "pnpm install && pnpm run build:packages && pnpm -F @geny/web-preview run build:public && concurrently --kill-others --names api,web -c blue,green \"pnpm -F @geny/api start\" \"pnpm -F @geny/web-preview run serve\"",
     "start": "pnpm setup && concurrently --kill-others --names api,web -c blue,green \"pnpm -F @geny/api start\" \"pnpm -F @geny/web-preview run serve\""
   },
   "devDependencies": {
