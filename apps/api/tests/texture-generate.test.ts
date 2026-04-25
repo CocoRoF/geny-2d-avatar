@@ -167,7 +167,7 @@ test("POST /api/texture/generate: 없는 preset → 404", async () => {
 
 // ===== image-to-image: third-party preset 의 baseline 자동 주입 =====
 
-test("POST /api/texture/generate: mao_pro third-party → reference_used=true", async () => {
+test("POST /api/texture/generate: mao_pro third-party + 색 키워드 → recolor 어댑터 (atlas 보존)", async () => {
   const textures = scratch();
   const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
   try {
@@ -190,8 +190,33 @@ test("POST /api/texture/generate: mao_pro third-party → reference_used=true", 
     };
     assert.equal(json.reference_used, true, "mao_pro 는 baseline reference 자동 주입");
     assert.ok(json.reference_bytes > 100_000, "4096 PNG 라 100KB 이상");
-    // 테스트 환경은 mock 만 활성 → mock 어댑터는 reference 무시하지만 응답은 정상.
-    assert.equal(json.adapter, "mock");
+    // referenceImage + 색 키워드 → recolor 가 우선 처리 (atlas 보존 보장).
+    assert.equal(json.adapter, "recolor@local-hue");
+  } finally {
+    await app.close();
+    rmSync(textures, { recursive: true, force: true });
+  }
+});
+
+test("POST /api/texture/generate: mao_pro third-party + 색 키워드 없음 → mock fallback", async () => {
+  const textures = scratch();
+  const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/texture/generate",
+      headers: { "content-type": "application/json" },
+      payload: JSON.stringify({
+        preset_id: "tpl.base.v1.mao_pro",
+        preset_version: "1.0.0",
+        prompt: "fancy detailed style",  // 색 키워드 없음
+        seed: 7,
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const json = res.json() as { reference_used: boolean; adapter: string };
+    assert.equal(json.reference_used, true);
+    assert.equal(json.adapter, "mock", "색 키워드 없으면 recolor skip → mock fallback");
   } finally {
     await app.close();
     rmSync(textures, { recursive: true, force: true });
