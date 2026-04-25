@@ -525,16 +525,19 @@
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js" onerror="window.__coreLoadFailed = true;"></script>
 
     <!--
-      pixi.js 는 single instance 여야 batcher 등 extension 의 중복 등록을 피할 수 있다.
-      esm.sh 의 ?external= 로 pixi-live2d-display-advanced 의 deps 를 외부화 → importmap 의 pixi.js 한 인스턴스만 사용.
+      pixi.js single instance 강제. esm.sh 의 두 가지 함정:
+        1. wrapper URL (esm.sh/pixi.js@8.18.1) 과 inner URL (esm.sh/pixi.js@8.18.1/es2022/pixi.mjs) 가 다름 → 두 module instance.
+        2. external 로 외부화해도 cubism 이 import 하는 URL 과 importmap 매핑 URL 이 정확히 같아야 같은 module.
+      해결: importmap 의 pixi.js / @pixi/sound 를 cubism (with ?deps=) 가 import 하는 정확한 inner URL 로 매핑.
+      (?deps= 는 cubism 안 import 를 명시한 버전으로 고정시킴 → inner URL 안정적.)
     -->
     <script type="importmap">
       {
         "imports": {
-          "pixi.js": "https://esm.sh/pixi.js@8.18.1",
-          "@pixi/sound": "https://esm.sh/@pixi/sound@6.0.1?external=pixi.js",
-          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?external=pixi.js,@pixi/sound",
-          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?external=pixi.js,@pixi/sound"
+          "pixi.js": "https://esm.sh/pixi.js@8.18.1/es2022/pixi.mjs",
+          "@pixi/sound": "https://esm.sh/@pixi/sound@6.0.1/X-ZHBpeGkuanNAOC4xOC4x/es2022/sound.mjs",
+          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?deps=pixi.js@8.18.1,@pixi/sound@6.0.1",
+          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?deps=pixi.js@8.18.1,@pixi/sound@6.0.1"
         }
       }
     </script>

@@ -110,15 +110,16 @@
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js" onerror="window.__coreLoadFailed = true;"></script>
 
     <!--
-      pixi.js single instance 강제. esm.sh ?external= 로 의존성 외부화.
+      pixi.js single instance — importmap 을 cubism 이 사용하는 inner URL 로 정확히 매핑.
+      자세한 이유는 builder.html 의 importmap 주석 참고.
     -->
     <script type="importmap">
       {
         "imports": {
-          "pixi.js": "https://esm.sh/pixi.js@8.18.1",
-          "@pixi/sound": "https://esm.sh/@pixi/sound@6.0.1?external=pixi.js",
-          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?external=pixi.js,@pixi/sound",
-          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?external=pixi.js,@pixi/sound"
+          "pixi.js": "https://esm.sh/pixi.js@8.18.1/es2022/pixi.mjs",
+          "@pixi/sound": "https://esm.sh/@pixi/sound@6.0.1/X-ZHBpeGkuanNAOC4xOC4x/es2022/sound.mjs",
+          "pixi-live2d-display-advanced": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?deps=pixi.js@8.18.1,@pixi/sound@6.0.1",
+          "pixi-live2d-display-advanced/cubism": "https://esm.sh/pixi-live2d-display-advanced@2.0.0-beta.2/cubism?deps=pixi.js@8.18.1,@pixi/sound@6.0.1"
         }
       }
     </script>
