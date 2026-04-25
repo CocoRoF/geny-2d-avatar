@@ -209,10 +209,14 @@ test("openai-image.generate: 성공 경로 - b64_json → PNG normalize", async 
     (capturedHeaders as Record<string, string>)["authorization"],
     "Bearer sk-test",
   );
-  const b = capturedBody as { prompt: string; model: string; n: number; response_format: string };
+  const b = capturedBody as { prompt: string; model: string; n: number; size: string; quality: string; output_format: string };
   assert.match(b.prompt, /blue hair/);
   assert.equal(b.n, 1);
-  assert.equal(b.response_format, "b64_json");
+  assert.equal(b.size, "1024x1024");
+  assert.equal(b.quality, "high");
+  assert.equal(b.output_format, "png");
+  // response_format 은 gpt-image-1 deprecated — 보내지 않음.
+  assert.equal((b as Record<string, unknown>).response_format, undefined);
 });
 
 test("openai-image.generate: 403 org unverified → VENDOR_ERROR_4XX", async () => {
@@ -281,15 +285,27 @@ test("openai-image.generate: error 필드 → VENDOR_ERROR_4XX", async () => {
   }
 });
 
-test("nano-banana.generate: referenceImage → image-to-image (inlineData + 변형 prompt)", async () => {
-  let capturedBody: { contents: Array<{ parts: Array<Record<string, unknown>> }> } | null = null;
+test("nano-banana.generate: referenceImage → image-to-image (text 먼저 + inline_data + responseModalities)", async () => {
+  let capturedBody:
+    | {
+        contents: Array<{ parts: Array<Record<string, unknown>> }>;
+        generationConfig?: { responseModalities?: string[] };
+      }
+    | null = null;
   const a = createNanoBananaAdapter({
     apiKey: "k",
     fetchImpl: mockFetch(async (_url, init) => {
       capturedBody = JSON.parse((init?.body as string) ?? "{}");
       return new Response(
         JSON.stringify({
-          candidates: [{ content: { parts: [{ inlineData: { mimeType: "image/png", data: VALID_PNG_B64 } }] } }],
+          candidates: [
+            {
+              content: {
+                parts: [{ inlineData: { mimeType: "image/png", data: VALID_PNG_B64 } }],
+              },
+              finishReason: "STOP",
+            },
+          ],
         }),
         { status: 200 },
       );
@@ -298,16 +314,67 @@ test("nano-banana.generate: referenceImage → image-to-image (inlineData + 변�
   const refPng = Buffer.from(VALID_PNG_B64, "base64");
   await a.generate(task({ referenceImage: { png: refPng } }));
   const parts = capturedBody!.contents[0]!.parts;
-  assert.equal(parts.length, 2, "inlineData + text 두 part");
-  assert.ok(
-    (parts[0] as { inlineData?: { data?: string } }).inlineData?.data,
-    "첫 part 가 inlineData (reference)",
-  );
+  assert.equal(parts.length, 2, "text + inline_data 두 part");
+  // 공식 패턴: text 먼저, image 나중.
   assert.match(
-    (parts[1] as { text?: string }).text ?? "",
-    /TEXTURE ATLAS/,
-    "image-to-image 변형 prompt",
+    (parts[0] as { text?: string }).text ?? "",
+    /Using the provided image/,
+    "첫 part 가 'Using the provided image' 로 시작하는 edit prompt",
   );
+  assert.ok(
+    (parts[1] as { inline_data?: { data?: string } }).inline_data?.data,
+    "두 번째 part 가 inline_data (snake_case)",
+  );
+  // generationConfig.responseModalities=["IMAGE"] 필수.
+  assert.deepEqual(
+    capturedBody!.generationConfig?.responseModalities,
+    ["IMAGE"],
+    "generationConfig.responseModalities=['IMAGE'] 필수",
+  );
+});
+
+test("nano-banana.generate: finishReason !== STOP → INVALID_OUTPUT", async () => {
+  const a = createNanoBananaAdapter({
+    apiKey: "k",
+    fetchImpl: mockFetch(
+      async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [{ finishReason: "IMAGE_SAFETY" }],
+          }),
+          { status: 200 },
+        ),
+    ),
+  });
+  try {
+    await a.generate(task());
+    assert.fail("should throw");
+  } catch (err) {
+    assert.equal((err as { code?: string }).code, "INVALID_OUTPUT");
+  }
+});
+
+test("nano-banana.generate: 응답 inline_data (snake_case) 와 inlineData (camelCase) 모두 처리", async () => {
+  // snake_case 응답.
+  const a1 = createNanoBananaAdapter({
+    apiKey: "k",
+    fetchImpl: mockFetch(
+      async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: { parts: [{ inline_data: { mime_type: "image/png", data: VALID_PNG_B64 } }] },
+                finishReason: "STOP",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ),
+  });
+  const r1 = await a1.generate(task());
+  assert.match(r1.sha256, /^[a-f0-9]{64}$/);
 });
 
 test("nano-banana.generate: referenceImage 없으면 text-only (단일 part)", async () => {
@@ -328,7 +395,7 @@ test("nano-banana.generate: referenceImage 없으면 text-only (단일 part)", a
   assert.equal(capturedBody!.contents[0]!.parts.length, 1);
 });
 
-test("openai-image.generate: referenceImage → /v1/images/edits multipart", async () => {
+test("openai-image.generate: referenceImage → /v1/images/edits multipart + input_fidelity=high", async () => {
   let capturedUrl = "";
   let capturedBody: unknown = null;
   let capturedHeaders: Record<string, string> = {};
@@ -337,7 +404,7 @@ test("openai-image.generate: referenceImage → /v1/images/edits multipart", asy
     fetchImpl: mockFetch(async (url, init) => {
       capturedUrl = url;
       capturedHeaders = (init?.headers ?? {}) as Record<string, string>;
-      capturedBody = init?.body;
+      capturedBody = init?.body as FormData;
       return new Response(JSON.stringify({ data: [{ b64_json: VALID_PNG_B64 }] }), { status: 200 });
     }),
   });
@@ -345,11 +412,24 @@ test("openai-image.generate: referenceImage → /v1/images/edits multipart", asy
   await a.generate(task({ referenceImage: { png: refPng } }));
   assert.match(capturedUrl, /\/v1\/images\/edits$/, "edits 엔드포인트");
   assert.equal(
-    (capturedHeaders as Record<string, string>)["content-type"],
+    capturedHeaders["content-type"],
     undefined,
     "multipart 에서는 content-type 자동 (boundary 포함)",
   );
   assert.ok(capturedBody instanceof FormData, "body 가 FormData");
+  const fd = capturedBody as FormData;
+  // 핵심: input_fidelity=high 가 layout 보존 보장.
+  assert.equal(fd.get("input_fidelity"), "high", "input_fidelity=high (layout 보존)");
+  assert.equal(fd.get("model"), "gpt-image-1");
+  assert.equal(fd.get("size"), "1024x1024");
+  assert.equal(fd.get("quality"), "high");
+  assert.equal(fd.get("output_format"), "png");
+  assert.equal(fd.get("background"), "transparent");
+  // response_format 은 deprecated → 보내지 않음.
+  assert.equal(fd.get("response_format"), null);
+  // image 필드는 Blob (Buffer 아님).
+  const img = fd.get("image");
+  assert.ok(img instanceof Blob, "image 가 Blob");
 });
 
 test("openai-image.generate: referenceImage 없으면 /v1/images/generations JSON", async () => {
