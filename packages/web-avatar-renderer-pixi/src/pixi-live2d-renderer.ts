@@ -194,7 +194,9 @@ async function defaultCreatePixiApp(opts: PixiLive2DAppOptions): Promise<PixiLiv
 }
 
 async function defaultLoadModel(modelUrl: string): Promise<Live2DModelLike> {
-  const mod = await import("pixi-live2d-display-advanced");
+  // /cubism = Cubism 4/5 전용 sub-entry. main 엔트리는 Cubism 2 (live2d.min.js) 도 요구해서
+  // mao_pro 같은 Cubism 4/5 모델 로드 시 "Could not find Cubism 2 runtime" 으로 실패.
+  const mod = await import("pixi-live2d-display-advanced/cubism");
   const Live2DModel = (mod as { Live2DModel: { from: (url: string) => Promise<Live2DModelLike> } })
     .Live2DModel;
   return Live2DModel.from(modelUrl);
