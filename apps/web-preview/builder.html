@@ -382,6 +382,23 @@
               👀 마우스 추적
             </label>
           </div>
+          <!-- RX.2 — Layer Panel: drawable 검색 / visibility toggle / multi-select -->
+          <div id="layer-panel-host" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #444; font-weight: 600; margin-bottom: 6px;">
+              <span>🧩 Layer Panel</span>
+              <span id="layer-count" style="color: #888; font-weight: normal; font-size: 0.78rem;">— 모델 로드 후 활성</span>
+            </div>
+            <input type="text" id="layer-search" placeholder="drawable id 검색 (예: b_f_, hair, head)" style="width: 100%; font-size: 0.82rem; padding: 4px 6px; margin-bottom: 6px;" disabled />
+            <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+              <button id="layer-select-results" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled>Select results</button>
+              <button id="layer-deselect-results" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled>Deselect results</button>
+              <button id="layer-show-all" type="button" class="secondary" style="font-size: 0.78rem;" disabled title="전체 visibility 켜기">👁 all</button>
+            </div>
+            <div id="layer-list" style="max-height: 360px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; background: #fafafa;">
+              <div style="padding: 12px; color: #999; font-size: 0.85rem; text-align: center;">모델을 로드하세요.</div>
+            </div>
+            <div id="layer-selected-count" style="font-size: 0.78rem; color: #666; margin-top: 4px;">선택 0 개</div>
+          </div>
         </div>
       </div>
     </section>
@@ -444,6 +461,46 @@
         font-size: 0.82rem;
       }
       .preview-btn-row button:hover { background: #f2f2f2; }
+
+      /* RX.2 — Layer Panel */
+      .layer-row {
+        display: grid;
+        grid-template-columns: 16px 22px 22px 32px 1fr;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        font-size: 0.78rem;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: default;
+      }
+      .layer-row:hover { background: #fff; }
+      .layer-row.selected { background: #eef4ff; }
+      .layer-row .swatch {
+        width: 12px; height: 12px; border-radius: 2px;
+        background: #fff; border: 1px solid #ccc;
+      }
+      .layer-row .swatch.additive { background: #ffd; border-color: #aa8; }
+      .layer-row .swatch.multiplicative { background: #fde; border-color: #a8a; }
+      .layer-row .visibility {
+        cursor: pointer; user-select: none; line-height: 1;
+        font-size: 14px; opacity: 0.85;
+      }
+      .layer-row.hidden .visibility { opacity: 0.25; }
+      .layer-row.hidden .name { color: #aaa; text-decoration: line-through; }
+      .layer-row .thumb {
+        width: 32px; height: 32px;
+        background: repeating-linear-gradient(45deg, #eee 0 4px, #f7f7f9 4px 8px);
+        border: 1px solid #ddd;
+        border-radius: 2px;
+        image-rendering: pixelated;
+      }
+      .layer-row .name {
+        font-family: ui-monospace, monospace;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        color: #333;
+      }
+      .layer-row .name .part-prefix { color: #999; }
+      .layer-row input[type="checkbox"] { margin: 0; }
     </style>
 
     <section>
@@ -1859,10 +1916,19 @@
                 blend: d.blendMode,
               })),
             });
+            // RX.2 — Layer Panel 활성화. drawable 0 이면 비활성 안내.
+            renderLayerPanel({
+              model,
+              drawables,
+              preset,
+              textureId,
+              atlasSize: { w: atlasW, h: atlasH },
+            });
           } catch (extractErr) {
             window.log.warn("drawables", "RX.1 enumeration 실패 — Cubism Core API 가 노출되지 않을 수 있음", {
               error: extractErr && extractErr.message ? extractErr.message : String(extractErr),
             });
+            renderLayerPanel({ model: null, drawables: [], preset: null, textureId: null, atlasSize: { w: 1, h: 1 } });
           }
           setStatus(
             previewStatus,
@@ -1995,6 +2061,237 @@
         try {
           currentModel.autoInteract = !!pvAutoTrack.checked;
         } catch (e) { /* ignore */ }
+      });
+
+      // ===== RX.2 — Layer Panel =====
+      const layerCountEl = document.getElementById("layer-count");
+      const layerSearchEl = document.getElementById("layer-search");
+      const layerListEl = document.getElementById("layer-list");
+      const layerSelectResultsBtn = document.getElementById("layer-select-results");
+      const layerDeselectResultsBtn = document.getElementById("layer-deselect-results");
+      const layerShowAllBtn = document.getElementById("layer-show-all");
+      const layerSelectedCountEl = document.getElementById("layer-selected-count");
+
+      let layerState = null;
+      // = { model, drawables: DrawableMeta[], hidden: Set<index>, selected: Set<index>, atlasImg: Image, atlasSize, preset, textureId }
+
+      // Atlas 이미지를 불러와 thumbnail crop 에 사용.
+      function loadAtlasImage(preset, textureId) {
+        return new Promise((resolve, reject) => {
+          const url = textureId
+            ? API + "/api/texture/" + encodeURIComponent(textureId) + ".png"
+            : API + "/api/live2d/" + encodeURIComponent(preset.id) + "/" +
+              encodeURIComponent(preset.version) + "/mao_pro.4096/texture_00.png";
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("atlas image load fail: " + url));
+          img.src = url;
+        });
+      }
+
+      function drawDrawableThumb(canvas, atlasImg, bbox, atlasSize) {
+        const ctx = canvas.getContext("2d");
+        const tw = canvas.width, th = canvas.height;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, tw, th);
+        if (!bbox || bbox.w === 0 || bbox.h === 0) return;
+        // bbox 의 가로/세로 비를 유지하며 thumb 안에 fit.
+        const scale = Math.min(tw / bbox.w, th / bbox.h);
+        const dw = bbox.w * scale, dh = bbox.h * scale;
+        const dx = (tw - dw) / 2, dy = (th - dh) / 2;
+        try {
+          ctx.drawImage(
+            atlasImg,
+            bbox.x, bbox.y, bbox.w, bbox.h,
+            dx, dy, dw, dh,
+          );
+        } catch (e) {
+          // CORS 거부 등 — 빈 thumb 로 둠.
+        }
+      }
+
+      function rowMatchesSearch(d, q) {
+        if (!q) return true;
+        return d.id.toLowerCase().includes(q) ||
+          (d.partId && d.partId.toLowerCase().includes(q));
+      }
+
+      function updateLayerSelectionUI() {
+        if (!layerState) return;
+        for (const li of layerListEl.querySelectorAll("[data-idx]")) {
+          const idx = Number(li.dataset.idx);
+          li.classList.toggle("selected", layerState.selected.has(idx));
+          li.classList.toggle("hidden", layerState.hidden.has(idx));
+          const cb = li.querySelector('input[type="checkbox"]');
+          if (cb) cb.checked = layerState.selected.has(idx);
+          const eye = li.querySelector(".visibility");
+          if (eye) eye.textContent = layerState.hidden.has(idx) ? "🚫" : "👁";
+        }
+        layerSelectedCountEl.textContent = "선택 " + layerState.selected.size + " 개";
+      }
+
+      function applyLayerFilter() {
+        if (!layerState) return;
+        const q = layerSearchEl.value.trim().toLowerCase();
+        for (const li of layerListEl.querySelectorAll("[data-idx]")) {
+          const idx = Number(li.dataset.idx);
+          const d = layerState.drawables[idx];
+          if (!d) continue;
+          li.style.display = rowMatchesSearch(d, q) ? "" : "none";
+        }
+      }
+
+      function getFilteredDrawables() {
+        if (!layerState) return [];
+        const q = layerSearchEl.value.trim().toLowerCase();
+        return layerState.drawables.filter((d) => rowMatchesSearch(d, q));
+      }
+
+      async function renderLayerPanel({ model, drawables, preset, textureId, atlasSize }) {
+        // 빈 state 초기화.
+        if (!model || !drawables || drawables.length === 0) {
+          layerState = null;
+          layerCountEl.textContent = "— 데이터 없음 (Cubism Core 미배치 또는 derived preset)";
+          layerSearchEl.disabled = true;
+          layerSelectResultsBtn.disabled = true;
+          layerDeselectResultsBtn.disabled = true;
+          layerShowAllBtn.disabled = true;
+          layerListEl.innerHTML = '<div style="padding:12px;color:#999;font-size:0.85rem;text-align:center;">drawable 정보 없음.</div>';
+          layerSelectedCountEl.textContent = "선택 0 개";
+          return;
+        }
+        // 새 state.
+        layerState = {
+          model,
+          drawables,
+          hidden: new Set(),
+          selected: new Set(),
+          atlasImg: null,
+          atlasSize,
+          preset,
+          textureId,
+        };
+        layerCountEl.textContent = drawables.length + " drawables · atlas " + atlasSize.w + "×" + atlasSize.h;
+        layerSearchEl.disabled = false;
+        layerSelectResultsBtn.disabled = false;
+        layerDeselectResultsBtn.disabled = false;
+        layerShowAllBtn.disabled = false;
+
+        // DOM 행 빌드 — DocumentFragment 로 배치.
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < drawables.length; i++) {
+          const d = drawables[i];
+          const row = document.createElement("div");
+          row.className = "layer-row";
+          row.dataset.idx = String(i);
+          // swatch — blend mode 표시.
+          const swatch = document.createElement("span");
+          swatch.className = "swatch" + (d.blendMode === "additive" ? " additive" : d.blendMode === "multiplicative" ? " multiplicative" : "");
+          swatch.title = "blend: " + d.blendMode;
+          // visibility eye.
+          const eye = document.createElement("span");
+          eye.className = "visibility";
+          eye.textContent = "👁";
+          eye.title = "Click to toggle visibility";
+          eye.addEventListener("click", () => {
+            const idx = i;
+            const willHide = !layerState.hidden.has(idx);
+            if (willHide) layerState.hidden.add(idx);
+            else layerState.hidden.delete(idx);
+            try {
+              if (window.GenyPixi?.setDrawableVisible) {
+                window.GenyPixi.setDrawableVisible(layerState.model, d.index, !willHide);
+              }
+            } catch (e) {
+              window.log.warn("layer", "visibility toggle 실패", { id: d.id, error: String(e) });
+            }
+            updateLayerSelectionUI();
+          });
+          // checkbox.
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.addEventListener("change", () => {
+            const idx = i;
+            if (cb.checked) layerState.selected.add(idx);
+            else layerState.selected.delete(idx);
+            updateLayerSelectionUI();
+          });
+          // thumbnail canvas.
+          const thumb = document.createElement("canvas");
+          thumb.className = "thumb";
+          thumb.width = 32; thumb.height = 32;
+          // name (partId · drawableId).
+          const name = document.createElement("div");
+          name.className = "name";
+          if (d.partId) {
+            const prefix = document.createElement("span");
+            prefix.className = "part-prefix";
+            prefix.textContent = d.partId + " · ";
+            name.appendChild(prefix);
+          }
+          name.appendChild(document.createTextNode(d.id));
+          name.title = d.id +
+            (d.partId ? " (part: " + d.partId + ")" : "") +
+            "\nbbox: " + d.uvBbox.x + "," + d.uvBbox.y + " " + d.uvBbox.w + "×" + d.uvBbox.h +
+            "\nblend: " + d.blendMode +
+            "\nrenderOrder: " + d.renderOrder;
+          row.append(swatch, eye, cb, thumb, name);
+          frag.appendChild(row);
+        }
+        layerListEl.innerHTML = "";
+        layerListEl.appendChild(frag);
+        layerSelectedCountEl.textContent = "선택 0 개";
+
+        // Atlas 이미지를 비동기로 로드 후 모든 row 의 thumbnail 그림.
+        try {
+          const img = await loadAtlasImage(preset, textureId);
+          layerState.atlasImg = img;
+          const canvases = layerListEl.querySelectorAll("canvas.thumb");
+          for (let i = 0; i < canvases.length; i++) {
+            const idx = Number(canvases[i].closest("[data-idx]").dataset.idx);
+            drawDrawableThumb(canvases[i], img, drawables[idx].uvBbox, atlasSize);
+          }
+          window.log.info("layer", "Layer Panel 활성화", {
+            drawables: drawables.length,
+            atlas: atlasSize.w + "x" + atlasSize.h,
+          });
+        } catch (e) {
+          window.log.warn("layer", "atlas 이미지 로드 실패 — thumbnail 미표시", { error: String(e) });
+        }
+      }
+
+      layerSearchEl.addEventListener("input", () => applyLayerFilter());
+      layerSelectResultsBtn.addEventListener("click", () => {
+        if (!layerState) return;
+        for (const d of getFilteredDrawables()) {
+          // drawables array index = layerState 의 internal idx.
+          const i = layerState.drawables.indexOf(d);
+          if (i >= 0) layerState.selected.add(i);
+        }
+        updateLayerSelectionUI();
+      });
+      layerDeselectResultsBtn.addEventListener("click", () => {
+        if (!layerState) return;
+        for (const d of getFilteredDrawables()) {
+          const i = layerState.drawables.indexOf(d);
+          if (i >= 0) layerState.selected.delete(i);
+        }
+        updateLayerSelectionUI();
+      });
+      layerShowAllBtn.addEventListener("click", () => {
+        if (!layerState) return;
+        for (const idx of Array.from(layerState.hidden)) {
+          const d = layerState.drawables[idx];
+          if (!d) continue;
+          try {
+            if (window.GenyPixi?.setDrawableVisible) {
+              window.GenyPixi.setDrawableVisible(layerState.model, d.index, true);
+            }
+          } catch (e) { /* ignore */ }
+        }
+        layerState.hidden.clear();
+        updateLayerSelectionUI();
       });
 
       // 슬롯 재생성 성공 후에도 자동 리로드 (slotState.textureId 가 바뀌었을 때).
