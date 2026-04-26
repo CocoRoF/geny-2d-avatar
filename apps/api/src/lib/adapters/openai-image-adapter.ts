@@ -66,8 +66,6 @@ interface OpenAIImageResponse {
 interface ModelCapabilities {
   /** input_fidelity 파라미터 보낼지 (gpt-image-2 는 무시/거부). */
   readonly supportsInputFidelity: boolean;
-  /** background:transparent 보낼지 (gpt-image-2 는 미지원). */
-  readonly supportsTransparent: boolean;
   /** size 검증 함수. */
   readonly validateSize: (size: string) => string;
 }
@@ -77,7 +75,6 @@ function detectCapabilities(model: string): ModelCapabilities {
   if (model.startsWith("gpt-image-2")) {
     return {
       supportsInputFidelity: false,
-      supportsTransparent: false,
       validateSize: (s) => {
         // gpt-image-2 는 더 자유롭지만 안전을 위해 1024-2048 1:1 류만 허용 (8.3M px ≤).
         const m = /^(\d+)x(\d+)$/.exec(s);
@@ -99,7 +96,6 @@ function detectCapabilities(model: string): ModelCapabilities {
   // gpt-image-1 / -mini / -1.5 (legacy enum sizes 만).
   return {
     supportsInputFidelity: true,
-    supportsTransparent: true,
     validateSize: (s) => (LEGACY_SIZES.has(s) ? s : DEFAULT_SIZE),
   };
 }
@@ -115,8 +111,8 @@ export function createOpenAIImageAdapter(
   const quality = opts.quality ?? process.env.GENY_OPENAI_IMAGE_QUALITY ?? DEFAULT_QUALITY;
   const timeoutMs =
     opts.timeoutMs ??
-    Number.parseInt(process.env.GENY_OPENAI_IMAGE_TIMEOUT_MS ?? "300000", 10);
-  // gpt-image-2 quality:high 는 30~90s + 업로드/네트워크 → 5분 default.
+    Number.parseInt(process.env.GENY_OPENAI_IMAGE_TIMEOUT_MS ?? "600000", 10);
+  // 10분. mao_pro 4096 PNG (~7MB) upload + gpt-image-2 quality:high 처리 + 응답 download.
   const enabled = opts.enabled ?? process.env.GENY_OPENAI_IMAGE_DISABLED !== "true";
   const f = opts.fetchImpl ?? fetch;
 
@@ -143,15 +139,15 @@ export function createOpenAIImageAdapter(
         fd.append("n", "1");
         fd.append("size", size);
         fd.append("quality", quality);
+        // output_format=png — alpha 채널 보존 (atlas 의 transparent 픽셀 유지).
         fd.append("output_format", "png");
         // input_fidelity: gpt-image-1/-mini/-1.5 만. gpt-image-2 는 항상 high.
         if (caps.supportsInputFidelity) {
           fd.append("input_fidelity", "high");
         }
-        // background:transparent: gpt-image-2 미지원 (regression).
-        if (caps.supportsTransparent) {
-          fd.append("background", "transparent");
-        }
+        // 주의: background 옵션은 일부러 보내지 않음. "transparent" 강제 시 OpenAI 가
+        // 캐릭터 외곽을 임의로 지워서 atlas 의 의도된 영역까지 빈 공간으로 만들어버림.
+        // png 자체는 alpha 채널 가질 수 있고 model 이 reference 의 transparent 픽셀을 보존.
         fd.append(
           "image",
           new Blob([new Uint8Array(task.referenceImage!.png)], {
@@ -166,23 +162,21 @@ export function createOpenAIImageAdapter(
           body: fd,
         };
       } else {
-        // text-to-image generations. JSON body.
-        const body: Record<string, unknown> = {
-          model,
-          prompt: task.prompt,
-          n: 1,
-          size,
-          quality,
-          output_format: "png",
-        };
-        if (caps.supportsTransparent) body.background = "transparent";
+        // text-to-image generations. JSON body. background 옵션 미전송 (위와 동일 이유).
         requestInit = {
           method: "POST",
           headers: {
             authorization: "Bearer " + apiKey,
             "content-type": "application/json",
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            model,
+            prompt: task.prompt,
+            n: 1,
+            size,
+            quality,
+            output_format: "png",
+          }),
         };
       }
 

@@ -23,7 +23,6 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
-import sharp from "sharp";
 import { writeTextureManifest } from "../lib/texture-manifest.js";
 import {
   runTextureGenerate,
@@ -110,18 +109,9 @@ async function loadBaselineReference(
     if (!texRel) return null;
     const texPath = join(runtimeAssets, texRel);
     if (!existsSync(texPath)) return null;
-    const raw = await readFile(texPath);
-    // Reference 를 1024 로 다운샘플. mao_pro 의 4096×4096 (~7MB) → ~200KB.
-    // 이유: AI 어댑터가 1024-1536 로 출력하니 큰 reference 를 보낼 필요 없음. 업로드 시간 +
-    // vendor 처리 시간이 timeout 안에 들어오도록.
-    try {
-      return await sharp(raw)
-        .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
-        .png({ compressionLevel: 6 })
-        .toBuffer();
-    } catch {
-      return raw; // 다운샘플 실패 시 원본 사용.
-    }
+    // 원본 PNG 그대로 반환. 다운샘플하지 않는다 — vendor 가 받는 reference 가
+    // 원본 atlas 그대로여야 변형이 정확함.
+    return await readFile(texPath);
   } catch {
     return null;
   }
