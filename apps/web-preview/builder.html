@@ -372,6 +372,16 @@
           <div id="pv-motion-btns" class="preview-btn-row">(모델 로드 후)</div>
           <div style="margin: 10px 0 4px; font-size: 0.82rem; color: #555; font-weight: 600;">Expression</div>
           <div id="pv-expression-btns" class="preview-btn-row">(모델 로드 후)</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #555;" title="모델이 살아있게 — Idle 모션 자동 재생">
+              <input type="checkbox" id="pv-auto-idle" checked />
+              🎬 자동 idle
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #555;" title="마우스 위치를 따라 시선/얼굴 추적">
+              <input type="checkbox" id="pv-auto-track" checked />
+              👀 마우스 추적
+            </label>
+          </div>
         </div>
       </div>
     </section>
@@ -1707,6 +1717,8 @@
       }
 
       function destroyCurrentModel() {
+        // 자동 동작 (idle 재발화 timer) 부터 정리 — 파괴 후 timer 가 null 모델에 motion 시도 방지.
+        if (typeof detachAutoBehaviors === "function") detachAutoBehaviors();
         if (currentRenderer && typeof currentRenderer.destroy === "function") {
           try { currentRenderer.destroy(); } catch (e) { /* noop */ }
         }
@@ -1883,7 +1895,57 @@
           });
           expBtns.appendChild(reset);
         }
+        // 자동 idle 모션 + 마우스 추적. 사용자 토글로 제어.
+        attachAutoBehaviors(model);
       }
+
+      // ===== Live2D 자동 동작 (idle motion + 마우스 추적) =====
+      const pvAutoIdle = document.getElementById("pv-auto-idle");
+      const pvAutoTrack = document.getElementById("pv-auto-track");
+      let autoIdleRetryTimer = null;
+
+      function detachAutoBehaviors() {
+        if (autoIdleRetryTimer) {
+          clearInterval(autoIdleRetryTimer);
+          autoIdleRetryTimer = null;
+        }
+      }
+
+      function attachAutoBehaviors(model) {
+        detachAutoBehaviors();
+        if (!model) return;
+        // 마우스 추적 (autoInteract 가 true 면 시선이 마우스를 따라감).
+        try {
+          model.autoInteract = !!pvAutoTrack.checked;
+        } catch (e) {
+          // 일부 버전은 autoInteract 미지원.
+        }
+        // Idle 모션. mao_pro 등은 "Idle" 그룹을 가짐. 없으면 첫 그룹 사용.
+        if (!pvAutoIdle.checked) return;
+        const groups = Object.keys(model.internalModel?.settings?.motions ?? {});
+        if (groups.length === 0) return;
+        const idleKey =
+          groups.find((g) => g.toLowerCase() === "idle") ?? groups[0];
+        const fire = () => {
+          if (!pvAutoIdle.checked || !currentModel || currentModel !== model) return;
+          try { model.motion(idleKey); } catch (e) { /* ignore */ }
+        };
+        // 즉시 1회 + 모션 길이보다 약간 길게 주기적 재발화 (안전 그물).
+        // mao_pro 의 mtn_01 은 5.57s. 7s 마다 재시도해 끊김 없이 살아있는 캐릭터 유지.
+        fire();
+        autoIdleRetryTimer = setInterval(fire, 7000);
+      }
+
+      pvAutoIdle.addEventListener("change", () => {
+        if (currentModel) attachAutoBehaviors(currentModel);
+        if (!pvAutoIdle.checked) detachAutoBehaviors();
+      });
+      pvAutoTrack.addEventListener("change", () => {
+        if (!currentModel) return;
+        try {
+          currentModel.autoInteract = !!pvAutoTrack.checked;
+        } catch (e) { /* ignore */ }
+      });
 
       // 슬롯 재생성 성공 후에도 자동 리로드 (slotState.textureId 가 바뀌었을 때).
       window.addEventListener("geny:slot-regen-success", (ev) => {
