@@ -189,7 +189,11 @@ test("POST /api/texture/generate: mao_pro third-party + 색 키워드 → recolo
       adapter: string;
     };
     assert.equal(json.reference_used, true, "mao_pro 는 baseline reference 자동 주입");
-    assert.ok(json.reference_bytes > 100_000, "4096 PNG 라 100KB 이상");
+    // 원본 4096×4096 PNG 는 ~7MB. 1024 다운샘플 후 수십~수백 KB → 2MB 미만.
+    assert.ok(
+      json.reference_bytes < 2_000_000,
+      "reference 가 1024 로 다운샘플되어 < 2MB (원본 ~7MB 대비). got=" + json.reference_bytes,
+    );
     // referenceImage + 색 키워드 → recolor 가 우선 처리 (atlas 보존 보장).
     assert.equal(json.adapter, "recolor@local-hue");
   } finally {

@@ -124,7 +124,8 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
   const model = opts.model ?? process.env.GENY_NANO_BANANA_MODEL ?? DEFAULT_MODEL;
   const caps = detectCapabilities(model);
   const timeoutMs =
-    opts.timeoutMs ?? Number.parseInt(process.env.GENY_NANO_BANANA_TIMEOUT_MS ?? "60000", 10);
+    opts.timeoutMs ?? Number.parseInt(process.env.GENY_NANO_BANANA_TIMEOUT_MS ?? "180000", 10);
+  // Gemini 3-pro thinking + 4K image 는 60s+ 가능 → 3분 default.
   const enabled = opts.enabled ?? process.env.GENY_NANO_BANANA_DISABLED !== "true";
   const f = opts.fetchImpl ?? fetch;
 
