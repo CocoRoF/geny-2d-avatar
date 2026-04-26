@@ -1521,6 +1521,16 @@
           const thumbUrl = h.texture_id
             ? API + "/api/texture/" + encodeURIComponent(h.texture_id) + ".png"
             : "";
+          // hover tooltip — 라벨에 잘리는 정보를 노출.
+          const tooltip = [
+            h.label,
+            "source: " + h.source,
+            "texture_id: " + h.texture_id,
+            h.sha256 ? "sha256: " + h.sha256.slice(0, 24) + "…" : null,
+            "preset: " + (h.preset?.id ?? "?") + "@" + (h.preset?.version ?? "?"),
+            "time: " + new Date(h.ts).toLocaleString(),
+          ].filter(Boolean).join("\n");
+          li.title = tooltip;
           li.innerHTML =
             (thumbUrl
               ? "<img class='thumb' src='" + thumbUrl + "' alt='' loading='lazy' />"
@@ -2300,11 +2310,23 @@
         updateMaskCoverage();
       });
 
-      // Cmd/Ctrl+Z 단축키. input/textarea 에 포커스되어 있으면 무시.
+      // 키보드 단축키:
+      //   Cmd/Ctrl+Z → mask stroke undo (input 포커스 시 무시)
+      //   Cmd/Ctrl+Enter → inpaint 즉시 발화 (input/textarea 포커스 OK — 일반 enter 와 구분)
       window.addEventListener("keydown", (ev) => {
         if (inpaintPanel.style.display === "none") return;
         const tag = ev.target && ev.target.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        const isFormElem = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+        // ⌘/Ctrl + Enter — 항상 발화 (form elem 포커스 시도 OK).
+        if ((ev.metaKey || ev.ctrlKey) && (ev.key === "Enter" || ev.key === "Return")) {
+          if (!inpaintGoBtn.disabled || inpaintAbortController) {
+            ev.preventDefault();
+            inpaintGoBtn.click();
+          }
+          return;
+        }
+        // ⌘/Ctrl + Z — input 에 포커스되어 있으면 brower 의 native undo 우선.
+        if (isFormElem) return;
         if ((ev.metaKey || ev.ctrlKey) && !ev.shiftKey && (ev.key === "z" || ev.key === "Z")) {
           ev.preventDefault();
           undoMaskEdit();
