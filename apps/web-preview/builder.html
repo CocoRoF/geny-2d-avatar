@@ -75,6 +75,41 @@
       </div>
     </header>
 
+    <!-- 📋 Activity Log: 모든 단계 timestamp + level + 출처 + 메시지 누적 -->
+    <section id="log-panel" style="margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+        <h2 style="margin: 0; font-size: 0.95rem; text-transform: uppercase; color: #555; letter-spacing: 0.04em;">
+          📋 Activity Log
+          <small style="font-size: 0.75rem; color: #999; font-weight: normal; margin-left: 6px;">
+            모든 활동 timestamp 누적 / F12 콘솔에도 동시 출력
+          </small>
+        </h2>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <label style="font-size: 0.78rem; color: #666;">
+            <input type="checkbox" id="log-autoscroll" checked /> auto-scroll
+          </label>
+          <button id="log-clear" type="button" class="secondary" style="padding: 3px 10px; font-size: 0.78rem;">clear</button>
+          <button id="log-toggle" type="button" class="secondary" style="padding: 3px 10px; font-size: 0.78rem;">접기</button>
+        </div>
+      </div>
+      <pre id="log-output" style="
+        background: #1e1e1e; color: #e6e6e6; font-size: 0.78rem;
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        padding: 10px 12px; border-radius: 5px; max-height: 320px; overflow-y: auto;
+        margin: 0; white-space: pre-wrap; word-break: break-word;
+        line-height: 1.45;
+      "></pre>
+    </section>
+    <style>
+      #log-output .lv-info { color: #9cdcfe; }
+      #log-output .lv-ok   { color: #b5cea8; }
+      #log-output .lv-warn { color: #dcdcaa; }
+      #log-output .lv-err  { color: #f48771; }
+      #log-output .lv-debug{ color: #808080; }
+      #log-output .src     { color: #c586c0; }
+      #log-output .ts      { color: #6a9955; }
+    </style>
+
     <section>
       <h2>1 · Preset 선택 <small style="color:#999;font-weight:normal;">· P5.1</small></h2>
       <div id="family-tabs" class="family-tabs" style="display: flex; gap: 2px; margin-bottom: 10px; border-bottom: 1px solid #ddd; flex-wrap: wrap;">
@@ -550,6 +585,87 @@
       const qs = new URLSearchParams(location.search);
       const API = qs.get("api") ?? "http://localhost:3000";
 
+      // ===== Activity Log =====
+      // 모든 단계의 정황을 누적 출력. window.log.{info,ok,warn,err,debug}(source, message, data?).
+      const logOutput = document.getElementById("log-output");
+      const logAutoscroll = document.getElementById("log-autoscroll");
+      const logClearBtn = document.getElementById("log-clear");
+      const logToggleBtn = document.getElementById("log-toggle");
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) =>
+          ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+        );
+      }
+      function formatTs(d) {
+        const pad = (n, w = 2) => String(n).padStart(w, "0");
+        return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()) + "." + pad(d.getMilliseconds(), 3);
+      }
+      function logEmit(level, source, message, data) {
+        const line = document.createElement("span");
+        const ts = formatTs(new Date());
+        let html =
+          '<span class="ts">[' + ts + ']</span>' +
+          ' <span class="lv-' + level + '">[' + level.toUpperCase().padEnd(5) + ']</span>' +
+          ' <span class="src">[' + escapeHtml(source) + ']</span>' +
+          " " + escapeHtml(message);
+        if (data !== undefined) {
+          let str;
+          try { str = JSON.stringify(data, null, 2); } catch { str = String(data); }
+          if (str.length > 600) str = str.slice(0, 600) + "… (" + str.length + " chars)";
+          html += "\n  " + escapeHtml(str).split("\n").join("\n  ");
+        }
+        line.innerHTML = html + "\n";
+        logOutput.appendChild(line);
+        if (logAutoscroll.checked) {
+          logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        // F12 콘솔에도 출력 (raw object 검사용).
+        const consoleLevel = level === "err" ? "error" : level === "warn" ? "warn" : level === "ok" ? "log" : level === "debug" ? "debug" : "info";
+        if (data !== undefined) {
+          console[consoleLevel]("[" + source + "]", message, data);
+        } else {
+          console[consoleLevel]("[" + source + "]", message);
+        }
+      }
+      window.log = {
+        info: (source, message, data) => logEmit("info", source, message, data),
+        ok: (source, message, data) => logEmit("ok", source, message, data),
+        warn: (source, message, data) => logEmit("warn", source, message, data),
+        err: (source, message, data) => logEmit("err", source, message, data),
+        debug: (source, message, data) => logEmit("debug", source, message, data),
+      };
+      logClearBtn.addEventListener("click", () => { logOutput.innerHTML = ""; });
+      let logCollapsed = false;
+      logToggleBtn.addEventListener("click", () => {
+        logCollapsed = !logCollapsed;
+        logOutput.style.display = logCollapsed ? "none" : "";
+        logToggleBtn.textContent = logCollapsed ? "펼치기" : "접기";
+      });
+      window.log.info("boot", "Builder UI 시작 · API=" + API);
+
+      // 모든 fetch 호출을 wrap 해서 자동 로깅. 응답 status / 시간 / size 기록.
+      const _origFetch = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        const method = (init && init.method) || "GET";
+        const t0 = Date.now();
+        // API 호출만 로깅. 외부 CDN / 자체 static 자산은 skip.
+        const isApi = url.includes(API) || url.startsWith("/api/");
+        if (isApi) window.log.debug("fetch", method + " " + url + " 시작");
+        try {
+          const res = await _origFetch(input, init);
+          const elapsed = Date.now() - t0;
+          if (isApi) {
+            const lvl = res.ok ? "debug" : "warn";
+            window.log[lvl]("fetch", method + " " + url + " → " + res.status + " (" + elapsed + "ms)");
+          }
+          return res;
+        } catch (err) {
+          if (isApi) window.log.err("fetch", method + " " + url + " 실패 (" + (Date.now() - t0) + "ms): " + (err && err.message ? err.message : String(err)));
+          throw err;
+        }
+      };
+
       const adaptersBanner = document.getElementById("adapters-banner");
       const presetSelect = document.getElementById("preset-select");
       const presetDetails = document.getElementById("preset-details");
@@ -771,6 +887,13 @@
           readyMsg;
         setControlsEnabled(true);
         bundleNameInput.placeholder = "기본: " + id.split(".").pop();
+        window.log.info("preset", "프리셋 선택: " + id + "@" + version, {
+          family: p.family,
+          origin: p.origin,
+          atlas: p.atlas,
+          motions: p.motion_count,
+          expressions: p.expression_count,
+        });
         // Baseline preview: preset 선택 즉시 원본 텍스처로 렌더.
         reloadLivePreview({ preset: { id, version }, textureId: null });
       });
@@ -1547,6 +1670,12 @@
           currentModel = model;
           rendererReady = true;
           wirePreviewControls(model);
+          window.log.ok("live2d", "Live2D 모델 로드 성공", {
+            texture_id: textureId ?? "baseline",
+            raw_size: Math.round(rawW) + "x" + Math.round(rawH),
+            fit_scale: fitScale.toFixed(3),
+            stage: STAGE_W + "x" + STAGE_H,
+          });
           setStatus(
             previewStatus,
             "ok",
@@ -1558,8 +1687,11 @@
               "파라미터/모션/표정 컨트롤을 조작해보세요.",
           );
         } catch (err) {
+          window.log.err("live2d", "Live2D 렌더 실패", {
+            error: err && err.message ? err.message : String(err),
+            preset, textureId,
+          });
           setStatus(previewStatus, "err", "렌더 실패: " + (err && err.message ? err.message : String(err)));
-          console.error("[live-preview] render failed:", err);
         }
       }
 
@@ -1862,7 +1994,16 @@
               .map((a, i) => "    " + (i + 1) + ". " + (a.status === "success" ? "✓" : "✗") + " " +
                 a.adapter + (a.error_code ? " [" + a.error_code + "]" : "") + " · " + (a.latency_ms ?? 0) + "ms")
               .join("\n");
-            console.log("[generate] response", body);
+            window.log.ok("generate", "텍스처 생성 성공", {
+              adapter: body.adapter,
+              texture_id: body.texture_id,
+              size: body.width + "x" + body.height,
+              bytes: body.bytes,
+              reference_used: body.reference_used,
+              reference_bytes: body.reference_bytes,
+              timing: body.timing,
+              attempts: body.attempts,
+            });
             setStatus(
               previewStatus,
               "ok",
@@ -1871,9 +2012,12 @@
                 "  texture_id: " + body.texture_id + "\n" +
                 "  sha256: " + body.sha256.slice(0, 16) + "…\n" +
                 "  size: " + body.width + "x" + body.height + " · " + (body.bytes ?? 0).toLocaleString() + " bytes\n" +
-                "  reference_used: " + (body.reference_used ? "✓ (image-to-image)" : "✗ (text-to-image)") + "\n" +
+                "  reference_used: " + (body.reference_used ? "✓ (image-to-image, " + (body.reference_bytes ?? 0).toLocaleString() + " bytes)" : "✗ (text-to-image)") + "\n" +
                 "  prompt: \"" + body.prompt + "\" · seed=" + body.seed + "\n" +
-                "  total: " + elapsed + "ms\n" +
+                "  timing: " + (body.timing
+                  ? Object.entries(body.timing).map(([k, v]) => k + "=" + v + "ms").join(" · ")
+                  : "n/a") + "\n" +
+                "  client total: " + elapsed + "ms\n" +
                 (attemptsLog ? "  attempts:\n" + attemptsLog : ""),
             );
             return;
@@ -1884,7 +2028,13 @@
         } catch (err) {
           // vendor 에러 메시지 전체 노출 + 콘솔 출력. 추가로 attempts 가 있다면 라인별 표시.
           const errMsg = err && err.message ? err.message : String(err);
-          console.error("[generate] error", err);
+          window.log.err("generate", "텍스처 생성 실패: " + errMsg, {
+            adapter: adapter ?? "auto",
+            model: modelOverride,
+            mode,
+            seed,
+            prompt,
+          });
           setStatus(
             previewStatus,
             "err",
