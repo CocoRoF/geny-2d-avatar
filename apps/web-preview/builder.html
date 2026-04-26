@@ -410,6 +410,12 @@
                 <button id="rgb-reset" type="button" class="secondary" disabled style="font-size: 0.78rem; padding: 4px;">Reset</button>
               </div>
             </div>
+            <!-- RX.4 — drawable bbox 를 inpaint mask 로 보내기 -->
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd;">
+              <button id="layer-to-inpaint" type="button" disabled style="width: 100%; font-size: 0.82rem; padding: 6px;" title="선택된 drawable 들의 UV bbox 를 inpaint mask 로 변환해 부분 변형">
+                ✎ 선택 영역 inpaint (<span id="layer-to-inpaint-count">0</span> drawable)
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2113,6 +2119,9 @@
       const rgbApplyBtn = document.getElementById("rgb-apply");
       const rgbResetBtn = document.getElementById("rgb-reset");
       const rgbApplyCountEl = document.getElementById("rgb-apply-count");
+      // RX.4 — drawable → inpaint mask 변환 버튼.
+      const layerToInpaintBtn = document.getElementById("layer-to-inpaint");
+      const layerToInpaintCountEl = document.getElementById("layer-to-inpaint-count");
 
       let layerState = null;
       // = { model, drawables: DrawableMeta[], hidden: Set<index>, selected: Set<index>, atlasImg: Image, atlasSize, preset, textureId }
@@ -2174,6 +2183,8 @@
         layerSelectedCountEl.textContent = "선택 " + sel + " 개";
         rgbApplyCountEl.textContent = String(sel);
         rgbApplyBtn.disabled = sel === 0;
+        layerToInpaintCountEl.textContent = String(sel);
+        layerToInpaintBtn.disabled = sel === 0 || !layerState.preset;
       }
 
       function applyLayerFilter() {
@@ -2216,6 +2227,8 @@
           setRgbControlsEnabled(false);
           rgbApplyBtn.disabled = true;
           rgbApplyCountEl.textContent = "0";
+          layerToInpaintBtn.disabled = true;
+          layerToInpaintCountEl.textContent = "0";
           return;
         }
         // 새 state.
@@ -2399,6 +2412,70 @@
           targets: applied,
         });
         updateLayerSelectionUI();
+      });
+
+      // ===== RX.4 — 선택 drawable bbox → inpaint mask 자동 변환 =====
+      layerToInpaintBtn.addEventListener("click", () => {
+        if (!layerState || layerState.selected.size === 0) return;
+        if (!layerState.preset) {
+          window.log.warn("layer-inpaint", "preset 정보 없음");
+          return;
+        }
+        // 선택 drawable 들의 UV bbox 를 atlas 의 비율 로 mask store (1024) 에 변환.
+        const atlasW = layerState.atlasSize.w;
+        const atlasH = layerState.atlasSize.h;
+        const sx = 1024 / atlasW;
+        const sy = 1024 / atlasH;
+        // inpaint 패널 활성화 + initialize. preserveMask=false 로 새 baseline + 빈 mask.
+        openInpaintPanel({
+          preset: layerState.preset,
+          textureId: layerState.textureId,
+        });
+        // openInpaintPanel 은 async (img.onload) 이지만 mask store 는 즉시 set 가능
+        // (canvas size 만 있으면 됨, 이미 1024×1024 로 init).
+        // 약간 defer 로 caller 측 init 마무리 후 적용.
+        setTimeout(() => {
+          const sctx = inpaintMaskStore.getContext("2d");
+          // 검정 reset 후 선택 drawable bbox 들을 흰색으로.
+          sctx.globalCompositeOperation = "source-over";
+          sctx.fillStyle = "#000";
+          sctx.fillRect(0, 0, 1024, 1024);
+          sctx.fillStyle = "#fff";
+          let total = 0;
+          for (const idx of layerState.selected) {
+            const d = layerState.drawables[idx];
+            if (!d) continue;
+            const x = Math.round(d.uvBbox.x * sx);
+            const y = Math.round(d.uvBbox.y * sy);
+            const w = Math.max(1, Math.round(d.uvBbox.w * sx));
+            const h = Math.max(1, Math.round(d.uvBbox.h * sy));
+            sctx.fillRect(x, y, w, h);
+            total++;
+          }
+          // display canvas 에도 반영 (display 는 512).
+          const dctx = inpaintMaskDisplay.getContext("2d");
+          dctx.clearRect(0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
+          dctx.fillStyle = "rgba(255, 50, 50, 1)";
+          const dsx = INPAINT_DISPLAY_SIZE / atlasW;
+          const dsy = INPAINT_DISPLAY_SIZE / atlasH;
+          for (const idx of layerState.selected) {
+            const d = layerState.drawables[idx];
+            if (!d) continue;
+            const x = d.uvBbox.x * dsx;
+            const y = d.uvBbox.y * dsy;
+            const w = Math.max(1, d.uvBbox.w * dsx);
+            const h = Math.max(1, d.uvBbox.h * dsy);
+            dctx.fillRect(x, y, w, h);
+          }
+          updateMaskCoverage();
+          window.log.ok("layer-inpaint", "선택 drawable → mask 변환 완료", {
+            count: total,
+            atlas: atlasW + "x" + atlasH,
+          });
+          // inpaint 패널로 스크롤 + prompt 입력란 포커스.
+          inpaintPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+          inpaintPrompt.focus();
+        }, 50);
       });
 
       rgbResetBtn.addEventListener("click", () => {
