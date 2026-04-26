@@ -2013,6 +2013,7 @@
                 "  sha256: " + body.sha256.slice(0, 16) + "…\n" +
                 "  size: " + body.width + "x" + body.height + " · " + (body.bytes ?? 0).toLocaleString() + " bytes\n" +
                 "  reference_used: " + (body.reference_used ? "✓ (image-to-image, " + (body.reference_bytes ?? 0).toLocaleString() + " bytes)" : "✗ (text-to-image)") + "\n" +
+                "  alpha_mask_transferred: " + (body.alpha_mask_transferred ? "✓ (reference 의 alpha 채널 결과에 적용 → transparent 영역 보존)" : "✗ (recolor/mock 은 자체 alpha 보존)") + "\n" +
                 "  prompt: \"" + body.prompt + "\" · seed=" + body.seed + "\n" +
                 "  timing: " + (body.timing
                   ? Object.entries(body.timing).map(([k, v]) => k + "=" + v + "ms").join(" · ")
