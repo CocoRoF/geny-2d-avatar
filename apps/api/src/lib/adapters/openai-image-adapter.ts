@@ -36,6 +36,7 @@
 import { createHash } from "node:crypto";
 import type { TextureAdapter, TextureTask } from "../texture-adapter.js";
 import { normalizeToPng } from "../image-post.js";
+import { buildEditPrompt, buildGenerateAtlasPrompt } from "../edit-prompt.js";
 
 const DEFAULT_MODEL = "gpt-image-1.5";
 const DEFAULT_SIZE = "1024x1024";
@@ -133,9 +134,14 @@ export function createOpenAIImageAdapter(
       let requestInit: RequestInit;
       if (useEdit) {
         // multipart/form-data. image 는 Blob (Buffer 직접 X). Content-Type 자동.
+        // **Atlas-aware prompt 강화**: 사용자 raw prompt ("red hair") 를 그대로 보내면
+        // OpenAI 가 character generation 으로 해석해 portrait 그림. atlas 보존 의도를 명시.
         const fd = new FormData();
         fd.append("model", model);
-        fd.append("prompt", task.prompt);
+        fd.append(
+          "prompt",
+          buildEditPrompt({ userPrompt: task.prompt, seed: task.seed, isAtlas: true }),
+        );
         fd.append("n", "1");
         fd.append("size", size);
         fd.append("quality", quality);
@@ -171,7 +177,7 @@ export function createOpenAIImageAdapter(
           },
           body: JSON.stringify({
             model,
-            prompt: task.prompt,
+            prompt: buildGenerateAtlasPrompt(task.prompt, task.seed),
             n: 1,
             size,
             quality,

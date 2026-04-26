@@ -514,6 +514,26 @@ test("openai-image.generate: gpt-image-2 → input_fidelity / background 미전�
   assert.equal(fd.get("background"), null);
 });
 
+test("openai-image.generate: edit 시 prompt 가 atlas-aware buildEditPrompt 로 강화됨", async () => {
+  let capturedBody: unknown = null;
+  const a = createOpenAIImageAdapter({
+    apiKey: "k",
+    fetchImpl: mockFetch(async (_url, init) => {
+      capturedBody = init?.body;
+      return new Response(JSON.stringify({ data: [{ b64_json: VALID_PNG_B64 }] }), { status: 200 });
+    }),
+  });
+  const refPng = Buffer.from(VALID_PNG_B64, "base64");
+  await a.generate(task({ prompt: "red hair", referenceImage: { png: refPng } }));
+  const fd = capturedBody as FormData;
+  const promptStr = String(fd.get("prompt") ?? "");
+  // 사용자 raw prompt 를 그대로 보내지 않고 atlas-edit 패턴으로 강화.
+  assert.match(promptStr, /Live2D character texture atlas/, "atlas 식별자 포함");
+  assert.match(promptStr, /Do NOT change the input aspect ratio/, "aspect 보존 명령");
+  assert.match(promptStr, /transparent.*background/i, "transparent 보존 명령");
+  assert.match(promptStr, /red hair/, "사용자 prompt 내용 포함");
+});
+
 test("openai-image.generate: gpt-image-1.5 → input_fidelity=high (background 은 미전송)", async () => {
   let capturedBody: unknown = null;
   const a = createOpenAIImageAdapter({
