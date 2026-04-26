@@ -33,9 +33,9 @@ test("recolor.supports: referenceImage 없음 → false", () => {
   assert.equal(a.supports(t as TextureTask), false);
 });
 
-test("recolor.supports: 색 키워드 없음 → false (다른 어댑터로 fallback)", () => {
+test("recolor.supports: 색 키워드 없어도 referenceImage 만 있으면 true (해시 기반 hue fallback)", () => {
   const a = createRecolorAdapter();
-  assert.equal(a.supports(task({ prompt: "make it look fancy" })), false);
+  assert.equal(a.supports(task({ prompt: "make it look fancy" })), true);
 });
 
 test("recolor.supports: enabled=false → false", () => {
