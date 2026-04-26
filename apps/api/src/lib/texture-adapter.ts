@@ -26,6 +26,15 @@ export interface TextureTask {
    * 어댑터 (pollinations) 는 무시.
    */
   readonly referenceImage?: { readonly png: Buffer; readonly mimeType?: string };
+  /**
+   * Inpainting mask PNG. 우리 convention:
+   *   alpha=255 (불투명/흰색) = 변형할 영역
+   *   alpha=0  (투명/검정)   = 보존할 영역
+   * OpenAI 어댑터는 자동으로 invert 후 /v1/images/edits 의 mask 필드로 전송.
+   * Gemini 는 두 번째 inline_data + edit prompt 로 전달.
+   * 후처리 단계 (inpaint-composite.ts) 에서 mask 외부 픽셀은 원본으로 강제 복원.
+   */
+  readonly inpaintMask?: { readonly png: Buffer; readonly mimeType?: string };
 }
 
 export interface TextureResult {

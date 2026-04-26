@@ -19,6 +19,7 @@ import { modelsRoute } from "./routes/models.js";
 import { textureUploadRoute } from "./routes/texture-upload.js";
 import { textureGenerateRoute } from "./routes/texture-generate.js";
 import { textureGenerateSlotsRoute } from "./routes/texture-generate-slots.js";
+import { textureInpaintRoute } from "./routes/texture-inpaint.js";
 import { textureServeRoute } from "./routes/texture-serve.js";
 import { live2dProxyRoute } from "./routes/live2d-proxy.js";
 import { buildRoute } from "./routes/build.js";
@@ -71,7 +72,8 @@ export function createDefaultAdapterRegistry(): TextureAdapterRegistry {
 }
 
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
-  const fastify = fastifyFactory({ logger: opts.logger ?? false });
+  // bodyLimit 32MB — inpainting mask + base64 인코딩 시 큰 atlas 도 수용 (4096 PNG 약 7MB → base64 ~10MB).
+  const fastify = fastifyFactory({ logger: opts.logger ?? false, bodyLimit: 32 * 1024 * 1024 });
 
   const texturesDir = opts.texturesDir ?? join(tmpdir(), "geny-api-textures");
   const bundlesDir = opts.bundlesDir ?? join(tmpdir(), "geny-api-bundles");
@@ -97,6 +99,11 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     adapters,
   });
   await fastify.register(textureGenerateSlotsRoute, {
+    rigTemplatesRoot: opts.rigTemplatesRoot,
+    texturesDir,
+    adapters,
+  });
+  await fastify.register(textureInpaintRoute, {
     rigTemplatesRoot: opts.rigTemplatesRoot,
     texturesDir,
     adapters,

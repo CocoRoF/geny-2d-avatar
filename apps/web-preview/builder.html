@@ -444,6 +444,88 @@
       <div id="result" style="color: #999;">Save 결과가 여기에 표시됩니다.</div>
     </section>
 
+    <section id="inpaint-panel" style="display: none;">
+      <h2>🎯 영역 선택 + AI 인페인팅 <small style="color:#999;font-weight:normal;">· 핵심 기능</small></h2>
+      <p style="font-size: 0.85rem; color: #666; margin: 0 0 8px;">
+        원본 텍스처 위에 변형하고 싶은 영역만 brush 로 칠하세요. AI 가 그 영역만 변형하고
+        <strong>외부는 sharp 후처리로 강제 원본 보존</strong> — atlas layout 100% 유지.
+        AI 가 mask 무시해도 우리가 합성으로 강제 복원.
+      </p>
+      <div class="inpaint-layout">
+        <div class="inpaint-canvas-wrap">
+          <canvas id="inpaint-bg" class="inpaint-canvas"></canvas>
+          <canvas id="inpaint-mask-display" class="inpaint-canvas inpaint-mask-overlay"></canvas>
+          <canvas id="inpaint-mask-store" style="display:none;"></canvas>
+        </div>
+        <div class="inpaint-controls">
+          <div class="form-row inline">
+            <label class="block">도구</label>
+            <select id="inpaint-tool" style="font-size: 0.85rem;">
+              <option value="brush">브러시</option>
+              <option value="erase">지우개</option>
+              <option value="rect">사각형</option>
+            </select>
+          </div>
+          <div class="form-row inline">
+            <label class="block">크기</label>
+            <input type="range" id="inpaint-brush-size" min="5" max="200" value="40" />
+          </div>
+          <div class="form-row inline">
+            <label class="block">feather</label>
+            <input type="text" id="inpaint-feather" placeholder="2 (경계 부드럽게, 0=off)" style="font-size: 0.85rem;" />
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0;">
+            <button id="inpaint-clear" type="button" class="secondary" style="font-size: 0.8rem;">선택 초기화</button>
+            <button id="inpaint-invert" type="button" class="secondary" style="font-size: 0.8rem;">선택 반전</button>
+            <button id="inpaint-fill-all" type="button" class="secondary" style="font-size: 0.8rem;">전체 선택</button>
+          </div>
+          <input type="text" id="inpaint-prompt" placeholder="변형 prompt (예: red hair)" style="font-size: 0.85rem; margin-bottom: 6px;" />
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+            <select id="inpaint-adapter" style="font-size: 0.85rem;">
+              <option value="">자동 (priority chain)</option>
+            </select>
+            <select id="inpaint-model" style="font-size: 0.85rem;" disabled>
+              <option value="">기본 모델</option>
+            </select>
+          </div>
+          <button id="inpaint-go" type="button" disabled style="width: 100%; padding: 8px;">선택 영역 변형 ⏎</button>
+        </div>
+      </div>
+    </section>
+    <style>
+      .inpaint-layout {
+        display: grid;
+        grid-template-columns: minmax(320px, 1fr) 280px;
+        gap: 16px;
+        align-items: start;
+      }
+      .inpaint-canvas-wrap {
+        position: relative;
+        border: 1px solid #ddd;
+        background: repeating-linear-gradient(45deg, #f5f5f5 0 8px, #fff 8px 16px);
+        border-radius: 6px;
+        overflow: hidden;
+        line-height: 0;
+      }
+      .inpaint-canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        cursor: crosshair;
+      }
+      .inpaint-mask-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: auto;
+        mix-blend-mode: normal;
+        opacity: 0.55;
+      }
+      .inpaint-controls {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+
     <section id="history-panel" style="display: none;">
       <h2>3.5 · 히스토리 <small style="color:#999;font-weight:normal;">· P4.4</small></h2>
       <p style="font-size: 0.85rem; color: #666; margin: 0 0 10px;">
@@ -1772,6 +1854,300 @@
           preset: ev.detail.preset,
           textureId: ev.detail.textureId,
         });
+      });
+
+      // ===== 🎯 Inpainting 패널 (mask 기반 부분 변형) =====
+      const inpaintPanel = document.getElementById("inpaint-panel");
+      const inpaintBg = document.getElementById("inpaint-bg");
+      const inpaintMaskDisplay = document.getElementById("inpaint-mask-display");
+      const inpaintMaskStore = document.getElementById("inpaint-mask-store");
+      const inpaintTool = document.getElementById("inpaint-tool");
+      const inpaintBrushSize = document.getElementById("inpaint-brush-size");
+      const inpaintFeather = document.getElementById("inpaint-feather");
+      const inpaintClearBtn = document.getElementById("inpaint-clear");
+      const inpaintInvertBtn = document.getElementById("inpaint-invert");
+      const inpaintFillBtn = document.getElementById("inpaint-fill-all");
+      const inpaintPrompt = document.getElementById("inpaint-prompt");
+      const inpaintAdapter = document.getElementById("inpaint-adapter");
+      const inpaintModel = document.getElementById("inpaint-model");
+      const inpaintGoBtn = document.getElementById("inpaint-go");
+
+      const INPAINT_DISPLAY_SIZE = 512;
+      let inpaintState = null; // { preset, textureUrl, baseImg }
+      let drawing = false;
+      let rectStart = null;
+
+      // 어댑터 dropdown 채움 (재사용 from /api/models load).
+      function populateInpaintAdapter() {
+        inpaintAdapter.innerHTML = "";
+        const auto = document.createElement("option");
+        auto.value = ""; auto.textContent = "자동 (priority chain)";
+        inpaintAdapter.appendChild(auto);
+        for (const v of Object.keys(modelsByAdapter)) {
+          const a = modelsByAdapter[v];
+          const opt = document.createElement("option");
+          opt.value = v;
+          opt.textContent = (a.active ? "✓ " : "✗ ") + v + " (" + a.activeModel + ")";
+          opt.disabled = !a.active;
+          inpaintAdapter.appendChild(opt);
+        }
+      }
+
+      inpaintAdapter.addEventListener("change", () => {
+        const v = inpaintAdapter.value;
+        inpaintModel.innerHTML = "";
+        const ph = document.createElement("option");
+        ph.value = ""; ph.textContent = v ? "어댑터 default" : "(자동)";
+        inpaintModel.appendChild(ph);
+        if (v && modelsByAdapter[v]) {
+          for (const m of modelsByAdapter[v].availableModels ?? []) {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            opt.textContent = m.label + (m.recommended ? " ★" : m.premium ? " 💎" : m.deprecated ? " ⚠" : "");
+            inpaintModel.appendChild(opt);
+          }
+          inpaintModel.disabled = false;
+        } else {
+          inpaintModel.disabled = true;
+        }
+      });
+
+      function openInpaintPanel({ preset, textureId }) {
+        if (!preset) return;
+        inpaintPanel.style.display = "block";
+        populateInpaintAdapter();
+        // 기본 텍스처 로드 (textureId 있으면 그 텍스처, 없으면 baseline).
+        const url = textureId
+          ? API + "/api/texture/" + encodeURIComponent(textureId) + ".png"
+          : API + "/api/live2d/" + encodeURIComponent(preset.id) + "/" +
+            encodeURIComponent(preset.version) + "/mao_pro.4096/texture_00.png";
+        inpaintBg.width = INPAINT_DISPLAY_SIZE;
+        inpaintBg.height = INPAINT_DISPLAY_SIZE;
+        inpaintMaskDisplay.width = INPAINT_DISPLAY_SIZE;
+        inpaintMaskDisplay.height = INPAINT_DISPLAY_SIZE;
+        // mask store 는 더 큰 해상도 (서버로 전송할 mask).
+        inpaintMaskStore.width = 1024;
+        inpaintMaskStore.height = 1024;
+        const ctx = inpaintBg.getContext("2d");
+        const dctx = inpaintMaskDisplay.getContext("2d");
+        const sctx = inpaintMaskStore.getContext("2d");
+        // 초기화: bg 회색, mask 비어있음.
+        ctx.fillStyle = "#f0f0f0";
+        ctx.fillRect(0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
+        dctx.clearRect(0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
+        sctx.fillStyle = "#000";
+        sctx.fillRect(0, 0, 1024, 1024);
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
+          inpaintState = { preset, textureUrl: url, baseImg: img };
+          inpaintGoBtn.disabled = false;
+        };
+        img.onerror = () => {
+          window.log.err("inpaint", "기본 텍스처 로드 실패: " + url);
+        };
+        img.src = url;
+      }
+
+      function applyMaskBrush(displayX, displayY, opts) {
+        const r = (Number(inpaintBrushSize.value) || 40) / 2;
+        const dctx = inpaintMaskDisplay.getContext("2d");
+        const sctx = inpaintMaskStore.getContext("2d");
+        const erase = opts && opts.erase;
+        // display canvas: 빨강 반투명 표시.
+        dctx.globalCompositeOperation = erase ? "destination-out" : "source-over";
+        dctx.fillStyle = "rgba(255, 50, 50, 1)";
+        dctx.beginPath();
+        dctx.arc(displayX, displayY, r, 0, Math.PI * 2);
+        dctx.fill();
+        // store canvas: 흰색 (변형 영역). erase 면 검정.
+        const sx = (displayX / INPAINT_DISPLAY_SIZE) * 1024;
+        const sy = (displayY / INPAINT_DISPLAY_SIZE) * 1024;
+        const sr = r * (1024 / INPAINT_DISPLAY_SIZE);
+        sctx.globalCompositeOperation = "source-over";
+        sctx.fillStyle = erase ? "#000" : "#fff";
+        sctx.beginPath();
+        sctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        sctx.fill();
+      }
+
+      function applyMaskRect(x0, y0, x1, y1) {
+        const dctx = inpaintMaskDisplay.getContext("2d");
+        const sctx = inpaintMaskStore.getContext("2d");
+        const left = Math.min(x0, x1), top = Math.min(y0, y1);
+        const w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
+        dctx.fillStyle = "rgba(255, 50, 50, 1)";
+        dctx.fillRect(left, top, w, h);
+        const sx = (left / INPAINT_DISPLAY_SIZE) * 1024;
+        const sy = (top / INPAINT_DISPLAY_SIZE) * 1024;
+        const sw = (w / INPAINT_DISPLAY_SIZE) * 1024;
+        const sh = (h / INPAINT_DISPLAY_SIZE) * 1024;
+        sctx.fillStyle = "#fff";
+        sctx.fillRect(sx, sy, sw, sh);
+      }
+
+      inpaintMaskDisplay.addEventListener("pointerdown", (ev) => {
+        const rect = inpaintMaskDisplay.getBoundingClientRect();
+        const x = (ev.clientX - rect.left) * (INPAINT_DISPLAY_SIZE / rect.width);
+        const y = (ev.clientY - rect.top) * (INPAINT_DISPLAY_SIZE / rect.height);
+        drawing = true;
+        if (inpaintTool.value === "rect") {
+          rectStart = { x, y };
+        } else {
+          applyMaskBrush(x, y, { erase: inpaintTool.value === "erase" });
+        }
+        inpaintMaskDisplay.setPointerCapture(ev.pointerId);
+      });
+      inpaintMaskDisplay.addEventListener("pointermove", (ev) => {
+        if (!drawing) return;
+        const rect = inpaintMaskDisplay.getBoundingClientRect();
+        const x = (ev.clientX - rect.left) * (INPAINT_DISPLAY_SIZE / rect.width);
+        const y = (ev.clientY - rect.top) * (INPAINT_DISPLAY_SIZE / rect.height);
+        if (inpaintTool.value !== "rect") {
+          applyMaskBrush(x, y, { erase: inpaintTool.value === "erase" });
+        }
+      });
+      inpaintMaskDisplay.addEventListener("pointerup", (ev) => {
+        if (!drawing) return;
+        drawing = false;
+        const rect = inpaintMaskDisplay.getBoundingClientRect();
+        const x = (ev.clientX - rect.left) * (INPAINT_DISPLAY_SIZE / rect.width);
+        const y = (ev.clientY - rect.top) * (INPAINT_DISPLAY_SIZE / rect.height);
+        if (inpaintTool.value === "rect" && rectStart) {
+          applyMaskRect(rectStart.x, rectStart.y, x, y);
+          rectStart = null;
+        }
+      });
+
+      inpaintClearBtn.addEventListener("click", () => {
+        inpaintMaskDisplay.getContext("2d").clearRect(0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
+        const sctx = inpaintMaskStore.getContext("2d");
+        sctx.fillStyle = "#000";
+        sctx.fillRect(0, 0, 1024, 1024);
+      });
+      inpaintFillBtn.addEventListener("click", () => {
+        const dctx = inpaintMaskDisplay.getContext("2d");
+        dctx.fillStyle = "rgba(255, 50, 50, 1)";
+        dctx.fillRect(0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
+        const sctx = inpaintMaskStore.getContext("2d");
+        sctx.fillStyle = "#fff";
+        sctx.fillRect(0, 0, 1024, 1024);
+      });
+      inpaintInvertBtn.addEventListener("click", () => {
+        const sctx = inpaintMaskStore.getContext("2d");
+        const data = sctx.getImageData(0, 0, 1024, 1024);
+        for (let i = 0; i < data.data.length; i += 4) {
+          data.data[i] = 255 - data.data[i];
+          data.data[i+1] = 255 - data.data[i+1];
+          data.data[i+2] = 255 - data.data[i+2];
+        }
+        sctx.putImageData(data, 0, 0);
+        // display 도 invert.
+        const dctx = inpaintMaskDisplay.getContext("2d");
+        const ddata = dctx.getImageData(0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
+        for (let i = 0; i < ddata.data.length; i += 4) {
+          ddata.data[i+3] = 255 - ddata.data[i+3];
+        }
+        // 빨강 색상 다시 입힘.
+        dctx.putImageData(ddata, 0, 0);
+      });
+
+      inpaintGoBtn.addEventListener("click", async () => {
+        if (!inpaintState) return;
+        const prompt = inpaintPrompt.value.trim();
+        if (!prompt) {
+          window.log.warn("inpaint", "prompt 비어있음");
+          return;
+        }
+        // mask 가 비어있는지 빠르게 체크 (sample 픽셀).
+        const sctx = inpaintMaskStore.getContext("2d");
+        const sample = sctx.getImageData(0, 0, 1024, 1024).data;
+        let any = false;
+        for (let i = 0; i < sample.length; i += 4 * 100) {
+          if (sample[i] > 0) { any = true; break; }
+        }
+        if (!any) {
+          window.log.warn("inpaint", "mask 가 비어있음 — 변형할 영역을 먼저 그려주세요");
+          return;
+        }
+        const maskDataUrl = inpaintMaskStore.toDataURL("image/png");
+        const adapterVal = inpaintAdapter.value || undefined;
+        const modelVal = inpaintModel.value || undefined;
+        const featherRaw = inpaintFeather.value.trim();
+        const featherPx = featherRaw === "" ? 2 : Math.max(0, Math.min(20, Number(featherRaw) || 0));
+        const seed = Math.floor(Math.random() * 1000000);
+        inpaintGoBtn.disabled = true;
+        window.log.info("inpaint", "POST /api/texture/inpaint 시작", {
+          adapter: adapterVal ?? "auto",
+          model: modelVal,
+          prompt,
+          seed,
+          feather_px: featherPx,
+          mask_dataurl_bytes: maskDataUrl.length,
+        });
+        try {
+          const r = await fetch(API + "/api/texture/inpaint", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              preset_id: inpaintState.preset.id,
+              preset_version: inpaintState.preset.version,
+              prompt,
+              seed,
+              mask_png_base64: maskDataUrl,
+              feather_px: featherPx,
+              ...(adapterVal ? { adapter: adapterVal } : {}),
+              ...(modelVal ? { model: modelVal } : {}),
+            }),
+          });
+          const body = await r.json();
+          if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
+          window.log.ok("inpaint", "변형 완료 — atlas 외부는 원본 보존", {
+            adapter: body.adapter,
+            texture_id: body.texture_id,
+            timing: body.timing,
+          });
+          // 히스토리 + 빌드 + 프리뷰.
+          pushHistory({
+            texture_id: body.texture_id,
+            sha256: body.sha256,
+            source: "slots",
+            label: "Inpaint · \"" + prompt + "\" · " + body.adapter,
+            preset: { id: inpaintState.preset.id, version: inpaintState.preset.version },
+          });
+          await rebuildWithCurrentTexture("Inpaint 후 자동 rebuild");
+          reloadLivePreview({
+            preset: inpaintState.preset,
+            textureId: body.texture_id,
+          });
+          // 새 텍스처를 inpaint 캔버스 bg 로 갱신 (다음 변형의 baseline).
+          openInpaintPanel({
+            preset: inpaintState.preset,
+            textureId: body.texture_id,
+          });
+        } catch (err) {
+          window.log.err("inpaint", "실패: " + (err && err.message ? err.message : String(err)));
+        } finally {
+          inpaintGoBtn.disabled = false;
+        }
+      });
+
+      // 프리셋 선택 / 텍스처 변경 시 inpaint 패널 자동 갱신.
+      window.addEventListener("geny:texture-ready", (ev) => {
+        if (ev.detail.preset?.origin === "third-party" || ev.detail.preset?.id?.includes("mao_pro")) {
+          openInpaintPanel({ preset: ev.detail.preset, textureId: ev.detail.textureId });
+        }
+      });
+      // preset 선택 직후 baseline 으로 inpaint 패널 열기.
+      presetSelect.addEventListener("change", () => {
+        const v = presetSelect.value;
+        if (!v) return;
+        const [id, version] = v.split("@");
+        const p = presets.find((x) => x.id === id && x.version === version);
+        if (p && p.origin === "third-party") {
+          openInpaintPanel({ preset: { id, version }, textureId: null });
+        }
       });
 
       // ===== Inline Iterate 패널 (P-RT.5) =====

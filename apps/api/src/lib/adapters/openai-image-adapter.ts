@@ -37,6 +37,7 @@ import { createHash } from "node:crypto";
 import type { TextureAdapter, TextureTask } from "../texture-adapter.js";
 import { normalizeToPng } from "../image-post.js";
 import { buildEditPrompt, buildGenerateAtlasPrompt } from "../edit-prompt.js";
+import { maskToOpenAIConvention } from "../inpaint-composite.js";
 
 const DEFAULT_MODEL = "gpt-image-1.5";
 const DEFAULT_SIZE = "1024x1024";
@@ -161,6 +162,15 @@ export function createOpenAIImageAdapter(
           }),
           "reference.png",
         );
+        // Inpainting: mask PNG 추가. OpenAI convention 으로 invert (alpha=0 = 변형).
+        if (task.inpaintMask?.png) {
+          const oaMask = await maskToOpenAIConvention(task.inpaintMask.png);
+          fd.append(
+            "mask",
+            new Blob([new Uint8Array(oaMask)], { type: "image/png" }),
+            "mask.png",
+          );
+        }
         // response_format 은 모든 GPT-Image 모델 deprecated — 보내지 않음.
         requestInit = {
           method: "POST",

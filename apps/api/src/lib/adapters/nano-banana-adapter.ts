@@ -126,15 +126,32 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
         | { inline_data: { mime_type: string; data: string } }
       > = [];
       if (task.referenceImage?.png) {
-        parts.push({
-          text: buildEditPrompt({ userPrompt: task.prompt, seed: task.seed, isAtlas: true }),
+        // Inpainting mask 가 있으면 prompt 에 명시 + 두 번째 image 로 mask 전달.
+        let editText = buildEditPrompt({
+          userPrompt: task.prompt,
+          seed: task.seed,
+          isAtlas: true,
         });
+        if (task.inpaintMask?.png) {
+          editText +=
+            " A second image is provided as a binary mask: WHITE pixels mark the regions you may modify, " +
+            "BLACK pixels MUST remain pixel-identical to the first image (the texture atlas).";
+        }
+        parts.push({ text: editText });
         parts.push({
           inline_data: {
             mime_type: task.referenceImage.mimeType ?? "image/png",
             data: task.referenceImage.png.toString("base64"),
           },
         });
+        if (task.inpaintMask?.png) {
+          parts.push({
+            inline_data: {
+              mime_type: task.inpaintMask.mimeType ?? "image/png",
+              data: task.inpaintMask.png.toString("base64"),
+            },
+          });
+        }
       } else {
         parts.push({ text: buildGenerateAtlasPrompt(task.prompt, task.seed) });
       }
