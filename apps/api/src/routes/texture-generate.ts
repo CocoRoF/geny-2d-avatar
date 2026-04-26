@@ -185,8 +185,12 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
       });
     }
     const seed = Number.isFinite(body.seed) ? (body.seed as number) : 0;
+    const startMs = Date.now();
+    const timing: Record<string, number> = {};
 
+    const tPreset = Date.now();
     const atlas = await readAtlas(rigTemplatesRoot, preset_id, preset_version);
+    timing.preset_lookup_ms = Date.now() - tPreset;
     if (!atlas) {
       return reply.code(404).send({
         error: {
@@ -207,7 +211,16 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
     const height = Math.min(t.height, 2048);
 
     // image-to-image: third-party preset (mao_pro) 면 baseline texture 를 reference 로 자동 주입.
+    const tRef = Date.now();
     const referencePng = await loadBaselineReference(rigTemplatesRoot, preset_id, preset_version);
+    timing.reference_load_ms = Date.now() - tRef;
+    request.log.info({
+      preset_id, preset_version, prompt: prompt.trim(), seed,
+      adapter: body.adapter ?? "auto",
+      model: body.model,
+      width, height,
+      reference_bytes: referencePng?.length ?? 0,
+    }, "[generate] start");
 
     // 명시적 adapter / model 선택이면 일회용 registry 만들어 그 어댑터만 호출. 없으면 기본 registry priority.
     const useRegistry = !body.adapter
@@ -225,6 +238,7 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
     }
 
     let run;
+    const tVendor = Date.now();
     try {
       run = await runTextureGenerate(
         {
@@ -238,29 +252,46 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
         useRegistry,
       );
     } catch (err) {
+      timing.vendor_ms = Date.now() - tVendor;
+      const errLog = {
+        adapter: body.adapter ?? "auto",
+        model: body.model,
+        timing,
+        message: (err as Error).message,
+      };
       if (err instanceof NoEligibleAdapterError) {
+        request.log.warn(errLog, "[generate] no eligible adapter");
         return reply.code(503).send({
-          error: { code: "NO_ELIGIBLE_ADAPTER", message: err.message },
+          error: { code: "NO_ELIGIBLE_ADAPTER", message: err.message, timing },
         });
       }
       if (err instanceof AllAdaptersFailedError) {
+        request.log.error(
+          { ...errLog, attempts: err.attempts },
+          "[generate] all adapters failed",
+        );
         return reply.code(502).send({
           error: {
             code: "ALL_ADAPTERS_FAILED",
             message: err.message,
             attempts: err.attempts,
+            timing,
           },
         });
       }
+      request.log.error(errLog, "[generate] unexpected error");
       return reply.code(500).send({
-        error: { code: "GENERATE_FAILED", message: (err as Error).message },
+        error: { code: "GENERATE_FAILED", message: (err as Error).message, timing },
       });
     }
 
+    timing.vendor_ms = Date.now() - tVendor;
     const { result, adapter, attempts } = run;
     const textureId = "tex_" + randomUUID().replace(/-/g, "");
     const outPath = join(texturesDir, textureId + ".png");
+    const tWrite = Date.now();
     await writeFile(outPath, result.png);
+    timing.write_ms = Date.now() - tWrite;
     // provenance 포함 manifest. attempts 는 generated_by.attempts 로 직접 포함시킬 수 없음 —
     // writeTextureManifest 는 mode 기반 — 확장 필요. P3.3 에서는 우선 기본 mode 만.
     const mode = adapter === "mock" ? "mock_generate" : "ai_generate";
@@ -298,6 +329,7 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
       path: outPath,
       reference_used: referencePng !== null,
       reference_bytes: referencePng?.length ?? 0,
+      timing: { ...timing, total_ms: Date.now() - startMs },
       note:
         adapter === "mock"
           ? "mock 생성 (결정론적, 실 AI 아님)"

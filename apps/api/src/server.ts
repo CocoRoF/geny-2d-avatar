@@ -28,7 +28,9 @@ const port = Number.parseInt(process.env.PORT ?? "3000", 10);
 const rigTemplatesRoot = process.env.GENY_RIG_TEMPLATES
   ? resolve(process.env.GENY_RIG_TEMPLATES)
   : resolve(repoRoot, "rig-templates");
-const logger = process.env.GENY_LOG === "true";
+// 기본은 활성. 명시적으로 GENY_LOG=false 일 때만 끔. 어댑터 호출 / 라우트 진입 / 응답 등
+// 모든 활동을 stdout 으로 출력해 사용자가 어디서 무엇이 일어나는지 볼 수 있도록.
+const logger = process.env.GENY_LOG !== "false";
 
 const app = await buildApp({ rigTemplatesRoot, logger });
 
