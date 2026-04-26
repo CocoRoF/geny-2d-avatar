@@ -115,7 +115,8 @@ export function createOpenAIImageAdapter(
   const quality = opts.quality ?? process.env.GENY_OPENAI_IMAGE_QUALITY ?? DEFAULT_QUALITY;
   const timeoutMs =
     opts.timeoutMs ??
-    Number.parseInt(process.env.GENY_OPENAI_IMAGE_TIMEOUT_MS ?? "120000", 10);
+    Number.parseInt(process.env.GENY_OPENAI_IMAGE_TIMEOUT_MS ?? "300000", 10);
+  // gpt-image-2 quality:high 는 30~90s + 업로드/네트워크 → 5분 default.
   const enabled = opts.enabled ?? process.env.GENY_OPENAI_IMAGE_DISABLED !== "true";
   const f = opts.fetchImpl ?? fetch;
 
