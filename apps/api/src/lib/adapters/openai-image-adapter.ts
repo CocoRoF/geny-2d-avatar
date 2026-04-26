@@ -214,7 +214,7 @@ export function createOpenAIImageAdapter(
               ? "RATE_LIMITED"
               : "VENDOR_ERROR_4XX";
         const err = new Error(
-          "openai-image HTTP " + res.status + ": " + rawText.slice(0, 300),
+          "openai-image HTTP " + res.status + " (" + model + ", " + (useEdit ? "edits" : "generations") + "): " + rawText.slice(0, 1000),
         ) as Error & { code?: string };
         err.code = code;
         throw err;

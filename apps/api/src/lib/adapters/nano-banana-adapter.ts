@@ -222,7 +222,7 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
               ? "RATE_LIMITED"
               : "VENDOR_ERROR_4XX";
         const err = new Error(
-          "nano-banana HTTP " + res.status + ": " + rawText.slice(0, 200),
+          "nano-banana HTTP " + res.status + " (" + model + "): " + rawText.slice(0, 1000),
         ) as Error & { code?: string };
         err.code = code;
         throw err;

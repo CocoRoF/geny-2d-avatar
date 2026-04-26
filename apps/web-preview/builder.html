@@ -281,7 +281,7 @@
         <div id="preview-stage" class="preview-stage">프리셋 선택 + 텍스처 준비 후 렌더</div>
         <div class="preview-controls">
           <div id="iterate-panel" style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 8px;">
-            <div style="font-size: 0.82rem; font-weight: 600; color: #444; margin-bottom: 6px;">🔁 반복 생성</div>
+            <div style="font-size: 0.82rem; font-weight: 600; color: #444; margin-bottom: 6px;">🎨 AI 텍스처 생성</div>
             <div class="form-row" style="margin-bottom: 6px;">
               <input type="text" id="iter-prompt" placeholder="프롬프트 (예: silver short hair)" style="font-size: 0.85rem;" />
             </div>
@@ -293,6 +293,7 @@
                 <option value="">기본 모델</option>
               </select>
             </div>
+            <div id="iter-model-help" style="font-size: 0.75rem; color: #555; margin-bottom: 6px; padding: 6px 8px; background: #f7f7f9; border-radius: 4px; display: none;"></div>
             <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center;">
               <input type="text" id="iter-seed" placeholder="seed (빈값: 자동)" style="font-size: 0.85rem;" />
               <select id="iter-mode" style="font-size: 0.85rem;">
@@ -1664,6 +1665,53 @@
         console.warn("[builder] /api/models load failed:", err);
       }
 
+      const iterModelHelp = document.getElementById("iter-model-help");
+
+      function describeModel(adapterVendor, modelId) {
+        if (!adapterVendor) {
+          return "자동 모드: nano-banana → openai-image → recolor → pollinations → mock 순으로 시도. 키 없거나 비활성이면 자동 skip.";
+        }
+        const meta = modelsByAdapter[adapterVendor];
+        if (!meta) return "";
+        const lines = [];
+        if (!meta.active && meta.inactiveReason) {
+          lines.push("⚠️ 어댑터 비활성: " + meta.inactiveReason);
+        }
+        if (meta.requiresKey) {
+          lines.push("• .env 의 " + meta.requiresKey + " 필요");
+        }
+        // 모델별 안내.
+        if (adapterVendor === "openai-image") {
+          lines.push("• 모든 OpenAI image 모델은 organization verification 필수 (https://platform.openai.com/settings/organization/general)");
+          if (modelId === "gpt-image-2") {
+            lines.push("• gpt-image-2: SOTA 품질, 항상 high fidelity. 단 transparent 배경 미지원 → atlas 일부 영역이 검정으로 채워질 수 있음");
+          } else if (modelId === "gpt-image-1.5") {
+            lines.push("• gpt-image-1.5: transparent + input_fidelity high — atlas 텍스처에 권장");
+          }
+        } else if (adapterVendor === "nano-banana") {
+          if (modelId === "gemini-3-pro-image-preview") {
+            lines.push("• Nano Banana Pro: 최고 품질 layout 보존 + thinking. 느리고 비싸지만 atlas 보존 최강. preview 모델이라 일부 region/계정에서 access 거부 가능.");
+          } else if (modelId === "gemini-3.1-flash-image-preview") {
+            lines.push("• Nano Banana 2: atlas 보존 안정 + 합리적 가격 (default). preview 모델이라 일부 region/계정에서 access 거부 가능.");
+          } else if (modelId === "gemini-2.5-flash-image") {
+            lines.push("• Nano Banana 2.5 (legacy): aspect-ratio collapse bug 가능. 권장 X. 단 access 가 가장 넓게 열려 있음.");
+          }
+        } else if (adapterVendor === "recolor") {
+          lines.push("• 로컬 sharp hue shift. 키 불필요. 색만 변경 (헤어스타일 같은 형태 변경 불가). atlas 100% 보존.");
+        } else if (adapterVendor === "pollinations") {
+          lines.push("• 공개 HTTP, 키 불필요. text-to-image only — reference image 무시.");
+        } else if (adapterVendor === "mock") {
+          lines.push("• 결정론 placeholder. AI 아님. 파이프라인 검증용.");
+        }
+        return lines.join("\n");
+      }
+
+      function refreshModelHelp() {
+        const text = describeModel(iterAdapterSelect.value, iterModelSelect.value);
+        iterModelHelp.textContent = text;
+        iterModelHelp.style.display = text ? "block" : "none";
+      }
+
       iterAdapterSelect.addEventListener("change", () => {
         const v = iterAdapterSelect.value;
         // 모델 드롭다운 다시 채움.
@@ -1684,7 +1732,11 @@
         } else {
           iterModelSelect.disabled = true;
         }
+        refreshModelHelp();
       });
+      iterModelSelect.addEventListener("change", refreshModelHelp);
+      // 초기 한 번.
+      refreshModelHelp();
 
       // preset 선택되거나 generate 탭 prompt 가 채워지면 iterBtn 활성화.
       function updateIterateState() {
@@ -1826,11 +1878,26 @@
             );
             return;
           }
-          setStatus(previewStatus, "ok", "✅ 반복 생성 완료 (seed=" + seed + ")");
+          setStatus(previewStatus, "ok", "✅ 생성 완료 (seed=" + seed + ")");
           // 다음 iteration 을 위해 seed 필드를 비워두면 자동 랜덤.
           if (seedRaw === "") iterSeedInput.value = "";
         } catch (err) {
-          setStatus(previewStatus, "err", "반복 생성 실패: " + err.message);
+          // vendor 에러 메시지 전체 노출 + 콘솔 출력. 추가로 attempts 가 있다면 라인별 표시.
+          const errMsg = err && err.message ? err.message : String(err);
+          console.error("[generate] error", err);
+          setStatus(
+            previewStatus,
+            "err",
+            "❌ 생성 실패\n" +
+              "  adapter: " + (adapter ?? "auto") +
+              (modelOverride ? "\n  model: " + modelOverride : "") +
+              "\n  message: " + errMsg + "\n\n" +
+              "💡 자주 보이는 원인:\n" +
+              "  • OpenAI gpt-image-* : organization verification 미완료 (403). https://platform.openai.com/settings/organization/general\n" +
+              "  • Gemini gemini-3.x preview : preview 모델 access 미허가 (404 NOT_FOUND). gemini-2.5-flash-image 로 시도해보세요\n" +
+              "  • API 키 자체가 비어있거나 잘못됨 → /api/health 의 adapter keys 표시 확인\n" +
+              "  • 무관 에러: 콘솔 (F12) 열어 [generate] error 메시지 확인",
+          );
         } finally {
           iterBtn.disabled = !presetSelect.value;
         }
