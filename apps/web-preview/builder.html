@@ -1784,7 +1784,7 @@
         setStatus(
           previewStatus,
           "info",
-          "반복 생성 중…\n  mode=" + mode + " seed=" + seed +
+          "AI 텍스처 생성 중…\n  mode=" + mode + " seed=" + seed +
             "\n  adapter=" + (adapter ?? "auto") +
             (modelOverride ? "\n  model=" + modelOverride : ""),
         );
@@ -1826,10 +1826,10 @@
               sha256: body.sha256,
               source: "slots",
               label:
-                "반복 슬롯 (" + selected.length + "개) · \"" + prompt + "\" · seed=" + seed,
+                "슬롯 생성 (" + selected.length + "개) · \"" + prompt + "\" · seed=" + seed,
               preset: { id, version },
             });
-            await rebuildWithCurrentTexture("반복 슬롯 생성");
+            await rebuildWithCurrentTexture("슬롯 생성");
             reloadLivePreview({ preset: { id, version }, textureId: body.texture_id });
           } else {
             // full atlas 모드.
@@ -1851,10 +1851,10 @@
               texture_id: body.texture_id,
               sha256: body.sha256,
               source: "generate",
-              label: "반복 생성 · \"" + prompt + "\" · seed=" + seed,
+              label: "AI 생성 · \"" + prompt + "\" · seed=" + seed,
               preset: { id, version },
             });
-            await rebuildWithCurrentTexture("반복 생성");
+            await rebuildWithCurrentTexture("AI 생성");
             reloadLivePreview({ preset: { id, version }, textureId: body.texture_id });
             // 상세 로그.
             const elapsed = Date.now() - t0;
@@ -1866,7 +1866,7 @@
             setStatus(
               previewStatus,
               "ok",
-              "✅ 반복 생성 완료\n" +
+              "✅ AI 텍스처 생성 완료\n" +
                 "  adapter: " + body.adapter + "\n" +
                 "  texture_id: " + body.texture_id + "\n" +
                 "  sha256: " + body.sha256.slice(0, 16) + "…\n" +

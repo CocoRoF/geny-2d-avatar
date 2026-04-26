@@ -41,18 +41,19 @@ export interface AppOptions {
 }
 
 /**
- * 기본 레지스트리 우선순위 (앞=primary):
- *   1. nano-banana (Google Gemini 2.5 Flash Image)  — GEMINI_API_KEY 있을 때
- *   2. openai-image (gpt-image-1 edits)             — OPENAI_API_KEY 있을 때
- *   3. recolor (sharp 로컬 hue shift)               — referenceImage + 색 키워드 있을 때만
- *   4. pollinations@flux                            — 공개 HTTP, key 불필요
- *   5. mock                                         — 결정론 placeholder
+ * 기본 레지스트리 우선순위 (앞=primary, 자동 chain):
+ *   1. recolor (sharp 로컬 hue shift)               — referenceImage 있을 때 (atlas 100% 보존)
+ *   2. pollinations@flux                            — 공개 HTTP, text-to-image only
+ *   3. mock                                         — 결정론 placeholder
+ *   4. nano-banana (Google Gemini)                  — 자동 chain 의 거의 마지막. 명시 선택 시만 의미.
+ *   5. openai-image (gpt-image-*)                   — 자동 chain 의 마지막. 명시 선택 시만 의미.
  *
- * recolor 가 AI 다음에 위치한 이유: AI 가 atlas 형식 보존하면 좋음 (헤어스타일 변경 등 가능).
- * AI 가 ATLAS_RATIO_MISMATCH 로 거부하거나 실패하면 recolor 가 fallback 으로 동작 →
- * atlas 보존 + 색 변경은 무조건 성공. AI 키 없으면 recolor → pollinations → mock 순.
- *
- * supports() 에 의해 key 없는 벤더는 자동 skip → 다음 어댑터 시도.
+ * 왜 AI 가 자동 chain 끝쪽인가:
+ *   Gemini Image / OpenAI gpt-image API 는 receive 한 atlas reference 를 무시하고 character
+ *   portrait 을 새로 그리는 경향이 강함. atlas 형식 (정사각형 UV layout) 보존 못 함 →
+ *   결과를 mao_pro skeleton 에 입히면 깨짐. 자동 모드에서는 atlas 안전한 recolor 로 갈음.
+ *   AI 호출은 사용자가 builder.html 의 드롭다운에서 명시 선택했을 때만 단일 어댑터로 시도
+ *   (apps/api/src/routes/texture-generate.ts 의 buildSingleAdapterRegistry).
  *
  * 개별 disable:
  *   GENY_NANO_BANANA_DISABLED=true
@@ -62,11 +63,11 @@ export interface AppOptions {
  */
 export function createDefaultAdapterRegistry(): TextureAdapterRegistry {
   const r = new TextureAdapterRegistry();
-  r.register(createNanoBananaAdapter());
-  r.register(createOpenAIImageAdapter());
   r.register(createRecolorAdapter());
   r.register(createPollinationsAdapter());
   r.register(createMockAdapter());
+  r.register(createNanoBananaAdapter());
+  r.register(createOpenAIImageAdapter());
   return r;
 }
 

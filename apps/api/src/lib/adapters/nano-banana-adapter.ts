@@ -289,7 +289,8 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
       const png = await normalizeToPng(rawBytes, {
         targetWidth: task.width,
         targetHeight: task.height,
-        ...(task.referenceImage ? { maxAspectRatioDelta: 0.3 } : {}),
+        // image-to-image 시 응답이 정확히 입력 비율 이어야 함. 0.05 이상 차이면 portrait 등으로 판단 reject.
+        ...(task.referenceImage ? { maxAspectRatioDelta: 0.05 } : {}),
       });
       return {
         png,

@@ -198,7 +198,7 @@ test("POST /api/texture/generate: mao_pro third-party + 색 키워드 → recolo
   }
 });
 
-test("POST /api/texture/generate: mao_pro third-party + 색 키워드 없음 → mock fallback", async () => {
+test("POST /api/texture/generate: mao_pro + 색 키워드 없는 prompt → recolor 가 prompt+seed 해시로 hue", async () => {
   const textures = scratch();
   const app = await buildApp({ rigTemplatesRoot, texturesDir: textures });
   try {
@@ -209,14 +209,15 @@ test("POST /api/texture/generate: mao_pro third-party + 색 키워드 없음 →
       payload: JSON.stringify({
         preset_id: "tpl.base.v1.mao_pro",
         preset_version: "1.0.0",
-        prompt: "fancy detailed style",  // 색 키워드 없음
+        prompt: "fancy detailed style",
         seed: 7,
       }),
     });
     assert.equal(res.statusCode, 200);
     const json = res.json() as { reference_used: boolean; adapter: string };
     assert.equal(json.reference_used, true);
-    assert.equal(json.adapter, "mock", "색 키워드 없으면 recolor skip → mock fallback");
+    // 색 키워드 없어도 recolor 가 prompt+seed 해시로 deterministic hue 생성 → atlas 보존.
+    assert.equal(json.adapter, "recolor@local-hue");
   } finally {
     await app.close();
     rmSync(textures, { recursive: true, force: true });
