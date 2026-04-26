@@ -485,6 +485,10 @@
             <label class="block">feather</label>
             <input type="text" id="inpaint-feather" placeholder="2 (경계 부드럽게, 0=off)" style="font-size: 0.85rem;" />
           </div>
+          <div class="form-row inline">
+            <label class="block">seed</label>
+            <input type="text" id="inpaint-seed" placeholder="빈값=자동 랜덤" style="font-size: 0.85rem;" />
+          </div>
           <div style="display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0;">
             <button id="inpaint-undo" type="button" class="secondary" disabled style="font-size: 0.8rem;">↶ 되돌리기 (⌘Z)</button>
             <button id="inpaint-clear" type="button" class="secondary" style="font-size: 0.8rem;">선택 초기화</button>
@@ -1964,6 +1968,7 @@
       const inpaintTool = document.getElementById("inpaint-tool");
       const inpaintBrushSize = document.getElementById("inpaint-brush-size");
       const inpaintFeather = document.getElementById("inpaint-feather");
+      const inpaintSeed = document.getElementById("inpaint-seed");
       const inpaintUndoBtn = document.getElementById("inpaint-undo");
       const inpaintClearBtn = document.getElementById("inpaint-clear");
       const inpaintInvertBtn = document.getElementById("inpaint-invert");
@@ -2348,7 +2353,13 @@
         const modelVal = inpaintModel.value || undefined;
         const featherRaw = inpaintFeather.value.trim();
         const featherPx = featherRaw === "" ? 2 : Math.max(0, Math.min(20, Number(featherRaw) || 0));
-        const seed = Math.floor(Math.random() * 1000000);
+        // seed: 입력 비어있으면 random, 있으면 정수 파싱 (음수/소수 무시 → random fallback).
+        const seedRaw = inpaintSeed.value.trim();
+        const seedParsed = seedRaw === "" ? NaN : Number(seedRaw);
+        const seed =
+          Number.isFinite(seedParsed) && seedParsed >= 0
+            ? Math.floor(seedParsed)
+            : Math.floor(Math.random() * 1000000);
         inpaintAbortController = new AbortController();
         const startMs = Date.now();
         setInpaintBtnInflight(0);
@@ -2384,9 +2395,12 @@
           window.log.ok("inpaint", "변형 완료 — atlas 외부는 원본 보존", {
             adapter: body.adapter,
             texture_id: body.texture_id,
+            seed,
             timing: body.timing,
             client_elapsed_ms: Date.now() - startMs,
           });
+          // 사용한 seed 를 입력 필드에 반영 → 같은 seed 로 재시도하거나 비워서 다시 랜덤.
+          inpaintSeed.value = String(seed);
           // 히스토리 + 빌드 + 프리뷰.
           pushHistory({
             texture_id: body.texture_id,
