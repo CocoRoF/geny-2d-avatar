@@ -82,6 +82,9 @@ importers:
       '@geny/web-avatar':
         specifier: workspace:*
         version: link:../../packages/web-avatar
+      '@geny/web-avatar-renderer-pixi':
+        specifier: workspace:*
+        version: link:../../packages/web-avatar-renderer-pixi
     devDependencies:
       '@pixi/sound':
         specifier: 6.0.1

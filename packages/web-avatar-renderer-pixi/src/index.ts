@@ -50,4 +50,17 @@ export {
   type PixiLive2DRendererOptions,
   type PixiLive2DRendererHandle,
   type PixiLive2DRendererStatus,
+  type Live2DModelLike,
 } from "./pixi-live2d-renderer.js";
+
+export {
+  extractDrawables,
+  setDrawableVisible,
+  setDrawableMultiplyRgb,
+  uvBbox,
+  type DrawableMeta,
+  type DrawableUvBbox,
+  type DrawableBlendMode,
+  type AtlasSize,
+  type ExtractDrawablesOptions,
+} from "./drawable-extract.js";

@@ -58,16 +58,64 @@ export type CreatePixiLive2DApp = (opts: PixiLive2DAppOptions) => Promise<PixiLi
 /**
  * Live2DModel 의 최소 런타임 surface. 우리가 실제로 호출하는 메서드만 노출 —
  * pixi-live2d-display-advanced 의 Live2DModel 실체는 이 계약을 자동 만족.
+ *
+ * RX.1 — drawable API 노출. coreModel 의 getDrawable*, setMultiplyColorByRGBA,
+ * setOverrideFlagForDrawableMultiplyColors 를 호출 가능하게 widening.
+ * 자세한 설계는 docs/RX-PER-DRAWABLE-EDITOR-PLAN.md.
  */
 export interface Live2DModelLike {
   /** 모델이 add 된 stage 에서 제거할 때 사용. */
   readonly destroy?: () => void;
-  /** model.internalModel.coreModel.setParameterValueById(cubismId, value). */
+  /** model.internalModel.coreModel.* — Cubism Core 의 wrapper. */
   readonly internalModel: {
     readonly coreModel: {
       setParameterValueById(id: string, value: number, weight?: number): void;
       getParameterValueById?: (id: string) => number;
+      // ----- RX.1 drawable enumeration -----
+      /** 모델의 drawable 갯수. */
+      getDrawableCount?: () => number;
+      /** index → drawable id (예: "b_f_3", "back_tree_l1"). */
+      getDrawableId?: (index: number) => string;
+      /** index → drawable 의 vertex UV 배열 (Float32Array, [u0,v0,u1,v1,...]). */
+      getDrawableVertexUvs?: (index: number) => Float32Array;
+      /** index → 사용하는 atlas texture index (multi-texture 모델 대응). */
+      getDrawableTextureIndex?: (index: number) => number;
+      /** index → 부모 part index (-1 = root). */
+      getDrawableParentPartIndex?: (index: number) => number;
+      /** index → render order. */
+      getDrawableRenderOrder?: (index: number) => number;
+      /** index → 현재 opacity. */
+      getDrawableOpacity?: (index: number) => number;
+      /** index → blend mode (0=normal, 1=additive, 2=multiplicative — Cubism 정의). */
+      getDrawableBlendMode?: (index: number) => number;
+      /** part 갯수. */
+      getPartCount?: () => number;
+      /** part index → id. */
+      getPartId?: (index: number) => string;
+      // ----- RX.1+ drawable mutation (visibility / RGB shift) -----
+      /** drawable 의 multiply color 강제 override 활성. */
+      setOverrideFlagForDrawableMultiplyColors?: (
+        index: number,
+        value: boolean,
+      ) => void;
+      /** drawable 의 multiply color 설정 (alpha=0 → 숨김 처리에도 사용). */
+      setMultiplyColorByRGBA?: (
+        index: number,
+        r: number,
+        g: number,
+        b: number,
+        a: number,
+      ) => void;
+      /** drawable 의 multiply color 가져오기 (현재 상태 read). */
+      getDrawableMultiplyColor?: (index: number) => {
+        readonly R: number;
+        readonly G: number;
+        readonly B: number;
+        readonly A: number;
+      };
     };
+    /** 텍스처 V 플립 여부 (true 면 UV 의 V 가 flipped). */
+    readonly textureFlipY?: boolean;
   };
   /** Cubism Motion 그룹 재생. priority 는 pixi-live2d-display-advanced MotionPriority. */
   readonly motion: (group: string, index?: number, priority?: number) => Promise<boolean>;
