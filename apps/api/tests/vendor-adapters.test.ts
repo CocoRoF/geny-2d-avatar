@@ -484,7 +484,8 @@ test("openai-image.generate: referenceImage → /v1/images/edits multipart + inp
   assert.equal(fd.get("size"), "1024x1024");
   assert.equal(fd.get("quality"), "high");
   assert.equal(fd.get("output_format"), "png");
-  assert.equal(fd.get("background"), "transparent");
+  // background 는 보내지 않음 — OpenAI 가 임의로 캐릭터 외곽을 지우는 걸 방지 (사용자 보고).
+  assert.equal(fd.get("background"), null, "background 는 보내지 않음");
   // response_format 은 deprecated → 보내지 않음.
   assert.equal(fd.get("response_format"), null);
   // image 필드는 Blob (Buffer 아님).
@@ -509,11 +510,11 @@ test("openai-image.generate: gpt-image-2 → input_fidelity / background 미전�
   assert.equal(fd.get("model"), "gpt-image-2");
   // gpt-image-2 는 input_fidelity 미지원 (항상 high 동작) — 보내지 않아야 함.
   assert.equal(fd.get("input_fidelity"), null, "gpt-image-2 는 input_fidelity 미전송");
-  // gpt-image-2 는 background:transparent 미지원 — 보내지 않아야 함.
-  assert.equal(fd.get("background"), null, "gpt-image-2 는 background 미전송");
+  // background 는 모든 모델에서 보내지 않음 (OpenAI 가 임의로 캐릭터 외곽 지우는 문제 회피).
+  assert.equal(fd.get("background"), null);
 });
 
-test("openai-image.generate: gpt-image-1.5 → input_fidelity=high + background=transparent", async () => {
+test("openai-image.generate: gpt-image-1.5 → input_fidelity=high (background 은 미전송)", async () => {
   let capturedBody: unknown = null;
   const a = createOpenAIImageAdapter({
     apiKey: "k",
@@ -527,7 +528,8 @@ test("openai-image.generate: gpt-image-1.5 → input_fidelity=high + background=
   await a.generate(task({ referenceImage: { png: refPng } }));
   const fd = capturedBody as FormData;
   assert.equal(fd.get("input_fidelity"), "high");
-  assert.equal(fd.get("background"), "transparent");
+  // background 는 의도적으로 미전송 (OpenAI 가 임의로 영역을 지우는 문제 회피).
+  assert.equal(fd.get("background"), null);
 });
 
 test("openai-image.generate: referenceImage 없으면 /v1/images/generations JSON", async () => {
