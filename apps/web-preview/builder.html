@@ -485,6 +485,10 @@
             <input type="checkbox" id="inpaint-alpha-guide" checked />
             외부(투명) 영역 어둡게 — 변형 의미 없음 가이드
           </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #555; margin-bottom: 6px;" title="변형 후에도 마스크를 유지해서 같은 영역에 다른 prompt/seed 를 빠르게 시도">
+            <input type="checkbox" id="inpaint-keep-mask" />
+            변형 후 마스크 유지 (반복 iteration)
+          </label>
           <div id="inpaint-coverage" style="font-size: 0.8rem; color: #666; margin-bottom: 6px;">선택 영역: 0%</div>
           <input type="text" id="inpaint-prompt" placeholder="변형 prompt (예: red hair)" style="font-size: 0.85rem; margin-bottom: 6px;" />
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
@@ -1883,6 +1887,7 @@
       const inpaintInvertBtn = document.getElementById("inpaint-invert");
       const inpaintFillBtn = document.getElementById("inpaint-fill-all");
       const inpaintAlphaGuide = document.getElementById("inpaint-alpha-guide");
+      const inpaintKeepMask = document.getElementById("inpaint-keep-mask");
       const inpaintCoverage = document.getElementById("inpaint-coverage");
       const inpaintPrompt = document.getElementById("inpaint-prompt");
       const inpaintAdapter = document.getElementById("inpaint-adapter");
@@ -1963,10 +1968,22 @@
         }
       }
 
-      function openInpaintPanel({ preset, textureId }) {
+      function openInpaintPanel({ preset, textureId, preserveMask }) {
         if (!preset) return;
         inpaintPanel.style.display = "block";
         populateInpaintAdapter();
+        // preserveMask: 이전 mask 를 보존해 같은 영역에 다른 prompt 시도 가능.
+        let savedMask = null;
+        if (preserveMask && inpaintMaskDisplay.width > 0 && inpaintMaskStore.width > 0) {
+          savedMask = {
+            display: inpaintMaskDisplay
+              .getContext("2d")
+              .getImageData(0, 0, inpaintMaskDisplay.width, inpaintMaskDisplay.height),
+            store: inpaintMaskStore
+              .getContext("2d")
+              .getImageData(0, 0, inpaintMaskStore.width, inpaintMaskStore.height),
+          };
+        }
         // 기본 텍스처 로드 (textureId 있으면 그 텍스처, 없으면 baseline).
         const url = textureId
           ? API + "/api/texture/" + encodeURIComponent(textureId) + ".png"
@@ -1991,6 +2008,11 @@
         sctx.fillStyle = "#000";
         sctx.fillRect(0, 0, 1024, 1024);
         inpaintCursor.getContext("2d").clearRect(0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
+        // preserveMask 면 즉시 복원. (canvas 사이즈 변경 후이므로 putImageData 그대로 OK.)
+        if (savedMask) {
+          dctx.putImageData(savedMask.display, 0, 0);
+          sctx.putImageData(savedMask.store, 0, 0);
+        }
         inpaintHistory = [];
         inpaintUndoBtn.disabled = true;
         const img = new Image();
@@ -2268,11 +2290,22 @@
             preset: inpaintState.preset,
             textureId: body.texture_id,
           });
+          // 변형 결과를 즉시 보이게 — Live2D 프리뷰 패널을 viewport 로 스크롤.
+          const livePreviewPanel = document.getElementById("live-preview-panel");
+          if (livePreviewPanel && livePreviewPanel.style.display !== "none") {
+            livePreviewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
           // 새 텍스처를 inpaint 캔버스 bg 로 갱신 (다음 변형의 baseline).
+          // keep-mask 옵션 켜져 있으면 같은 영역에 다른 prompt/seed 로 빠르게 iterate.
+          const preserveMask = inpaintKeepMask.checked;
           openInpaintPanel({
             preset: inpaintState.preset,
             textureId: body.texture_id,
+            preserveMask,
           });
+          if (preserveMask) {
+            window.log.info("inpaint", "마스크 유지 — prompt/seed 만 바꿔 다시 시도 가능");
+          }
         } catch (err) {
           window.log.err("inpaint", "실패: " + (err && err.message ? err.message : String(err)));
         } finally {
