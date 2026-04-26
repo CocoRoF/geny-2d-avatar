@@ -1545,6 +1545,18 @@
           await rebuildWithCurrentTexture("히스토리 점프 rebuild: " + h.label);
           // Runtime preview 도 되돌림.
           reloadLivePreview({ preset: h.preset, textureId: h.texture_id });
+          // Inpaint 패널 baseline 도 jumped 텍스처로 동기화. 이전 mask 는 새 baseline 과
+          // 일관성이 없을 수 있으므로 보존하지 않음 (preserveMask 미지정).
+          window.dispatchEvent(
+            new CustomEvent("geny:texture-ready", {
+              detail: {
+                textureId: h.texture_id,
+                sha256: h.sha256,
+                source: "history-jump",
+                preset: h.preset,
+              },
+            }),
+          );
         } finally {
           applyingHistory = false;
         }
