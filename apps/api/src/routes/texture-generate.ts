@@ -24,6 +24,7 @@ import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { writeTextureManifest } from "../lib/texture-manifest.js";
+import { applyReferenceAlpha } from "../lib/alpha-mask-transfer.js";
 import {
   runTextureGenerate,
   AllAdaptersFailedError,
@@ -289,38 +290,68 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
     const { result, adapter, attempts } = run;
     const textureId = "tex_" + randomUUID().replace(/-/g, "");
     const outPath = join(texturesDir, textureId + ".png");
+
+    // AI 어댑터 (nano-banana / openai-image) 가 응답 PNG 의 alpha 를 검정/단색으로 채우는
+    // 문제 해결: reference 의 alpha 채널을 결과에 transfer. recolor / mock 은 자체적으로
+    // alpha 보존하므로 skip.
+    let finalPng: Buffer = result.png;
+    let alphaTransferred = false;
+    const usedAdapter = adapter.startsWith("openai-image") || adapter.startsWith("nano-banana");
+    if (usedAdapter && referencePng) {
+      const tAlpha = Date.now();
+      try {
+        finalPng = await applyReferenceAlpha({
+          aiPng: result.png,
+          referencePng,
+          width: result.width,
+          height: result.height,
+        });
+        timing.alpha_transfer_ms = Date.now() - tAlpha;
+        alphaTransferred = true;
+        request.log.info(
+          { adapter, width: result.width, height: result.height, ms: timing.alpha_transfer_ms },
+          "[generate] applied reference alpha mask",
+        );
+      } catch (e) {
+        request.log.warn(
+          { error: (e as Error).message },
+          "[generate] alpha mask transfer 실패 — AI 결과 그대로 저장",
+        );
+      }
+    }
+
     const tWrite = Date.now();
-    await writeFile(outPath, result.png);
+    await writeFile(outPath, finalPng);
     timing.write_ms = Date.now() - tWrite;
-    // provenance 포함 manifest. attempts 는 generated_by.attempts 로 직접 포함시킬 수 없음 —
-    // writeTextureManifest 는 mode 기반 — 확장 필요. P3.3 에서는 우선 기본 mode 만.
+    // alpha transfer 후의 sha256 / bytes 사용.
+    const finalSha256 = (await import("node:crypto")).createHash("sha256").update(finalPng).digest("hex");
+    const finalBytes = finalPng.length;
+    // provenance 포함 manifest.
     const mode = adapter === "mock" ? "mock_generate" : "ai_generate";
     await writeTextureManifest({
       texturesDir,
       textureId,
-      atlasSha256: result.sha256,
+      atlasSha256: finalSha256,
       width: result.width,
       height: result.height,
-      bytes: result.png.length,
+      bytes: finalBytes,
       preset: { id: preset_id, version: preset_version },
       mode,
       adapter,
       prompt: prompt.trim(),
       seed,
       notes:
-        "P3.3 adapter registry 경유 (" +
-        adapter +
-        "). attempts=" +
-        attempts.length +
-        ".",
+        "adapter=" + adapter +
+        ", attempts=" + attempts.length +
+        (alphaTransferred ? ", alpha_mask_transferred=true" : ""),
     });
 
     return {
       texture_id: textureId,
-      sha256: result.sha256,
+      sha256: finalSha256,
       width: result.width,
       height: result.height,
-      bytes: result.png.length,
+      bytes: finalBytes,
       prompt: prompt.trim(),
       seed,
       adapter,
@@ -329,11 +360,14 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
       path: outPath,
       reference_used: referencePng !== null,
       reference_bytes: referencePng?.length ?? 0,
+      alpha_mask_transferred: alphaTransferred,
       timing: { ...timing, total_ms: Date.now() - startMs },
       note:
         adapter === "mock"
           ? "mock 생성 (결정론적, 실 AI 아님)"
-          : "실 AI 벤더 " + adapter + (referencePng ? " (image-to-image, baseline reference 주입)" : " (text-to-image)"),
+          : "실 AI 벤더 " + adapter +
+            (referencePng ? " (image-to-image)" : " (text-to-image)") +
+            (alphaTransferred ? " · reference alpha 마스크 적용 (transparent 보존)" : ""),
     };
   });
 };
