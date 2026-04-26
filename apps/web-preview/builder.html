@@ -329,6 +329,13 @@
               </select>
             </div>
             <div id="iter-model-help" style="font-size: 0.75rem; color: #555; margin-bottom: 6px; padding: 6px 8px; background: #f7f7f9; border-radius: 4px; display: none;"></div>
+            <div style="font-size: 0.78rem; color: #555; margin-bottom: 6px;">
+              <label style="cursor: pointer;">
+                <input type="checkbox" id="iter-apply-alpha" />
+                AI 결과의 검정 배경을 reference alpha 로 강제 transparent 처리
+                <span style="color: #999;">(AI 가 잘 그린 경우엔 끄세요)</span>
+              </label>
+            </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center;">
               <input type="text" id="iter-seed" placeholder="seed (빈값: 자동)" style="font-size: 0.85rem;" />
               <select id="iter-mode" style="font-size: 0.85rem;">
@@ -1773,6 +1780,7 @@
       const iterModeSelect = document.getElementById("iter-mode");
       const iterAdapterSelect = document.getElementById("iter-adapter");
       const iterModelSelect = document.getElementById("iter-model");
+      const iterApplyAlpha = document.getElementById("iter-apply-alpha");
       const iterBtn = document.getElementById("iter-btn");
 
       // ===== /api/models 로 어댑터/모델 메타 로드 + dropdown 채움 =====
@@ -1975,6 +1983,7 @@
                 seed,
                 ...(adapter ? { adapter } : {}),
                 ...(modelOverride ? { model: modelOverride } : {}),
+                ...(iterApplyAlpha.checked ? { apply_alpha_mask: true } : {}),
               }),
             });
             const body = await r.json();

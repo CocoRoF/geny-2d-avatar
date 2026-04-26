@@ -42,18 +42,17 @@ export interface AppOptions {
 
 /**
  * 기본 레지스트리 우선순위 (앞=primary, 자동 chain):
- *   1. recolor (sharp 로컬 hue shift)               — referenceImage 있을 때 (atlas 100% 보존)
- *   2. pollinations@flux                            — 공개 HTTP, text-to-image only
- *   3. mock                                         — 결정론 placeholder
- *   4. nano-banana (Google Gemini)                  — 자동 chain 의 거의 마지막. 명시 선택 시만 의미.
- *   5. openai-image (gpt-image-*)                   — 자동 chain 의 마지막. 명시 선택 시만 의미.
+ *   1. nano-banana (Gemini)              — GEMINI_API_KEY 있을 때 atlas-aware edit prompt + multimodal
+ *   2. openai-image (gpt-image-*)        — OPENAI_API_KEY 있을 때 atlas-aware edit prompt
+ *   3. recolor (sharp 로컬 hue shift)   — referenceImage 있을 때 fallback (atlas 100% 보존, 색만)
+ *   4. pollinations@flux                 — 공개 HTTP fallback
+ *   5. mock                              — 결정론 placeholder
  *
- * 왜 AI 가 자동 chain 끝쪽인가:
- *   Gemini Image / OpenAI gpt-image API 는 receive 한 atlas reference 를 무시하고 character
- *   portrait 을 새로 그리는 경향이 강함. atlas 형식 (정사각형 UV layout) 보존 못 함 →
- *   결과를 mao_pro skeleton 에 입히면 깨짐. 자동 모드에서는 atlas 안전한 recolor 로 갈음.
- *   AI 호출은 사용자가 builder.html 의 드롭다운에서 명시 선택했을 때만 단일 어댑터로 시도
- *   (apps/api/src/routes/texture-generate.ts 의 buildSingleAdapterRegistry).
+ * AI 가 atlas-aware prompt (lib/edit-prompt.ts 의 buildEditPrompt) 와 함께 호출되어
+ * "Using the provided image as a Live2D character texture atlas... Keep layout, transparent
+ * regions, parts positions exactly the same..." 같은 명시적 atlas-edit 의도를 전달받음.
+ * AI 가 atlas 형식 위배 (ratio mismatch) 하면 ATLAS_RATIO_MISMATCH 로 reject → 다음 어댑터.
+ * 모든 AI fail 또는 키 없으면 recolor 가 atlas 보존 fallback.
  *
  * 개별 disable:
  *   GENY_NANO_BANANA_DISABLED=true
@@ -63,11 +62,11 @@ export interface AppOptions {
  */
 export function createDefaultAdapterRegistry(): TextureAdapterRegistry {
   const r = new TextureAdapterRegistry();
+  r.register(createNanoBananaAdapter());
+  r.register(createOpenAIImageAdapter());
   r.register(createRecolorAdapter());
   r.register(createPollinationsAdapter());
   r.register(createMockAdapter());
-  r.register(createNanoBananaAdapter());
-  r.register(createOpenAIImageAdapter());
   return r;
 }
 

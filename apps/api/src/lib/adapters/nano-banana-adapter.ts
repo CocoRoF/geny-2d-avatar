@@ -29,6 +29,7 @@
 import { createHash } from "node:crypto";
 import type { TextureAdapter, TextureTask } from "../texture-adapter.js";
 import { normalizeToPng } from "../image-post.js";
+import { buildEditPrompt, buildGenerateAtlasPrompt } from "../edit-prompt.js";
 
 const DEFAULT_MODEL = "gemini-3.1-flash-image-preview";
 
@@ -92,31 +93,7 @@ function detectCapabilities(model: string): ModelCapabilities {
   };
 }
 
-function buildEditPrompt(userPrompt: string, seed: number): string {
-  // 공식 권장 패턴: "Using the provided image, change only the X. Keep everything else..."
-  // atlas 보존을 강하게 anchor.
-  return (
-    "Using the provided image as a Live2D character texture atlas " +
-    "(multiple character parts arranged in fixed UV regions on a single flat sheet), " +
-    "produce an edited atlas where " +
-    userPrompt.trim() +
-    ". " +
-    "Hard constraints: " +
-    "(1) Do NOT change the position, scale, rotation, or shape of any part. " +
-    "(2) Do NOT change the input aspect ratio. " +
-    "(3) Preserve transparent (alpha=0) background pixels exactly. " +
-    "(4) Do not generate a portrait or a new composition; only modify pixels inside relevant existing regions. " +
-    "Seed: " + seed + "."
-  );
-}
-
-function buildGeneratePrompt(userPrompt: string, seed: number): string {
-  return (
-    userPrompt.trim() +
-    " (texture atlas for a Live2D character avatar, flat sheet with parts arranged in UV regions, " +
-    "centered subject, transparent or clean background, square aspect ratio, seed=" + seed + ")"
-  );
-}
+// (atlas-aware prompt 빌더는 ../edit-prompt.ts 에 공용 위치)
 
 export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): TextureAdapter {
   const apiKey =
@@ -149,7 +126,9 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
         | { inline_data: { mime_type: string; data: string } }
       > = [];
       if (task.referenceImage?.png) {
-        parts.push({ text: buildEditPrompt(task.prompt, task.seed) });
+        parts.push({
+          text: buildEditPrompt({ userPrompt: task.prompt, seed: task.seed, isAtlas: true }),
+        });
         parts.push({
           inline_data: {
             mime_type: task.referenceImage.mimeType ?? "image/png",
@@ -157,7 +136,7 @@ export function createNanoBananaAdapter(opts: NanoBananaAdapterOptions = {}): Te
           },
         });
       } else {
-        parts.push({ text: buildGeneratePrompt(task.prompt, task.seed) });
+        parts.push({ text: buildGenerateAtlasPrompt(task.prompt, task.seed) });
       }
 
       // generationConfig: responseModalities 필수, imageConfig 는 3.1+ 만.

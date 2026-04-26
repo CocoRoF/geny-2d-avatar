@@ -164,10 +164,16 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
           preset_version?: string;
           prompt?: string;
           seed?: number;
-          /** 명시적 어댑터 선택 (nano-banana / openai-image / pollinations / recolor / mock). 미지정 = registry priority chain. */
+          /** 명시적 어댑터 선택. 미지정 = registry priority chain. */
           adapter?: string;
-          /** 해당 어댑터의 모델 override (예: gpt-image-2, gemini-3-pro-image-preview). */
+          /** 해당 어댑터의 모델 override. */
           model?: string;
+          /**
+           * AI 결과에 reference 의 alpha 채널을 강제 적용 (atlas 의 transparent 영역 보존).
+           * default false. AI 가 잘 그린 결과 (atlas 보존) 면 transfer 가 오히려 결과를 잘라낼 수 있음.
+           * AI 가 검정 배경 / 단색 만들었을 때만 활성화 권장.
+           */
+          apply_alpha_mask?: boolean;
         }
       | undefined;
 
@@ -291,13 +297,12 @@ export const textureGenerateRoute: FastifyPluginAsync<TextureGenerateRouteOption
     const textureId = "tex_" + randomUUID().replace(/-/g, "");
     const outPath = join(texturesDir, textureId + ".png");
 
-    // AI 어댑터 (nano-banana / openai-image) 가 응답 PNG 의 alpha 를 검정/단색으로 채우는
-    // 문제 해결: reference 의 alpha 채널을 결과에 transfer. recolor / mock 은 자체적으로
-    // alpha 보존하므로 skip.
+    // AI 가 검정 배경 만든 경우 옵션으로 reference 의 alpha 마스크 적용. default off —
+    // AI 가 잘 그린 결과 (atlas 보존) 면 transfer 가 오히려 잘라낼 수 있어 사용자 명시 요청 시만.
     let finalPng: Buffer = result.png;
     let alphaTransferred = false;
     const usedAdapter = adapter.startsWith("openai-image") || adapter.startsWith("nano-banana");
-    if (usedAdapter && referencePng) {
+    if (body.apply_alpha_mask && usedAdapter && referencePng) {
       const tAlpha = Date.now();
       try {
         finalPng = await applyReferenceAlpha({
