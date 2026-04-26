@@ -389,9 +389,13 @@
               <span id="layer-count" style="color: #888; font-weight: normal; font-size: 0.78rem;">— 모델 로드 후 활성</span>
             </div>
             <input type="text" id="layer-search" placeholder="drawable id 검색 (예: b_f_, hair, head)" style="width: 100%; font-size: 0.82rem; padding: 4px 6px; margin-bottom: 6px;" disabled />
-            <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+            <div style="display: flex; gap: 6px; margin-bottom: 4px;">
               <button id="layer-select-results" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled>Select results</button>
               <button id="layer-deselect-results" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled>Deselect results</button>
+            </div>
+            <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+              <button id="layer-hide-selected" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled title="선택된 drawable 일괄 숨김">🚫 Hide selected</button>
+              <button id="layer-show-selected" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled title="선택된 drawable 일괄 보임">👁 Show selected</button>
               <button id="layer-show-all" type="button" class="secondary" style="font-size: 0.78rem;" disabled title="전체 visibility 켜기">👁 all</button>
             </div>
             <div id="layer-list" style="max-height: 360px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; background: #fafafa;">
@@ -2116,6 +2120,8 @@
       const layerSelectResultsBtn = document.getElementById("layer-select-results");
       const layerDeselectResultsBtn = document.getElementById("layer-deselect-results");
       const layerShowAllBtn = document.getElementById("layer-show-all");
+      const layerHideSelectedBtn = document.getElementById("layer-hide-selected");
+      const layerShowSelectedBtn = document.getElementById("layer-show-selected");
       const layerSelectedCountEl = document.getElementById("layer-selected-count");
       // RX.3 RGB shift refs.
       const rgbR = document.getElementById("rgb-r");
@@ -2250,6 +2256,8 @@
         rgbApplyBtn.disabled = sel === 0;
         layerToInpaintCountEl.textContent = String(sel);
         layerToInpaintBtn.disabled = sel === 0 || !layerState.preset;
+        layerHideSelectedBtn.disabled = sel === 0;
+        layerShowSelectedBtn.disabled = sel === 0;
       }
 
       function applyLayerFilter() {
@@ -2462,6 +2470,40 @@
           } catch (e) { /* ignore */ }
         }
         layerState.hidden.clear();
+        updateLayerSelectionUI();
+        saveLayerState();
+      });
+
+      layerHideSelectedBtn.addEventListener("click", () => {
+        if (!layerState || layerState.selected.size === 0) return;
+        for (const idx of layerState.selected) {
+          const d = layerState.drawables[idx];
+          if (!d) continue;
+          try {
+            if (window.GenyPixi?.setDrawableVisible) {
+              window.GenyPixi.setDrawableVisible(layerState.model, d.index, false);
+            }
+          } catch (e) { /* ignore */ }
+          layerState.hidden.add(idx);
+        }
+        window.log.info("layer", "Hide selected", { count: layerState.selected.size });
+        updateLayerSelectionUI();
+        saveLayerState();
+      });
+
+      layerShowSelectedBtn.addEventListener("click", () => {
+        if (!layerState || layerState.selected.size === 0) return;
+        for (const idx of layerState.selected) {
+          const d = layerState.drawables[idx];
+          if (!d) continue;
+          try {
+            if (window.GenyPixi?.setDrawableVisible) {
+              window.GenyPixi.setDrawableVisible(layerState.model, d.index, true);
+            }
+          } catch (e) { /* ignore */ }
+          layerState.hidden.delete(idx);
+        }
+        window.log.info("layer", "Show selected", { count: layerState.selected.size });
         updateLayerSelectionUI();
         saveLayerState();
       });
