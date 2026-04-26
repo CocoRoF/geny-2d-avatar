@@ -245,3 +245,93 @@ test("setDrawableVisible 호출이 없는 환경 (옵셔널 함수 미정의) �
   setDrawableMultiplyRgb(model, 0, { r: 0, g: 0, b: 0 });
   assert.ok(true);
 });
+
+// ----- RX.1.1 raw struct fallback -----
+
+test("extractDrawables: wrapper 메서드 미노출 + raw struct 만 → fallback path 활성", () => {
+  // wrapper 의 getDrawableCount 등은 없고 getModel() 만 있는 환경 시뮬레이션.
+  const drawablesStruct = {
+    count: 2,
+    ids: ["head", "body"],
+    opacities: new Float32Array([1, 1]),
+    textureIndices: new Int32Array([0, 0]),
+    parentPartIndices: new Int32Array([0, 1]),
+    renderOrders: new Int32Array([10, 5]),
+    drawOrders: new Int32Array([0, 1]),
+    vertexUvs: [
+      new Float32Array([0, 0, 0.5, 0, 0.5, 0.5, 0, 0.5]),
+      new Float32Array([0.5, 0, 1, 0, 1, 0.5, 0.5, 0.5]),
+    ],
+    // constantFlags: head=normal (0), body=additive (bit 0).
+    constantFlags: new Uint8Array([0, 0x01]),
+  };
+  const partsStruct = {
+    count: 2,
+    ids: ["head_part", "body_part"],
+    opacities: new Float32Array([1, 1]),
+  };
+  const model: Live2DModelLike = {
+    internalModel: {
+      coreModel: {
+        setParameterValueById() {},
+        // wrapper 메서드 일부러 미정의 → fallback 강제.
+        getModel: () => ({ drawables: drawablesStruct, parts: partsStruct }),
+      },
+      textureFlipY: false,
+    },
+    motion: () => Promise.resolve(true),
+    expression: () => Promise.resolve(true),
+  };
+  const meta = extractDrawables(model, { atlasSize: { w: 1024, h: 1024 } });
+  assert.equal(meta.length, 2);
+  assert.equal(meta[0]!.id, "head");
+  assert.equal(meta[0]!.partId, "head_part");
+  assert.equal(meta[0]!.textureIndex, 0);
+  assert.equal(meta[0]!.renderOrder, 10);
+  assert.equal(meta[0]!.blendMode, "normal");
+  assert.equal(meta[0]!.uvBbox.w, 512);
+  assert.equal(meta[1]!.id, "body");
+  assert.equal(meta[1]!.partId, "body_part");
+  assert.equal(meta[1]!.blendMode, "additive");
+});
+
+test("extractDrawables: wrapper + raw 둘 다 가능하면 wrapper 우선", () => {
+  // wrapper getDrawableCount 가 살아있으면 raw 안 부름. raw 은 다른 데이터를 줘서
+  // 검증.
+  const wrapperCalls: string[] = [];
+  let getModelCalls = 0;
+  const model: Live2DModelLike = {
+    internalModel: {
+      coreModel: {
+        setParameterValueById() {},
+        getDrawableCount: () => { wrapperCalls.push("count"); return 1; },
+        getDrawableId: () => { wrapperCalls.push("id"); return "from_wrapper"; },
+        getDrawableVertexUvs: () => new Float32Array([0, 0, 1, 1]),
+        getModel: () => {
+          getModelCalls++;
+          return {
+            drawables: {
+              count: 99,
+              ids: ["from_raw"],
+              opacities: new Float32Array(),
+              textureIndices: new Int32Array(),
+              parentPartIndices: new Int32Array(),
+              renderOrders: new Int32Array(),
+              drawOrders: new Int32Array(),
+              vertexUvs: [],
+              constantFlags: new Uint8Array(),
+            },
+            parts: { count: 0, ids: [], opacities: new Float32Array() },
+          };
+        },
+      },
+      textureFlipY: false,
+    },
+    motion: () => Promise.resolve(true),
+    expression: () => Promise.resolve(true),
+  };
+  const meta = extractDrawables(model, { atlasSize: { w: 100, h: 100 } });
+  assert.equal(meta.length, 1);
+  assert.equal(meta[0]!.id, "from_wrapper", "wrapper path 가 우선이어야 함");
+  assert.equal(getModelCalls, 0, "raw fallback 은 호출되지 않아야 함");
+});
