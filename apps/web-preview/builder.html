@@ -416,6 +416,16 @@
                 ✎ 선택 영역 inpaint (<span id="layer-to-inpaint-count">0</span> drawable)
               </button>
             </div>
+            <!-- RX.5 — layer state 영속화 -->
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; display: flex; gap: 6px; align-items: center;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #555; flex: 1;" title="visibility / multiply color 변경을 localStorage 에 preset 별로 자동 저장. reload 시 복원.">
+                <input type="checkbox" id="layer-persist" checked />
+                💾 변경 자동 저장 (preset 별)
+              </label>
+              <button id="layer-reset-all" type="button" class="secondary" disabled style="font-size: 0.78rem; padding: 4px 8px;" title="현재 preset 의 저장된 layer state 삭제 + 모든 drawable 초기화">
+                ↺ Reset all
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2122,9 +2132,64 @@
       // RX.4 — drawable → inpaint mask 변환 버튼.
       const layerToInpaintBtn = document.getElementById("layer-to-inpaint");
       const layerToInpaintCountEl = document.getElementById("layer-to-inpaint-count");
+      // RX.5 — layer state 영속화.
+      const layerPersistCb = document.getElementById("layer-persist");
+      const layerResetAllBtn = document.getElementById("layer-reset-all");
 
       let layerState = null;
-      // = { model, drawables: DrawableMeta[], hidden: Set<index>, selected: Set<index>, atlasImg: Image, atlasSize, preset, textureId }
+      // = { model, drawables: DrawableMeta[], hidden: Set<index>, selected: Set<index>,
+      //      atlasImg, atlasSize, preset, textureId, multiply: Map<index, [r,g,b,a]> }
+
+      // ----- RX.5 layer state 영속화 -----
+      function layerStateKey(preset) {
+        if (!preset?.id || !preset?.version) return null;
+        return "geny:layer-state:" + preset.id + "@" + preset.version;
+      }
+      function saveLayerState() {
+        if (!layerState || !layerPersistCb.checked) return;
+        const key = layerStateKey(layerState.preset);
+        if (!key) return;
+        try {
+          // hidden: drawable id 로 저장 (index 는 모델별로 다를 수 있음 — id 가 stable).
+          const hiddenIds = [];
+          for (const idx of layerState.hidden) {
+            const d = layerState.drawables[idx];
+            if (d) hiddenIds.push(d.id);
+          }
+          const multiplyById = {};
+          if (layerState.multiply) {
+            for (const [idx, rgba] of layerState.multiply) {
+              const d = layerState.drawables[idx];
+              if (d) multiplyById[d.id] = rgba;
+            }
+          }
+          const payload = { hidden: hiddenIds, multiply: multiplyById, ts: Date.now() };
+          localStorage.setItem(key, JSON.stringify(payload));
+        } catch (e) {
+          window.log.warn("layer-persist", "localStorage 저장 실패", { error: String(e) });
+        }
+      }
+      function loadLayerState(preset) {
+        const key = layerStateKey(preset);
+        if (!key) return null;
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return null;
+          const obj = JSON.parse(raw);
+          if (!obj || typeof obj !== "object") return null;
+          return {
+            hidden: Array.isArray(obj.hidden) ? obj.hidden : [],
+            multiply: obj.multiply && typeof obj.multiply === "object" ? obj.multiply : {},
+          };
+        } catch {
+          return null;
+        }
+      }
+      function clearLayerState(preset) {
+        const key = layerStateKey(preset);
+        if (!key) return;
+        try { localStorage.removeItem(key); } catch { /* ignore */ }
+      }
 
       // Atlas 이미지를 불러와 thumbnail crop 에 사용.
       function loadAtlasImage(preset, textureId) {
@@ -2229,6 +2294,7 @@
           rgbApplyCountEl.textContent = "0";
           layerToInpaintBtn.disabled = true;
           layerToInpaintCountEl.textContent = "0";
+          layerResetAllBtn.disabled = true;
           return;
         }
         // 새 state.
@@ -2237,6 +2303,7 @@
           drawables,
           hidden: new Set(),
           selected: new Set(),
+          multiply: new Map(),
           atlasImg: null,
           atlasSize,
           preset,
@@ -2247,7 +2314,39 @@
         layerSelectResultsBtn.disabled = false;
         layerDeselectResultsBtn.disabled = false;
         layerShowAllBtn.disabled = false;
+        layerResetAllBtn.disabled = false;
         setRgbControlsEnabled(true);
+
+        // RX.5 — 저장된 state 적용 (drawable id 매칭).
+        const persisted = loadLayerState(preset);
+        if (persisted) {
+          const idToIdx = new Map(drawables.map((d, i) => [d.id, i]));
+          for (const id of persisted.hidden) {
+            const i = idToIdx.get(id);
+            if (i === undefined) continue;
+            layerState.hidden.add(i);
+            try {
+              if (window.GenyPixi?.setDrawableVisible) {
+                window.GenyPixi.setDrawableVisible(model, drawables[i].index, false);
+              }
+            } catch { /* ignore */ }
+          }
+          for (const [id, rgba] of Object.entries(persisted.multiply)) {
+            const i = idToIdx.get(id);
+            if (i === undefined || !Array.isArray(rgba) || rgba.length !== 4) continue;
+            const cm = model.internalModel?.coreModel;
+            try {
+              cm?.setOverrideFlagForDrawableMultiplyColors?.(drawables[i].index, true);
+              cm?.setMultiplyColorByRGBA?.(drawables[i].index, rgba[0], rgba[1], rgba[2], rgba[3]);
+              layerState.multiply.set(i, rgba);
+            } catch { /* ignore */ }
+          }
+          window.log.info("layer-persist", "저장된 layer state 복원", {
+            preset: preset.id + "@" + preset.version,
+            hidden: persisted.hidden.length,
+            multiply: Object.keys(persisted.multiply).length,
+          });
+        }
 
         // DOM 행 빌드 — DocumentFragment 로 배치.
         const frag = document.createDocumentFragment();
@@ -2278,6 +2377,7 @@
               window.log.warn("layer", "visibility toggle 실패", { id: d.id, error: String(e) });
             }
             updateLayerSelectionUI();
+            saveLayerState();
           });
           // checkbox.
           const cb = document.createElement("input");
@@ -2363,6 +2463,7 @@
         }
         layerState.hidden.clear();
         updateLayerSelectionUI();
+        saveLayerState();
       });
 
       // ===== RX.3 — RGB shift =====
@@ -2402,6 +2503,12 @@
               // hidden state 동기화: alpha 0 = 숨김으로 간주.
               if (rgba.a === 0) layerState.hidden.add(idx);
               else layerState.hidden.delete(idx);
+              // RX.5 — multiply 영속화. default (1,1,1,1) 면 저장에서 제외 (clear).
+              if (rgba.r === 1 && rgba.g === 1 && rgba.b === 1 && rgba.a === 1) {
+                layerState.multiply.delete(idx);
+              } else {
+                layerState.multiply.set(idx, [rgba.r, rgba.g, rgba.b, rgba.a]);
+              }
             }
           } catch (e) {
             window.log.warn("rgb-shift", "drawable " + d.id + " 적용 실패", { error: String(e) });
@@ -2412,6 +2519,7 @@
           targets: applied,
         });
         updateLayerSelectionUI();
+        saveLayerState();
       });
 
       // ===== RX.4 — 선택 drawable bbox → inpaint mask 자동 변환 =====
@@ -2494,6 +2602,7 @@
               }
             } catch (e) { /* ignore */ }
             layerState.hidden.delete(i);
+            layerState.multiply.delete(i);
           }
           window.log.info("rgb-shift", "전체 drawable reset (선택 없음)");
         } else {
@@ -2505,10 +2614,35 @@
               }
             } catch (e) { /* ignore */ }
             layerState.hidden.delete(idx);
+            layerState.multiply.delete(idx);
           }
           window.log.info("rgb-shift", "선택 drawable reset", { targets: layerState.selected.size });
         }
         updateLayerSelectionUI();
+        saveLayerState();
+      });
+
+      // RX.5 — Reset all: 현재 preset 의 저장된 layer state 삭제 + 전체 drawable 원복.
+      layerResetAllBtn.addEventListener("click", () => {
+        if (!layerState) return;
+        clearLayerState(layerState.preset);
+        for (let i = 0; i < layerState.drawables.length; i++) {
+          const d = layerState.drawables[i];
+          try {
+            if (window.GenyPixi?.setDrawableVisible) {
+              window.GenyPixi.setDrawableVisible(layerState.model, d.index, true);
+            }
+          } catch (e) { /* ignore */ }
+        }
+        layerState.hidden.clear();
+        layerState.multiply.clear();
+        layerState.selected.clear();
+        rgbR.value = "100"; rgbG.value = "100"; rgbB.value = "100"; rgbA.value = "100";
+        syncRgbOuts();
+        updateLayerSelectionUI();
+        window.log.info("layer-persist", "Reset all — 저장된 state 삭제 + drawable 원복", {
+          preset: layerState.preset.id + "@" + layerState.preset.version,
+        });
       });
 
       // 슬롯 재생성 성공 후에도 자동 리로드 (slotState.textureId 가 바뀌었을 때).
