@@ -541,6 +541,14 @@
         display: flex;
         flex-direction: column;
       }
+      #inpaint-go.inpaint-go-inflight {
+        background: #c44;
+        color: #fff;
+        border-color: #a33;
+      }
+      #inpaint-go.inpaint-go-inflight:hover {
+        background: #d55;
+      }
     </style>
 
     <section id="history-panel" style="display: none;">
@@ -2027,6 +2035,8 @@
         }
         inpaintHistory = [];
         inpaintUndoBtn.disabled = true;
+        // 새 baseline 로드 중에는 inpaintState 가 아직 갱신 전 → 클릭 방지.
+        inpaintGoBtn.disabled = true;
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
@@ -2234,7 +2244,26 @@
         }
       });
 
+      let inpaintAbortController = null;
+      let inpaintTimerId = null;
+
+      function setInpaintBtnIdle() {
+        inpaintGoBtn.classList.remove("inpaint-go-inflight");
+        inpaintGoBtn.textContent = "선택 영역 변형 ⏎";
+      }
+      function setInpaintBtnInflight(elapsedSec) {
+        const mm = String(Math.floor(elapsedSec / 60)).padStart(2, "0");
+        const ss = String(elapsedSec % 60).padStart(2, "0");
+        inpaintGoBtn.classList.add("inpaint-go-inflight");
+        inpaintGoBtn.textContent = "⏹ 취소 (" + mm + ":" + ss + ")";
+      }
+
       inpaintGoBtn.addEventListener("click", async () => {
+        // 진행 중이면 click = cancel.
+        if (inpaintAbortController) {
+          inpaintAbortController.abort();
+          return;
+        }
         if (!inpaintState) return;
         const prompt = inpaintPrompt.value.trim();
         if (!prompt) {
@@ -2258,7 +2287,12 @@
         const featherRaw = inpaintFeather.value.trim();
         const featherPx = featherRaw === "" ? 2 : Math.max(0, Math.min(20, Number(featherRaw) || 0));
         const seed = Math.floor(Math.random() * 1000000);
-        inpaintGoBtn.disabled = true;
+        inpaintAbortController = new AbortController();
+        const startMs = Date.now();
+        setInpaintBtnInflight(0);
+        inpaintTimerId = setInterval(() => {
+          setInpaintBtnInflight(Math.floor((Date.now() - startMs) / 1000));
+        }, 500);
         window.log.info("inpaint", "POST /api/texture/inpaint 시작", {
           adapter: adapterVal ?? "auto",
           model: modelVal,
@@ -2281,6 +2315,7 @@
               ...(adapterVal ? { adapter: adapterVal } : {}),
               ...(modelVal ? { model: modelVal } : {}),
             }),
+            signal: inpaintAbortController.signal,
           });
           const body = await r.json();
           if (!r.ok) throw new Error(body.error?.code + ": " + body.error?.message);
@@ -2288,6 +2323,7 @@
             adapter: body.adapter,
             texture_id: body.texture_id,
             timing: body.timing,
+            client_elapsed_ms: Date.now() - startMs,
           });
           // 히스토리 + 빌드 + 프리뷰.
           pushHistory({
@@ -2319,9 +2355,20 @@
             window.log.info("inpaint", "마스크 유지 — prompt/seed 만 바꿔 다시 시도 가능");
           }
         } catch (err) {
-          window.log.err("inpaint", "실패: " + (err && err.message ? err.message : String(err)));
+          if (err && err.name === "AbortError") {
+            window.log.warn("inpaint", "사용자가 취소함 (서버는 작업 계속 — 결과는 폐기됨)", {
+              client_elapsed_ms: Date.now() - startMs,
+            });
+          } else {
+            window.log.err("inpaint", "실패: " + (err && err.message ? err.message : String(err)));
+          }
         } finally {
-          inpaintGoBtn.disabled = false;
+          if (inpaintTimerId) {
+            clearInterval(inpaintTimerId);
+            inpaintTimerId = null;
+          }
+          inpaintAbortController = null;
+          setInpaintBtnIdle();
         }
       });
 
