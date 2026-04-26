@@ -106,81 +106,121 @@ export function uvBbox(
   };
 }
 
+interface RawReader {
+  readonly count: number;
+  getId(i: number): string;
+  getUvs(i: number): Float32Array | null;
+  getPartIndex(i: number): number;
+  getTextureIndex(i: number): number;
+  getRenderOrder(i: number): number;
+  getBlendCode(i: number): number;
+  getOpacity(i: number): number;
+  readonly partIds: (string | null)[];
+}
+
+/** Wrapper 메서드 (CubismModel.getDrawableCount 등) 가 살아있을 때 사용. */
+function tryWrapperReader(
+  cm: NonNullable<Live2DModelLike["internalModel"]["coreModel"]>,
+): RawReader | null {
+  if (typeof cm.getDrawableCount !== "function") return null;
+  let count = 0;
+  try { count = cm.getDrawableCount.call(cm); } catch { return null; }
+  if (!Number.isFinite(count) || count <= 0) return null;
+  const partIds: (string | null)[] = [];
+  if (typeof cm.getPartCount === "function" && typeof cm.getPartId === "function") {
+    const pc = (cm.getPartCount.call(cm) | 0);
+    for (let i = 0; i < pc; i++) {
+      try { partIds.push(cm.getPartId.call(cm, i) ?? null); } catch { partIds.push(null); }
+    }
+  }
+  return {
+    count,
+    partIds,
+    getId(i) { try { return cm.getDrawableId?.call(cm, i) ?? ""; } catch { return ""; } },
+    getUvs(i) {
+      try {
+        const v = cm.getDrawableVertexUvs?.call(cm, i);
+        if (v && (v as { length?: number }).length) return v as Float32Array;
+      } catch { /* ignore */ }
+      return null;
+    },
+    getPartIndex(i) { try { return cm.getDrawableParentPartIndex?.call(cm, i) ?? -1; } catch { return -1; } },
+    getTextureIndex(i) { try { return cm.getDrawableTextureIndex?.call(cm, i) ?? 0; } catch { return 0; } },
+    getRenderOrder(i) { try { return cm.getDrawableRenderOrder?.call(cm, i) ?? 0; } catch { return 0; } },
+    getBlendCode(i) { try { return cm.getDrawableBlendMode?.call(cm, i) ?? 0; } catch { return 0; } },
+    getOpacity(i) { try { return cm.getDrawableOpacity?.call(cm, i) ?? 1; } catch { return 1; } },
+  };
+}
+
+/** Raw struct (coreModel.getModel().drawables) — wrapper 미노출 환경 대비. */
+function tryRawReader(
+  cm: NonNullable<Live2DModelLike["internalModel"]["coreModel"]>,
+): RawReader | null {
+  if (typeof cm.getModel !== "function") return null;
+  let raw;
+  try { raw = cm.getModel.call(cm); } catch { return null; }
+  if (!raw?.drawables || !raw.drawables.ids) return null;
+  const d = raw.drawables;
+  const partIds: (string | null)[] = raw.parts?.ids ? Array.from(raw.parts.ids) : [];
+  // Cubism constantFlags 의 blend mode 비트:
+  //   bit 0 = additive, bit 1 = multiplicative. 둘 다 0 이면 normal.
+  const blendFromFlag = (flag: number): number => {
+    if (flag & 0x01) return 1; // additive
+    if (flag & 0x02) return 2; // multiplicative
+    return 0; // normal
+  };
+  return {
+    count: d.count,
+    partIds,
+    getId(i) { return d.ids?.[i] ?? ""; },
+    getUvs(i) {
+      const v = d.vertexUvs?.[i];
+      return v && v.length ? v : null;
+    },
+    getPartIndex(i) { return d.parentPartIndices?.[i] ?? -1; },
+    getTextureIndex(i) { return d.textureIndices?.[i] ?? 0; },
+    getRenderOrder(i) { return d.renderOrders?.[i] ?? 0; },
+    getBlendCode(i) { return blendFromFlag(d.constantFlags?.[i] ?? 0); },
+    getOpacity(i) { return d.opacities?.[i] ?? 1; },
+  };
+}
+
 export function extractDrawables(
   model: Live2DModelLike,
   opts: ExtractDrawablesOptions,
 ): DrawableMeta[] {
   const cm = model.internalModel?.coreModel;
   if (!cm) return [];
-  const getCount = cm.getDrawableCount;
-  if (typeof getCount !== "function") return [];
-  const count = getCount.call(cm);
-  if (!Number.isFinite(count) || count <= 0) return [];
+  // 1차: wrapper 메서드. 2차 fallback: raw struct (getModel().drawables).
+  const reader = tryWrapperReader(cm) ?? tryRawReader(cm);
+  if (!reader || reader.count <= 0) return [];
 
   const flipY = !!model.internalModel.textureFlipY;
   const skipDegenerate = opts.skipDegenerate !== false;
   const out: DrawableMeta[] = [];
-  // part id 캐시 — 매 drawable 마다 getPartId 호출하지 않게.
-  const partIds: (string | null)[] = [];
-  if (typeof cm.getPartCount === "function" && typeof cm.getPartId === "function") {
-    const partCount = cm.getPartCount.call(cm) | 0;
-    for (let i = 0; i < partCount; i++) {
-      try {
-        partIds.push(cm.getPartId.call(cm, i) ?? null);
-      } catch {
-        partIds.push(null);
-      }
-    }
-  }
 
-  for (let i = 0; i < count; i++) {
-    let id = "";
-    try {
-      id = cm.getDrawableId?.call(cm, i) ?? "";
-    } catch {
-      id = "";
-    }
+  for (let i = 0; i < reader.count; i++) {
+    const id = reader.getId(i);
     if (!id) continue;
-    let uvs: Float32Array | null = null;
-    try {
-      const v = cm.getDrawableVertexUvs?.call(cm, i);
-      if (v && (v as { length?: number }).length) uvs = v as Float32Array;
-    } catch {
-      uvs = null;
-    }
+    const uvs = reader.getUvs(i);
     const bbox = uvs
       ? uvBbox(uvs, opts.atlasSize, flipY)
       : { x: 0, y: 0, w: 0, h: 0, uMin: 0, uMax: 0, vMin: 0, vMax: 0 };
-    if (skipDegenerate && bbox.w === 0 && bbox.h === 0) {
-      // mesh 가 없거나 UV 가 비어있는 drawable — 패스.
-      continue;
-    }
-    const partIndex = (() => {
-      try { return cm.getDrawableParentPartIndex?.call(cm, i) ?? -1; } catch { return -1; }
-    })();
-    const partId = partIndex >= 0 && partIndex < partIds.length ? partIds[partIndex] ?? null : null;
-    const textureIndex = (() => {
-      try { return cm.getDrawableTextureIndex?.call(cm, i) ?? 0; } catch { return 0; }
-    })();
-    const renderOrder = (() => {
-      try { return cm.getDrawableRenderOrder?.call(cm, i) ?? 0; } catch { return 0; }
-    })();
-    const blendCode = (() => {
-      try { return cm.getDrawableBlendMode?.call(cm, i) ?? 0; } catch { return 0; }
-    })();
-    const initialOpacity = (() => {
-      try { return cm.getDrawableOpacity?.call(cm, i) ?? 1; } catch { return 1; }
-    })();
+    if (skipDegenerate && bbox.w === 0 && bbox.h === 0) continue;
+    const partIndex = reader.getPartIndex(i);
+    const partId = partIndex >= 0 && partIndex < reader.partIds.length
+      ? reader.partIds[partIndex] ?? null
+      : null;
     out.push({
       index: i,
       id,
       partIndex,
       partId,
-      textureIndex,
-      renderOrder,
-      blendMode: blendModeFromCubism(blendCode),
+      textureIndex: reader.getTextureIndex(i),
+      renderOrder: reader.getRenderOrder(i),
+      blendMode: blendModeFromCubism(reader.getBlendCode(i)),
       uvBbox: bbox,
-      initialOpacity,
+      initialOpacity: reader.getOpacity(i),
     });
   }
   return out;

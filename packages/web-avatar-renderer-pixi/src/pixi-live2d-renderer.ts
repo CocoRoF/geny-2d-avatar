@@ -113,6 +113,28 @@ export interface Live2DModelLike {
         readonly B: number;
         readonly A: number;
       };
+      /**
+       * Raw Cubism Core Model 접근. wrapper 메서드 미노출 환경에서 fallback.
+       * Live2DCubismCore.Model 의 drawables / parts struct.
+       */
+      getModel?: () => {
+        readonly drawables: {
+          readonly count: number;
+          readonly ids: ReadonlyArray<string>;
+          readonly opacities: Float32Array;
+          readonly textureIndices: Int32Array;
+          readonly parentPartIndices: Int32Array;
+          readonly renderOrders: Int32Array;
+          readonly drawOrders: Int32Array;
+          readonly vertexUvs: ReadonlyArray<Float32Array>;
+          readonly constantFlags: Uint8Array;
+        };
+        readonly parts: {
+          readonly count: number;
+          readonly ids: ReadonlyArray<string>;
+          readonly opacities: Float32Array;
+        };
+      };
     };
     /** 텍스처 V 플립 여부 (true 면 UV 의 V 가 flipped). */
     readonly textureFlipY?: boolean;
