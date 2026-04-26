@@ -398,6 +398,18 @@
               <div style="padding: 12px; color: #999; font-size: 0.85rem; text-align: center;">모델을 로드하세요.</div>
             </div>
             <div id="layer-selected-count" style="font-size: 0.78rem; color: #666; margin-top: 4px;">선택 0 개</div>
+            <!-- RX.3 — RGB multiply shift 슬라이더 -->
+            <div id="rgb-shift" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd;">
+              <div style="font-size: 0.78rem; font-weight: 600; color: #555; margin-bottom: 4px;">🎨 RGB shift (선택 drawable 일괄)</div>
+              <div class="rgb-slider"><label>R</label><input type="range" id="rgb-r" min="0" max="200" value="100" disabled /><output id="rgb-r-out">100%</output></div>
+              <div class="rgb-slider"><label>G</label><input type="range" id="rgb-g" min="0" max="200" value="100" disabled /><output id="rgb-g-out">100%</output></div>
+              <div class="rgb-slider"><label>B</label><input type="range" id="rgb-b" min="0" max="200" value="100" disabled /><output id="rgb-b-out">100%</output></div>
+              <div class="rgb-slider"><label>A</label><input type="range" id="rgb-a" min="0" max="100" value="100" disabled /><output id="rgb-a-out">100%</output></div>
+              <div style="display: flex; gap: 6px; margin-top: 4px;">
+                <button id="rgb-apply" type="button" disabled style="flex: 1; font-size: 0.78rem; padding: 4px;">Apply to <span id="rgb-apply-count">0</span> selected</button>
+                <button id="rgb-reset" type="button" class="secondary" disabled style="font-size: 0.78rem; padding: 4px;">Reset</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -501,6 +513,24 @@
       }
       .layer-row .name .part-prefix { color: #999; }
       .layer-row input[type="checkbox"] { margin: 0; }
+
+      /* RX.3 — RGB shift sliders */
+      .rgb-slider {
+        display: grid;
+        grid-template-columns: 16px 1fr 44px;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: #555;
+        margin: 2px 0;
+      }
+      .rgb-slider label { font-family: ui-monospace, monospace; font-weight: 600; }
+      .rgb-slider input[type="range"] { width: 100%; }
+      .rgb-slider output { font-family: ui-monospace, monospace; text-align: right; color: #666; }
+      #rgb-r { accent-color: #d33; }
+      #rgb-g { accent-color: #393; }
+      #rgb-b { accent-color: #36c; }
+      #rgb-a { accent-color: #777; }
     </style>
 
     <section>
@@ -2071,6 +2101,18 @@
       const layerDeselectResultsBtn = document.getElementById("layer-deselect-results");
       const layerShowAllBtn = document.getElementById("layer-show-all");
       const layerSelectedCountEl = document.getElementById("layer-selected-count");
+      // RX.3 RGB shift refs.
+      const rgbR = document.getElementById("rgb-r");
+      const rgbG = document.getElementById("rgb-g");
+      const rgbB = document.getElementById("rgb-b");
+      const rgbA = document.getElementById("rgb-a");
+      const rgbROut = document.getElementById("rgb-r-out");
+      const rgbGOut = document.getElementById("rgb-g-out");
+      const rgbBOut = document.getElementById("rgb-b-out");
+      const rgbAOut = document.getElementById("rgb-a-out");
+      const rgbApplyBtn = document.getElementById("rgb-apply");
+      const rgbResetBtn = document.getElementById("rgb-reset");
+      const rgbApplyCountEl = document.getElementById("rgb-apply-count");
 
       let layerState = null;
       // = { model, drawables: DrawableMeta[], hidden: Set<index>, selected: Set<index>, atlasImg: Image, atlasSize, preset, textureId }
@@ -2128,7 +2170,10 @@
           const eye = li.querySelector(".visibility");
           if (eye) eye.textContent = layerState.hidden.has(idx) ? "🚫" : "👁";
         }
-        layerSelectedCountEl.textContent = "선택 " + layerState.selected.size + " 개";
+        const sel = layerState.selected.size;
+        layerSelectedCountEl.textContent = "선택 " + sel + " 개";
+        rgbApplyCountEl.textContent = String(sel);
+        rgbApplyBtn.disabled = sel === 0;
       }
 
       function applyLayerFilter() {
@@ -2148,6 +2193,15 @@
         return layerState.drawables.filter((d) => rowMatchesSearch(d, q));
       }
 
+      function setRgbControlsEnabled(enabled) {
+        rgbR.disabled = !enabled;
+        rgbG.disabled = !enabled;
+        rgbB.disabled = !enabled;
+        rgbA.disabled = !enabled;
+        rgbResetBtn.disabled = !enabled;
+        // rgbApplyBtn 은 selection 에 따라 별도 토글 (updateLayerSelectionUI 에서).
+      }
+
       async function renderLayerPanel({ model, drawables, preset, textureId, atlasSize }) {
         // 빈 state 초기화.
         if (!model || !drawables || drawables.length === 0) {
@@ -2159,6 +2213,9 @@
           layerShowAllBtn.disabled = true;
           layerListEl.innerHTML = '<div style="padding:12px;color:#999;font-size:0.85rem;text-align:center;">drawable 정보 없음.</div>';
           layerSelectedCountEl.textContent = "선택 0 개";
+          setRgbControlsEnabled(false);
+          rgbApplyBtn.disabled = true;
+          rgbApplyCountEl.textContent = "0";
           return;
         }
         // 새 state.
@@ -2177,6 +2234,7 @@
         layerSelectResultsBtn.disabled = false;
         layerDeselectResultsBtn.disabled = false;
         layerShowAllBtn.disabled = false;
+        setRgbControlsEnabled(true);
 
         // DOM 행 빌드 — DocumentFragment 로 배치.
         const frag = document.createDocumentFragment();
@@ -2291,6 +2349,88 @@
           } catch (e) { /* ignore */ }
         }
         layerState.hidden.clear();
+        updateLayerSelectionUI();
+      });
+
+      // ===== RX.3 — RGB shift =====
+      function syncRgbOuts() {
+        rgbROut.textContent = rgbR.value + "%";
+        rgbGOut.textContent = rgbG.value + "%";
+        rgbBOut.textContent = rgbB.value + "%";
+        rgbAOut.textContent = rgbA.value + "%";
+      }
+      [rgbR, rgbG, rgbB, rgbA].forEach((el) => el.addEventListener("input", syncRgbOuts));
+      syncRgbOuts();
+
+      function readRgbValues() {
+        // 0-200% → 0.0-2.0 (multiply factor). default 100 = 1.0 (변화 없음).
+        return {
+          r: Number(rgbR.value) / 100,
+          g: Number(rgbG.value) / 100,
+          b: Number(rgbB.value) / 100,
+          a: Number(rgbA.value) / 100,
+        };
+      }
+
+      rgbApplyBtn.addEventListener("click", () => {
+        if (!layerState || layerState.selected.size === 0) return;
+        const rgba = readRgbValues();
+        let applied = 0;
+        for (const idx of layerState.selected) {
+          const d = layerState.drawables[idx];
+          if (!d) continue;
+          try {
+            // setMultiplyColorByRGBA 직접 호출 (RX.1 helper 는 alpha 분리지만 여기선 alpha 도 같이 컨트롤).
+            const cm = layerState.model.internalModel?.coreModel;
+            if (cm?.setOverrideFlagForDrawableMultiplyColors && cm?.setMultiplyColorByRGBA) {
+              cm.setOverrideFlagForDrawableMultiplyColors(d.index, true);
+              cm.setMultiplyColorByRGBA(d.index, rgba.r, rgba.g, rgba.b, rgba.a);
+              applied++;
+              // hidden state 동기화: alpha 0 = 숨김으로 간주.
+              if (rgba.a === 0) layerState.hidden.add(idx);
+              else layerState.hidden.delete(idx);
+            }
+          } catch (e) {
+            window.log.warn("rgb-shift", "drawable " + d.id + " 적용 실패", { error: String(e) });
+          }
+        }
+        window.log.ok("rgb-shift", "Applied multiply color", {
+          rgba: { r: rgba.r.toFixed(2), g: rgba.g.toFixed(2), b: rgba.b.toFixed(2), a: rgba.a.toFixed(2) },
+          targets: applied,
+        });
+        updateLayerSelectionUI();
+      });
+
+      rgbResetBtn.addEventListener("click", () => {
+        if (!layerState) return;
+        // 슬라이더를 100%/100% 로 리셋.
+        rgbR.value = "100"; rgbG.value = "100"; rgbB.value = "100"; rgbA.value = "100";
+        syncRgbOuts();
+        // 선택된 drawable 들을 (1,1,1,1) 로 — visibility 도 켜짐.
+        if (layerState.selected.size === 0) {
+          // 선택 없으면 전체 드로어블 reset (사용자 의도 추측).
+          for (let i = 0; i < layerState.drawables.length; i++) {
+            const d = layerState.drawables[i];
+            try {
+              if (window.GenyPixi?.setDrawableVisible) {
+                window.GenyPixi.setDrawableVisible(layerState.model, d.index, true);
+              }
+            } catch (e) { /* ignore */ }
+            layerState.hidden.delete(i);
+          }
+          window.log.info("rgb-shift", "전체 drawable reset (선택 없음)");
+        } else {
+          for (const idx of layerState.selected) {
+            const d = layerState.drawables[idx];
+            try {
+              if (window.GenyPixi?.setDrawableVisible) {
+                window.GenyPixi.setDrawableVisible(layerState.model, d.index, true);
+              }
+            } catch (e) { /* ignore */ }
+            layerState.hidden.delete(idx);
+          }
+          window.log.info("rgb-shift", "선택 drawable reset", { targets: layerState.selected.size });
+        }
         updateLayerSelectionUI();
       });
 
