@@ -2338,21 +2338,23 @@
             preset: inpaintState.preset,
             textureId: body.texture_id,
           });
-          // 변형 결과를 즉시 보이게 — Live2D 프리뷰 패널을 viewport 로 스크롤.
-          const livePreviewPanel = document.getElementById("live-preview-panel");
-          if (livePreviewPanel && livePreviewPanel.style.display !== "none") {
-            livePreviewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+          // keep-mask ON = 활성 iteration. 사용자가 inpaint 패널에 머무는 게 자연스러움 →
+          // 자동 스크롤 안 함. OFF 면 변형 결과를 즉시 보이게 Live2D 프리뷰로 스크롤.
+          const preserveMask = inpaintKeepMask.checked;
+          if (!preserveMask) {
+            const livePreviewPanel = document.getElementById("live-preview-panel");
+            if (livePreviewPanel && livePreviewPanel.style.display !== "none") {
+              livePreviewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
           }
           // 새 텍스처를 inpaint 캔버스 bg 로 갱신 (다음 변형의 baseline).
-          // keep-mask 옵션 켜져 있으면 같은 영역에 다른 prompt/seed 로 빠르게 iterate.
-          const preserveMask = inpaintKeepMask.checked;
           openInpaintPanel({
             preset: inpaintState.preset,
             textureId: body.texture_id,
             preserveMask,
           });
           if (preserveMask) {
-            window.log.info("inpaint", "마스크 유지 — prompt/seed 만 바꿔 다시 시도 가능");
+            window.log.info("inpaint", "마스크 유지 + 패널 유지 — prompt/seed 만 바꿔 즉시 재시도");
           }
         } catch (err) {
           if (err && err.name === "AbortError") {
