@@ -1828,6 +1828,42 @@
             fit_scale: fitScale.toFixed(3),
             stage: STAGE_W + "x" + STAGE_H,
           });
+          // RX.1 — drawable enumeration. atlas size 추정: 가장 큰 atlas 변수 (현재 mao_pro 4096).
+          // multi-texture 지원은 후속 phase. 여기서는 첫 atlas 가정.
+          // currentTextureSize 변수가 없으니 model 의 internalModel 에서 추출 시도, 실패 시 4096 default.
+          try {
+            const atlasW = (() => {
+              try {
+                const t = model.internalModel?.textures?.[0];
+                return t?.width ?? t?.baseTexture?.width ?? 4096;
+              } catch { return 4096; }
+            })();
+            const atlasH = (() => {
+              try {
+                const t = model.internalModel?.textures?.[0];
+                return t?.height ?? t?.baseTexture?.height ?? 4096;
+              } catch { return 4096; }
+            })();
+            const drawables = mods.extractDrawables
+              ? mods.extractDrawables(model, { atlasSize: { w: atlasW, h: atlasH } })
+              : [];
+            window.__genyDrawables = drawables; // dev hook — 콘솔에서 직접 inspect 가능.
+            window.log.info("drawables", "RX.1 drawable enumeration", {
+              count: drawables.length,
+              atlas: atlasW + "x" + atlasH,
+              first10: drawables.slice(0, 10).map((d) => ({
+                idx: d.index,
+                id: d.id,
+                part: d.partId,
+                bbox: d.uvBbox.x + "," + d.uvBbox.y + " " + d.uvBbox.w + "x" + d.uvBbox.h,
+                blend: d.blendMode,
+              })),
+            });
+          } catch (extractErr) {
+            window.log.warn("drawables", "RX.1 enumeration 실패 — Cubism Core API 가 노출되지 않을 수 있음", {
+              error: extractErr && extractErr.message ? extractErr.message : String(extractErr),
+            });
+          }
           setStatus(
             previewStatus,
             "ok",
