@@ -295,35 +295,30 @@ test("extractDrawables: wrapper 메서드 미노출 + raw struct 만 → fallbac
   assert.equal(meta[1]!.blendMode, "additive");
 });
 
-test("extractDrawables: wrapper + raw 둘 다 가능하면 wrapper 우선", () => {
-  // wrapper getDrawableCount 가 살아있으면 raw 안 부름. raw 은 다른 데이터를 줘서
-  // 검증.
-  const wrapperCalls: string[] = [];
-  let getModelCalls = 0;
+test("extractDrawables: raw struct 가 wrapper 보다 우선 (CubismIdHandle 래퍼 안전)", () => {
+  // pixi-live2d-display-advanced 의 wrapper 는 id 를 { _id: { s: ... } } 객체로 반환.
+  // raw struct 는 string 을 직접 노출 → 우선순위 raw 첫번째.
   const model: Live2DModelLike = {
     internalModel: {
       coreModel: {
         setParameterValueById() {},
-        getDrawableCount: () => { wrapperCalls.push("count"); return 1; },
-        getDrawableId: () => { wrapperCalls.push("id"); return "from_wrapper"; },
+        getDrawableCount: () => 1,
+        getDrawableId: () => "from_wrapper",
         getDrawableVertexUvs: () => new Float32Array([0, 0, 1, 1]),
-        getModel: () => {
-          getModelCalls++;
-          return {
-            drawables: {
-              count: 99,
-              ids: ["from_raw"],
-              opacities: new Float32Array(),
-              textureIndices: new Int32Array(),
-              parentPartIndices: new Int32Array(),
-              renderOrders: new Int32Array(),
-              drawOrders: new Int32Array(),
-              vertexUvs: [],
-              constantFlags: new Uint8Array(),
-            },
-            parts: { count: 0, ids: [], opacities: new Float32Array() },
-          };
-        },
+        getModel: () => ({
+          drawables: {
+            count: 1,
+            ids: ["from_raw"],
+            opacities: new Float32Array([1]),
+            textureIndices: new Int32Array([0]),
+            parentPartIndices: new Int32Array([-1]),
+            renderOrders: new Int32Array([0]),
+            drawOrders: new Int32Array([0]),
+            vertexUvs: [new Float32Array([0, 0, 1, 1])],
+            constantFlags: new Uint8Array([0]),
+          },
+          parts: { count: 0, ids: [], opacities: new Float32Array() },
+        }),
       },
       textureFlipY: false,
     },
@@ -332,6 +327,33 @@ test("extractDrawables: wrapper + raw 둘 다 가능하면 wrapper 우선", () =
   };
   const meta = extractDrawables(model, { atlasSize: { w: 100, h: 100 } });
   assert.equal(meta.length, 1);
-  assert.equal(meta[0]!.id, "from_wrapper", "wrapper path 가 우선이어야 함");
-  assert.equal(getModelCalls, 0, "raw fallback 은 호출되지 않아야 함");
+  assert.equal(meta[0]!.id, "from_raw", "raw struct 가 우선");
+});
+
+test("extractDrawables: wrapper id 가 CubismIdHandle 래퍼 객체여도 string 으로 정규화 (raw 미노출 환경)", () => {
+  // raw 미노출 + wrapper 만 → tryWrapperReader 의 idToStr 가 _id.s 추출.
+  const model: Live2DModelLike = {
+    internalModel: {
+      coreModel: {
+        setParameterValueById() {},
+        getDrawableCount: () => 1,
+        getDrawableId: () => ({ _id: { s: "ArtMesh121" } }),
+        getDrawableVertexUvs: () => new Float32Array([0, 0, 1, 1]),
+        getDrawableTextureIndex: () => 0,
+        getDrawableParentPartIndex: () => 0,
+        getDrawableRenderOrder: () => 0,
+        getDrawableBlendMode: () => 0,
+        getDrawableOpacity: () => 1,
+        getPartCount: () => 1,
+        getPartId: () => ({ _id: { s: "PartCore" } }),
+      },
+      textureFlipY: false,
+    },
+    motion: () => Promise.resolve(true),
+    expression: () => Promise.resolve(true),
+  };
+  const meta = extractDrawables(model, { atlasSize: { w: 100, h: 100 } });
+  assert.equal(meta.length, 1);
+  assert.equal(meta[0]!.id, "ArtMesh121");
+  assert.equal(meta[0]!.partId, "PartCore");
 });

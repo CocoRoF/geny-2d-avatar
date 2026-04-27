@@ -1826,13 +1826,18 @@
           );
           throw new Error("GenyPixi bundle missing");
         }
-        const { PIXI, Live2DModel } = window.GenyPixi;
+        const { PIXI, Live2DModel, extractDrawables, setDrawableVisible, setDrawableMultiplyRgb, uvBbox } = window.GenyPixi;
         // renderer-pixi 패키지 (single ES module 그래프) 만 별도 동적 로드.
         const rendererMod = await import("./public/vendor/renderer-pixi/index.js");
         pixiModules = {
           Application: PIXI.Application,
           Live2DModel,
           createPixiLive2DRenderer: rendererMod.createPixiLive2DRenderer,
+          // RX.1 helpers — IIFE 번들에서 expose. mods.extractDrawables 등으로 호출.
+          extractDrawables,
+          setDrawableVisible,
+          setDrawableMultiplyRgb,
+          uvBbox,
         };
         return pixiModules;
       }
@@ -1938,6 +1943,10 @@
           // RX.1 — drawable enumeration. atlas size 추정: 가장 큰 atlas 변수 (현재 mao_pro 4096).
           // multi-texture 지원은 후속 phase. 여기서는 첫 atlas 가정.
           // currentTextureSize 변수가 없으니 model 의 internalModel 에서 추출 시도, 실패 시 4096 default.
+          //
+          // 중요: Live2DModel.from() 이 resolve 된 직후에는 coreModel.getModel().drawables 가
+          // 아직 초기화 안 된 상태일 수 있음 (count=0). 한두 프레임 기다림.
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           try {
             const atlasW = (() => {
               try {
@@ -1955,6 +1964,7 @@
               ? mods.extractDrawables(model, { atlasSize: { w: atlasW, h: atlasH } })
               : [];
             window.__genyDrawables = drawables; // dev hook — 콘솔에서 직접 inspect 가능.
+            window.__genyCurrentModel = model; // RX 검증용 — multiplyColor read 등.
             window.log.info("drawables", "RX.1 drawable enumeration", {
               count: drawables.length,
               atlas: atlasW + "x" + atlasH,
