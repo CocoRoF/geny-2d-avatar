@@ -2416,6 +2416,15 @@
             "\nblend: " + d.blendMode +
             "\nrenderOrder: " + d.renderOrder;
           row.append(swatch, eye, cb, thumb, name);
+          // RX.4.1 — 행 더블클릭 = 그 drawable 만 inpaint mask 로 변환 (단건 수정).
+          // selection 은 그대로 유지. swatch/eye/checkbox 같은 인터랙티브 자식
+          // 클릭은 stopPropagation 없이도 dblclick 이 그쪽으로 anyway 잘 안 옴.
+          row.title = (row.title ? row.title + "\n" : "") + "더블클릭: 이 drawable 만 inpaint";
+          row.addEventListener("dblclick", (ev) => {
+            // 자식의 dblclick 은 무시 (eye 더블클릭은 토글 두 번이라 의미 없음).
+            if (ev.target !== row && ev.target.parentElement !== row) return;
+            triggerInpaintForDrawables([i], "drawable: " + d.id);
+          });
           frag.appendChild(row);
         }
         layerListEl.innerHTML = "";
@@ -2564,35 +2573,32 @@
         saveLayerState();
       });
 
-      // ===== RX.4 — 선택 drawable bbox → inpaint mask 자동 변환 =====
-      layerToInpaintBtn.addEventListener("click", () => {
-        if (!layerState || layerState.selected.size === 0) return;
-        if (!layerState.preset) {
-          window.log.warn("layer-inpaint", "preset 정보 없음");
+      // ===== RX.4 — drawable bbox → inpaint mask 자동 변환 =====
+      // indices: layerState.drawables 의 array index 목록 (selected Set 또는 single).
+      function triggerInpaintForDrawables(indices, kind) {
+        if (!layerState || !layerState.preset) {
+          window.log.warn("layer-inpaint", "preset 정보 없음 또는 layer state 없음");
           return;
         }
-        // 선택 drawable 들의 UV bbox 를 atlas 의 비율 로 mask store (1024) 에 변환.
+        const idxList = Array.from(indices);
+        if (idxList.length === 0) return;
         const atlasW = layerState.atlasSize.w;
         const atlasH = layerState.atlasSize.h;
         const sx = 1024 / atlasW;
         const sy = 1024 / atlasH;
-        // inpaint 패널 활성화 + initialize. preserveMask=false 로 새 baseline + 빈 mask.
+        // 새 baseline + 빈 mask 로 패널 열기.
         openInpaintPanel({
           preset: layerState.preset,
           textureId: layerState.textureId,
         });
-        // openInpaintPanel 은 async (img.onload) 이지만 mask store 는 즉시 set 가능
-        // (canvas size 만 있으면 됨, 이미 1024×1024 로 init).
-        // 약간 defer 로 caller 측 init 마무리 후 적용.
+        // openInpaintPanel 은 async — canvas init 후 약간 defer.
         setTimeout(() => {
           const sctx = inpaintMaskStore.getContext("2d");
-          // 검정 reset 후 선택 drawable bbox 들을 흰색으로.
           sctx.globalCompositeOperation = "source-over";
           sctx.fillStyle = "#000";
           sctx.fillRect(0, 0, 1024, 1024);
           sctx.fillStyle = "#fff";
-          let total = 0;
-          for (const idx of layerState.selected) {
+          for (const idx of idxList) {
             const d = layerState.drawables[idx];
             if (!d) continue;
             const x = Math.round(d.uvBbox.x * sx);
@@ -2600,15 +2606,13 @@
             const w = Math.max(1, Math.round(d.uvBbox.w * sx));
             const h = Math.max(1, Math.round(d.uvBbox.h * sy));
             sctx.fillRect(x, y, w, h);
-            total++;
           }
-          // display canvas 에도 반영 (display 는 512).
           const dctx = inpaintMaskDisplay.getContext("2d");
           dctx.clearRect(0, 0, INPAINT_DISPLAY_SIZE, INPAINT_DISPLAY_SIZE);
           dctx.fillStyle = "rgba(255, 50, 50, 1)";
           const dsx = INPAINT_DISPLAY_SIZE / atlasW;
           const dsy = INPAINT_DISPLAY_SIZE / atlasH;
-          for (const idx of layerState.selected) {
+          for (const idx of idxList) {
             const d = layerState.drawables[idx];
             if (!d) continue;
             const x = d.uvBbox.x * dsx;
@@ -2618,14 +2622,18 @@
             dctx.fillRect(x, y, w, h);
           }
           updateMaskCoverage();
-          window.log.ok("layer-inpaint", "선택 drawable → mask 변환 완료", {
-            count: total,
+          window.log.ok("layer-inpaint", (kind ?? "drawable") + " → mask 변환 완료", {
+            count: idxList.length,
             atlas: atlasW + "x" + atlasH,
           });
-          // inpaint 패널로 스크롤 + prompt 입력란 포커스.
           inpaintPanel.scrollIntoView({ behavior: "smooth", block: "start" });
           inpaintPrompt.focus();
         }, 50);
+      }
+
+      layerToInpaintBtn.addEventListener("click", () => {
+        if (!layerState || layerState.selected.size === 0) return;
+        triggerInpaintForDrawables(layerState.selected, "선택 " + layerState.selected.size + " drawable");
       });
 
       rgbResetBtn.addEventListener("click", () => {
