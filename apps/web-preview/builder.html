@@ -6,7 +6,31 @@
     <title>Geny 2D Avatar · Builder (P2.4)</title>
     <style>
       :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; }
-      body { margin: 0; padding: 24px; max-width: 900px; margin-inline: auto; color: #222; }
+      body { margin: 0; padding: 16px 20px; color: #222; }
+      /* Editor 레이아웃: 좌측 메인 컬럼 + 우측 sticky Layer Panel sidebar. */
+      .app-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: 18px;
+        align-items: start;
+      }
+      @media (min-width: 1600px) { .app-grid { grid-template-columns: minmax(0, 1fr) 440px; } }
+      @media (max-width: 1100px) { .app-grid { grid-template-columns: 1fr; } }
+      .app-main { min-width: 0; } /* grid item overflow 방지 */
+      .layer-sidebar {
+        position: sticky;
+        top: 16px;
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        background: #fafafa;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 14px;
+        box-sizing: border-box;
+      }
+      @media (max-width: 1100px) {
+        .layer-sidebar { position: static; max-height: none; }
+      }
       header h1 { margin: 0 0 4px; }
       header p { margin: 0 0 20px; color: #666; font-size: 0.92rem; }
       section {
@@ -100,6 +124,9 @@
         line-height: 1.45;
       "></pre>
     </section>
+
+    <main class="app-grid">
+      <div class="app-main">
     <style>
       #log-output .lv-info { color: #9cdcfe; }
       #log-output .lv-ok   { color: #b5cea8; }
@@ -382,62 +409,16 @@
               👀 마우스 추적
             </label>
           </div>
-          <!-- RX.2 — Layer Panel: drawable 검색 / visibility toggle / multi-select -->
-          <div id="layer-panel-host" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
-            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #444; font-weight: 600; margin-bottom: 6px;">
-              <span>🧩 Layer Panel</span>
-              <span id="layer-count" style="color: #888; font-weight: normal; font-size: 0.78rem;">— 모델 로드 후 활성</span>
-            </div>
-            <input type="text" id="layer-search" placeholder="drawable id 검색 (예: b_f_, hair, head)" style="width: 100%; font-size: 0.82rem; padding: 4px 6px; margin-bottom: 6px;" disabled />
-            <div style="display: flex; gap: 6px; margin-bottom: 4px;">
-              <button id="layer-select-results" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled>Select results</button>
-              <button id="layer-deselect-results" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled>Deselect results</button>
-            </div>
-            <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-              <button id="layer-hide-selected" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled title="선택된 drawable 일괄 숨김">🚫 Hide selected</button>
-              <button id="layer-show-selected" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled title="선택된 drawable 일괄 보임">👁 Show selected</button>
-              <button id="layer-show-all" type="button" class="secondary" style="font-size: 0.78rem;" disabled title="전체 visibility 켜기">👁 all</button>
-            </div>
-            <div id="layer-list" style="max-height: 360px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; background: #fafafa;">
-              <div style="padding: 12px; color: #999; font-size: 0.85rem; text-align: center;">모델을 로드하세요.</div>
-            </div>
-            <div id="layer-selected-count" style="font-size: 0.78rem; color: #666; margin-top: 4px;">선택 0 개</div>
-            <!-- RX.3 — RGB multiply shift 슬라이더 -->
-            <div id="rgb-shift" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd;">
-              <div style="font-size: 0.78rem; font-weight: 600; color: #555; margin-bottom: 4px;">🎨 RGB shift (선택 drawable 일괄)</div>
-              <div class="rgb-slider"><label>R</label><input type="range" id="rgb-r" min="0" max="200" value="100" disabled /><output id="rgb-r-out">100%</output></div>
-              <div class="rgb-slider"><label>G</label><input type="range" id="rgb-g" min="0" max="200" value="100" disabled /><output id="rgb-g-out">100%</output></div>
-              <div class="rgb-slider"><label>B</label><input type="range" id="rgb-b" min="0" max="200" value="100" disabled /><output id="rgb-b-out">100%</output></div>
-              <div class="rgb-slider"><label>A</label><input type="range" id="rgb-a" min="0" max="100" value="100" disabled /><output id="rgb-a-out">100%</output></div>
-              <div style="display: flex; gap: 6px; margin-top: 4px;">
-                <button id="rgb-apply" type="button" disabled style="flex: 1; font-size: 0.78rem; padding: 4px;">Apply to <span id="rgb-apply-count">0</span> selected</button>
-                <button id="rgb-reset" type="button" class="secondary" disabled style="font-size: 0.78rem; padding: 4px;">Reset</button>
-              </div>
-            </div>
-            <!-- RX.4 — drawable bbox 를 inpaint mask 로 보내기 -->
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd;">
-              <button id="layer-to-inpaint" type="button" disabled style="width: 100%; font-size: 0.82rem; padding: 6px;" title="선택된 drawable 들의 UV bbox 를 inpaint mask 로 변환해 부분 변형">
-                ✎ 선택 영역 inpaint (<span id="layer-to-inpaint-count">0</span> drawable)
-              </button>
-            </div>
-            <!-- RX.5 — layer state 영속화 -->
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; display: flex; gap: 6px; align-items: center;">
-              <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #555; flex: 1;" title="visibility / multiply color 변경을 localStorage 에 preset 별로 자동 저장. reload 시 복원.">
-                <input type="checkbox" id="layer-persist" checked />
-                💾 변경 자동 저장 (preset 별)
-              </label>
-              <button id="layer-reset-all" type="button" class="secondary" disabled style="font-size: 0.78rem; padding: 4px 8px;" title="현재 preset 의 저장된 layer state 삭제 + 모든 drawable 초기화">
-                ↺ Reset all
-              </button>
-            </div>
-          </div>
+          <!-- RX.UI.1 — Layer Panel 은 우측 sticky sidebar 로 이동. preview-controls 는
+               파라미터/모션/표정 + auto idle/track 로 단순화. -->
         </div>
       </div>
     </section>
     <style>
       .preview-layout {
         display: grid;
-        grid-template-columns: minmax(300px, 480px) 1fr;
+        /* Layer Panel 이 우측 sidebar 로 이동했으므로 stage 가 더 넓음. */
+        grid-template-columns: minmax(360px, 1fr) minmax(240px, 320px);
         gap: 18px;
         align-items: start;
       }
@@ -446,7 +427,7 @@
         border-radius: 6px;
         background: #f7f8fa;
         width: 100%;
-        max-width: 600px;
+        max-width: 100%;
         aspect-ratio: 3 / 4;
         display: flex;
         align-items: center;
@@ -776,6 +757,60 @@
       </div>
       <div id="slot-status" class="status info" style="display: none;"></div>
     </section>
+      </div><!-- /.app-main -->
+
+      <aside class="layer-sidebar">
+        <!-- RX.2~5 — Layer Panel: drawable 검색 / visibility / multi-select / RGB shift / inpaint trigger / 영속화 -->
+        <div id="layer-panel-host">
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #444; font-weight: 600; margin-bottom: 8px;">
+            <span style="font-size: 0.95rem;">🧩 Layer Panel</span>
+            <span id="layer-count" style="color: #888; font-weight: normal; font-size: 0.78rem;">— 모델 로드 후 활성</span>
+          </div>
+          <input type="text" id="layer-search" placeholder="drawable id 검색 (예: ArtMesh, PartHair)" style="width: 100%; font-size: 0.82rem; padding: 5px 8px; margin-bottom: 6px;" disabled />
+          <div style="display: flex; gap: 6px; margin-bottom: 4px;">
+            <button id="layer-select-results" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled>Select results</button>
+            <button id="layer-deselect-results" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled>Deselect results</button>
+          </div>
+          <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+            <button id="layer-hide-selected" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled title="선택된 drawable 일괄 숨김">🚫 Hide selected</button>
+            <button id="layer-show-selected" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled title="선택된 drawable 일괄 보임">👁 Show selected</button>
+            <button id="layer-show-all" type="button" class="secondary" style="font-size: 0.78rem;" disabled title="전체 visibility 켜기">👁 all</button>
+          </div>
+          <div id="layer-list" style="height: 50vh; min-height: 280px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
+            <div style="padding: 14px; color: #999; font-size: 0.85rem; text-align: center;">모델을 로드하세요.</div>
+          </div>
+          <div id="layer-selected-count" style="font-size: 0.78rem; color: #666; margin-top: 4px;">선택 0 개</div>
+          <!-- RX.3 RGB shift -->
+          <div id="rgb-shift" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
+            <div style="font-size: 0.8rem; font-weight: 600; color: #555; margin-bottom: 6px;">🎨 RGB shift</div>
+            <div class="rgb-slider"><label>R</label><input type="range" id="rgb-r" min="0" max="200" value="100" disabled /><output id="rgb-r-out">100%</output></div>
+            <div class="rgb-slider"><label>G</label><input type="range" id="rgb-g" min="0" max="200" value="100" disabled /><output id="rgb-g-out">100%</output></div>
+            <div class="rgb-slider"><label>B</label><input type="range" id="rgb-b" min="0" max="200" value="100" disabled /><output id="rgb-b-out">100%</output></div>
+            <div class="rgb-slider"><label>A</label><input type="range" id="rgb-a" min="0" max="100" value="100" disabled /><output id="rgb-a-out">100%</output></div>
+            <div style="display: flex; gap: 6px; margin-top: 6px;">
+              <button id="rgb-apply" type="button" disabled style="flex: 1; font-size: 0.78rem; padding: 5px;">Apply to <span id="rgb-apply-count">0</span> selected</button>
+              <button id="rgb-reset" type="button" class="secondary" disabled style="font-size: 0.78rem; padding: 5px;">Reset</button>
+            </div>
+          </div>
+          <!-- RX.4 inpaint trigger -->
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd;">
+            <button id="layer-to-inpaint" type="button" disabled style="width: 100%; font-size: 0.82rem; padding: 8px;" title="선택된 drawable 들의 UV bbox 를 inpaint mask 로 변환해 부분 변형">
+              ✎ 선택 영역 inpaint (<span id="layer-to-inpaint-count">0</span> drawable)
+            </button>
+          </div>
+          <!-- RX.5 영속화 -->
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd; display: flex; gap: 6px; align-items: center;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #555; flex: 1;" title="visibility / multiply 변경을 preset 별 localStorage 에 자동 저장">
+              <input type="checkbox" id="layer-persist" checked />
+              💾 변경 자동 저장
+            </label>
+            <button id="layer-reset-all" type="button" class="secondary" disabled style="font-size: 0.78rem; padding: 4px 10px;" title="현재 preset state 삭제 + 모든 drawable 초기화">
+              ↺ Reset all
+            </button>
+          </div>
+        </div>
+      </aside>
+    </main>
 
     <style>
       #slot-overlay rect.slot-box {
@@ -1885,8 +1920,9 @@
           return;
         }
         livePanel.style.display = "block";
-        const STAGE_W = 600;
-        const STAGE_H = 800;
+        // Layer Panel 이 우측 sidebar 로 이동 후 가용 폭이 넓어져 stage 도 키움.
+        const STAGE_W = 800;
+        const STAGE_H = 1067;
         try {
           const mods = await loadPixiModules();
           // 기존 렌더 파괴.
