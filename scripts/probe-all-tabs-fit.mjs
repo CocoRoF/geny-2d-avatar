@@ -23,7 +23,7 @@ await page.waitForFunction(() => window.__genyDrawables?.length > 0, { timeout: 
 await page.waitForTimeout(2000);
 
 const tabs = [
-  { name: "setup", probe: ["#preset-select", "#bundle-name", "#go-btn"] },
+  { name: "setup", probe: ["#preset-cards", ".preset-card", "#bundle-name-input", "#go-btn", "#go-btn-quick"] },
   { name: "preview", probe: ["#preview-stage", "#preview-stage canvas"] },
   { name: "inpaint", probe: ["#inpaint-bg", "#inpaint-go"] },
   { name: "history", probe: ["#history-list", "#undo-btn"] },
