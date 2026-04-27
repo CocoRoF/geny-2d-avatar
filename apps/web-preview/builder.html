@@ -6,7 +6,65 @@
     <title>Geny 2D Avatar · Builder (P2.4)</title>
     <style>
       :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; }
-      body { margin: 0; padding: 16px 20px; color: #222; }
+      body { margin: 0; padding: 16px 20px 36px; color: #222; }
+      /* 📋 Activity Log: 하단 고정 drawer — VSCode 터미널 스타일. */
+      #log-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #1e1e1e;
+        border-top: 1px solid #3a3a3a;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.18);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        transition: height 180ms ease;
+      }
+      #log-panel.log-collapsed { height: 32px; }
+      #log-panel.log-expanded { height: 320px; }
+      #log-panel .log-bar {
+        flex: 0 0 32px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+        color: #d6d6d6;
+        font-size: 0.78rem;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        cursor: pointer;
+        user-select: none;
+      }
+      #log-panel .log-bar:hover { background: #252525; }
+      #log-panel .log-bar-title { font-weight: 600; color: #e6e6e6; }
+      #log-panel .log-bar-recent { color: #9da9b6; font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30vw; }
+      #log-panel .log-bar-ctrl { color: #aaa; cursor: pointer; }
+      #log-panel .log-bar-btn {
+        background: #2a2a2a;
+        color: #ddd;
+        border: 1px solid #444;
+        border-radius: 3px;
+        padding: 2px 10px;
+        font-size: 0.74rem;
+        cursor: pointer;
+      }
+      #log-panel .log-bar-btn:hover { background: #353535; border-color: #666; }
+      #log-output {
+        flex: 1 1 auto;
+        margin: 0;
+        padding: 10px 14px;
+        background: #1e1e1e;
+        color: #e6e6e6;
+        font-size: 0.78rem;
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.45;
+      }
+      #log-panel.log-collapsed #log-output { display: none; }
+      /* expanded 상태에선 recent line 숨김 — 본문에 직접 보이므로 중복. */
+      #log-panel.log-expanded .log-bar-recent { display: none; }
       /* Editor 레이아웃: 좌측 메인 컬럼 + 우측 sticky Layer Panel sidebar. */
       .app-grid {
         display: grid;
@@ -127,32 +185,21 @@
       </div>
     </header>
 
-    <!-- 📋 Activity Log: 모든 단계 timestamp + level + 출처 + 메시지 누적 -->
-    <section id="log-panel" style="margin-bottom: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
-        <h2 style="margin: 0; font-size: 0.95rem; text-transform: uppercase; color: #555; letter-spacing: 0.04em;">
-          📋 Activity Log
-          <small style="font-size: 0.75rem; color: #999; font-weight: normal; margin-left: 6px;">
-            모든 활동 timestamp 누적 / F12 콘솔에도 동시 출력
-          </small>
-        </h2>
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <label style="font-size: 0.78rem; color: #666;">
-            <input type="checkbox" id="log-autoscroll" checked /> auto-scroll
-          </label>
-          <button id="log-clear" type="button" class="secondary" style="padding: 3px 10px; font-size: 0.78rem;">clear</button>
-          <button id="log-toggle" type="button" class="secondary" style="padding: 3px 10px; font-size: 0.78rem;">펼치기</button>
-        </div>
+    <!-- 📋 Activity Log: 하단 drawer (VSCode terminal 스타일). 기본 collapsed.
+         펼치기 버튼 또는 헤더 클릭 시 확장. -->
+    <aside id="log-panel" class="log-collapsed">
+      <div class="log-bar" id="log-bar">
+        <span class="log-bar-title">📋 Activity Log</span>
+        <span id="log-bar-recent" class="log-bar-recent">F12 콘솔에도 출력</span>
+        <span style="flex: 1"></span>
+        <label class="log-bar-ctrl" onclick="event.stopPropagation()">
+          <input type="checkbox" id="log-autoscroll" checked /> auto-scroll
+        </label>
+        <button id="log-clear" type="button" class="log-bar-btn" onclick="event.stopPropagation()">clear</button>
+        <button id="log-toggle" type="button" class="log-bar-btn">펼치기 ▲</button>
       </div>
-      <pre id="log-output" style="
-        background: #1e1e1e; color: #e6e6e6; font-size: 0.78rem;
-        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-        padding: 10px 12px; border-radius: 5px; max-height: 240px; overflow-y: auto;
-        margin: 0; white-space: pre-wrap; word-break: break-word;
-        line-height: 1.45;
-        display: none;
-      "></pre>
-    </section>
+      <pre id="log-output"></pre>
+    </aside>
 
     <main class="app-grid">
       <div class="app-main">
@@ -940,28 +987,23 @@
       document.querySelectorAll("#app-tabs button").forEach((b) => {
         b.addEventListener("click", () => activateAppTab(b.dataset.appTab));
       });
-      // Preview 탭으로 전환 시 PIXI 캔버스 강제 재렌더 — 모델이 hidden 탭에서
-      // 로드되었을 때 canvas 가 비어있는 현상 방지. resize 까지 호출해 hidden 시
-      // 0×0 으로 잡혔던 framebuffer 도 갱신.
-      window.addEventListener("geny:app-tab", (ev) => {
+      // Preview 탭 force render hook — 함수만 정의, 등록은 pixiApp 선언 후로.
+      // (TDZ: 부팅 시 last tab 복원 → 이벤트 발화 시점에 pixiApp 이 let TDZ.)
+      function _forceRenderOnPreviewTabActivate(ev) {
         if (ev.detail?.tab !== "preview") return;
-        // 다음 frame 에 force render — DOM display:block 적용 후 layout 안정화 후.
         requestAnimationFrame(() => {
           try {
-            const app = (typeof pixiApp !== "undefined") ? pixiApp : null;
+            const app = pixiApp;
             if (!app?.renderer || !app?.stage) return;
-            // 캔버스가 화면에 올라와 있으면 resize 로 framebuffer 다시 잡고 render.
-            // resolution 동일하게 유지.
             const w = app.canvas?.width || 600;
             const h = app.canvas?.height || 800;
-            try { app.renderer.resize(w, h); } catch { /* renderer 미준비 */ }
+            try { app.renderer.resize(w, h); } catch { /* ignore */ }
             app.renderer.render(app.stage);
-            window.log?.debug?.("preview", "탭 전환 후 force render", { w, h });
           } catch (e) {
             window.log?.warn?.("preview", "force render 실패", { error: String(e) });
           }
         });
-      });
+      }
       // 페이지 로드 시 마지막 탭 복원 (없으면 기본 setup).
       try {
         const last = localStorage.getItem(APP_TAB_KEY);
@@ -1018,15 +1060,41 @@
         debug: (source, message, data) => logEmit("debug", source, message, data),
       };
       logClearBtn.addEventListener("click", () => { logOutput.innerHTML = ""; });
-      // Default 는 collapsed 로 — 진단이 필요할 때만 펼치기. 화면 fold 위 영역
-      // 절약 (이전엔 320px 가 viewport 의 큰 부분 잡아 Preview 탭 캔버스가 fold
-      // 아래로 밀렸음).
-      let logCollapsed = true;
-      logToggleBtn.addEventListener("click", () => {
-        logCollapsed = !logCollapsed;
-        logOutput.style.display = logCollapsed ? "none" : "";
-        logToggleBtn.textContent = logCollapsed ? "펼치기" : "접기";
+      // 하단 drawer 토글. log-bar 헤더 클릭 시 expand/collapse — VSCode 터미널 스타일.
+      const logPanel = document.getElementById("log-panel");
+      const logBar = document.getElementById("log-bar");
+      const logBarRecent = document.getElementById("log-bar-recent");
+      function setLogExpanded(expanded) {
+        logPanel.classList.toggle("log-expanded", expanded);
+        logPanel.classList.toggle("log-collapsed", !expanded);
+        logToggleBtn.textContent = expanded ? "접기 ▼" : "펼치기 ▲";
+      }
+      function toggleLogPanel() {
+        setLogExpanded(!logPanel.classList.contains("log-expanded"));
+      }
+      logBar.addEventListener("click", toggleLogPanel);
+      logToggleBtn.addEventListener("click", (ev) => {
+        // 버튼 클릭이 bar 클릭으로도 propagate 되어 두 번 토글되는 것 방지.
+        ev.stopPropagation();
+        toggleLogPanel();
       });
+      // collapsed bar 의 한 줄 미리보기 — 가장 최근 로그 항목 텍스트.
+      const _origLogEmit = logEmit;
+      function logEmitWithRecent(level, source, message, data) {
+        _origLogEmit(level, source, message, data);
+        try {
+          if (logBarRecent && logPanel.classList.contains("log-collapsed")) {
+            logBarRecent.textContent = "[" + level + "] " + source + " · " + message;
+          }
+        } catch { /* ignore */ }
+      }
+      window.log = {
+        info: (s, m, d) => logEmitWithRecent("info", s, m, d),
+        ok: (s, m, d) => logEmitWithRecent("ok", s, m, d),
+        warn: (s, m, d) => logEmitWithRecent("warn", s, m, d),
+        err: (s, m, d) => logEmitWithRecent("err", s, m, d),
+        debug: (s, m, d) => logEmitWithRecent("debug", s, m, d),
+      };
       window.log.info("boot", "Builder UI 시작 · API=" + API);
 
       // 모든 fetch 호출을 wrap 해서 자동 로깅. 응답 status / 시간 / size 기록.
@@ -1966,6 +2034,8 @@
       let currentModel = null;
       let currentRenderer = null;
       let rendererReady = false;
+      // pixiApp 이 선언된 이후에 listener 등록 — TDZ 방지.
+      window.addEventListener("geny:app-tab", _forceRenderOnPreviewTabActivate);
 
       async function loadPixiModules() {
         if (pixiModules) return pixiModules;
