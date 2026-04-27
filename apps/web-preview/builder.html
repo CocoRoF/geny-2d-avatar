@@ -1357,8 +1357,8 @@
           motions: p.motion_count,
           expressions: p.expression_count,
         });
-        // Baseline preview: preset 선택 즉시 원본 텍스처로 렌더.
-        reloadLivePreview({ preset: { id, version }, textureId: null });
+        // Baseline preview: preset 선택 즉시 원본 텍스처로 렌더 (Preview 탭 활성 시만 즉시).
+        requestLivePreview({ preset: { id, version }, textureId: null });
       });
 
       // 2) 텍스처 준비 (upload 또는 generate) → 빌드.
@@ -1911,7 +1911,7 @@
           renderHistory();
           await rebuildWithCurrentTexture("히스토리 점프 rebuild: " + h.label);
           // Runtime preview 도 되돌림.
-          reloadLivePreview({ preset: h.preset, textureId: h.texture_id });
+          requestLivePreview({ preset: h.preset, textureId: h.texture_id });
           // Inpaint 패널 baseline 도 jumped 텍스처로 동기화. 이전 mask 는 새 baseline 과
           // 일관성이 없을 수 있으므로 보존하지 않음 (preserveMask 미지정).
           window.dispatchEvent(
@@ -2021,7 +2021,7 @@
           preset,
         });
         // Live2D 프리뷰 자동 리로드.
-        reloadLivePreview({ preset, textureId });
+        requestLivePreview({ preset, textureId });
       });
 
       // ===== Runtime Preview - Live2D 실시간 렌더 =====
@@ -2034,8 +2034,35 @@
       let currentModel = null;
       let currentRenderer = null;
       let rendererReady = false;
+      // Preview 탭이 가시 상태일 때만 PIXI init — 일부 환경에서 hidden 탭에 init 시
+      // canvas backing 이 0×0 으로 잡혀 모델이 빈 화면으로 보임. tab 이 inactive 면
+      // _pendingPreviewLoad 에 stash, 활성화 시 처리.
+      let _pendingPreviewLoad = null; // { preset, textureId }
+      function isPreviewTabActive() {
+        const p = document.querySelector('.app-tab-pane[data-app-tab="preview"]');
+        return !!p?.classList.contains("active");
+      }
+      function requestLivePreview(args) {
+        if (isPreviewTabActive()) {
+          reloadLivePreview(args);
+        } else {
+          _pendingPreviewLoad = args;
+          window.log?.info?.("preview", "Preview 탭 미활성 — 탭 전환 시 모델 로드", {
+            preset: args.preset?.id,
+          });
+        }
+      }
       // pixiApp 이 선언된 이후에 listener 등록 — TDZ 방지.
       window.addEventListener("geny:app-tab", _forceRenderOnPreviewTabActivate);
+      window.addEventListener("geny:app-tab", (ev) => {
+        if (ev.detail?.tab !== "preview") return;
+        if (_pendingPreviewLoad) {
+          const args = _pendingPreviewLoad;
+          _pendingPreviewLoad = null;
+          // 다음 frame 에 — DOM display:block 적용 후 layout 완료 시점.
+          requestAnimationFrame(() => reloadLivePreview(args));
+        }
+      });
 
       async function loadPixiModules() {
         if (pixiModules) return pixiModules;
@@ -2168,6 +2195,28 @@
           currentModel = model;
           rendererReady = true;
           wirePreviewControls(model);
+          // 빈 캔버스 방지 — 일부 환경 (autoDensity + hidden 탭 + WebGL 쿼크) 에서
+          // PIXI 의 첫 render 가 빈 frame 으로 끝남. 강제로 여러 프레임 render.
+          // ticker 가 정상 동작하면 이 호출은 사실상 idempotent 한 단일 frame 추가.
+          const _kickRender = () => {
+            try { app.renderer?.render(app.stage); } catch { /* ignore */ }
+          };
+          _kickRender();
+          requestAnimationFrame(_kickRender);
+          setTimeout(_kickRender, 100);
+          setTimeout(_kickRender, 400);
+          // 모델 stage bounds 진단 — 0×0 이면 알파/visible 문제, 음수 좌표면 stage 밖.
+          try {
+            const b = model.getBounds?.();
+            window.log.debug?.("live2d", "model bounds", {
+              x: Math.round(b?.x ?? 0), y: Math.round(b?.y ?? 0),
+              w: Math.round(b?.width ?? 0), h: Math.round(b?.height ?? 0),
+              visible: model.visible !== false,
+              alpha: model.alpha,
+              ticker_running: !!app.ticker?.started,
+              stage_children: app.stage.children?.length ?? 0,
+            });
+          } catch (e) { /* ignore */ }
           window.log.ok("live2d", "Live2D 모델 로드 성공", {
             texture_id: textureId ?? "baseline",
             raw_size: Math.round(rawW) + "x" + Math.round(rawH),
@@ -2987,7 +3036,7 @@
 
       // 슬롯 재생성 성공 후에도 자동 리로드 (slotState.textureId 가 바뀌었을 때).
       window.addEventListener("geny:slot-regen-success", (ev) => {
-        reloadLivePreview({
+        requestLivePreview({
           preset: ev.detail.preset,
           textureId: ev.detail.textureId,
         });
@@ -3453,7 +3502,7 @@
             preset: { id: inpaintState.preset.id, version: inpaintState.preset.version },
           });
           await rebuildWithCurrentTexture("Inpaint 후 자동 rebuild");
-          reloadLivePreview({
+          requestLivePreview({
             preset: inpaintState.preset,
             textureId: body.texture_id,
           });
@@ -3703,7 +3752,7 @@
               preset: { id, version },
             });
             await rebuildWithCurrentTexture("슬롯 생성");
-            reloadLivePreview({ preset: { id, version }, textureId: body.texture_id });
+            requestLivePreview({ preset: { id, version }, textureId: body.texture_id });
           } else {
             // full atlas 모드.
             const r = await fetch(API + "/api/texture/generate", {
@@ -3729,7 +3778,7 @@
               preset: { id, version },
             });
             await rebuildWithCurrentTexture("AI 생성");
-            reloadLivePreview({ preset: { id, version }, textureId: body.texture_id });
+            requestLivePreview({ preset: { id, version }, textureId: body.texture_id });
             // 상세 로그.
             const elapsed = Date.now() - t0;
             const attemptsLog = (body.attempts ?? [])
