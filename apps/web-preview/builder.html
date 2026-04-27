@@ -2197,6 +2197,7 @@
           previewStage.innerHTML = "";
           previewStage.appendChild(app.canvas);
           pixiApp = app;
+          window.pixiApp = app; // dev hook — 콘솔 / verify script 진단 용도.
           // WebGL context lost 감지 → 자동 복구. 일부 환경에서 탭 visibility 변화 시
           // 컨텍스트 잃을 수 있음.
           app.canvas.addEventListener("webglcontextlost", (e) => {
@@ -2244,6 +2245,59 @@
           requestAnimationFrame(_kickRender);
           setTimeout(_kickRender, 100);
           setTimeout(_kickRender, 400);
+
+          // ★ 핵심: Cubism Framework 가 매 frame update 시 drawable 의 multiplyColor 를
+          // 애니메이션 값으로 다시 계산. 우리가 한 번 set 해도 다음 frame 에 reset.
+          // → PIXI ticker 에 LOW priority callback 추가, 매 frame 마지막에 layerState 의
+          // hidden/multiply 를 다시 적용 (renderer.render 직전).
+          try {
+            if (app.ticker && typeof app.ticker.add === "function") {
+              // 실측 결과: drawable-level multiplyColor.A 는 Cubism shader 가 무시 (RGB 만 사용).
+              // 하지만 part-level setPartOpacityByIndex(partIdx, 0) 을 매 frame 적용하면 hide 됨.
+              // → visibility 는 PART 단위로 적용. RGB shift 는 drawable 단위 가능.
+              const reapply = () => {
+                if (!layerState) return;
+                const cm2 = layerState.model?.internalModel?.coreModel;
+                if (!cm2) return;
+                const raw = cm2.getModel?.();
+                const partOpacities = raw?.parts?.opacities;
+
+                // hidden drawable → 부모 part 들 모음.
+                const hidePartIndices = new Set();
+                for (const idx of layerState.hidden) {
+                  const d = layerState.drawables[idx];
+                  if (d?.partIndex >= 0) hidePartIndices.add(d.partIndex);
+                }
+                // multiply 의 alpha 0 도 hidePartIndices 에 포함.
+                if (layerState.multiply) {
+                  for (const [idx, rgba] of layerState.multiply) {
+                    const d = layerState.drawables[idx];
+                    if (rgba[3] === 0 && d?.partIndex >= 0) hidePartIndices.add(d.partIndex);
+                  }
+                }
+                // partOpacity 0 → hide. raw 와 wrapper 둘 다.
+                for (const pi of hidePartIndices) {
+                  if (partOpacities) partOpacities[pi] = 0;
+                  try { cm2.setPartOpacityByIndex?.(pi, 0); } catch {}
+                }
+
+                // RGB shift (multiply) — drawable-level. RGB 만 효과 있음.
+                if (layerState.multiply) {
+                  for (const [idx, rgba] of layerState.multiply) {
+                    const d = layerState.drawables[idx];
+                    if (!d) continue;
+                    cm2.setOverrideFlagForDrawableMultiplyColors?.(d.index, true);
+                    cm2.setMultiplyColorByRGBA?.(d.index, rgba[0], rgba[1], rgba[2], 1);
+                  }
+                }
+              };
+              // PIXI v8: 음수 priority = LOW, runs 마지막. 모델 update 이후, render 직전.
+              app.ticker.add(reapply, null, -50);
+              model.__layerReapplyHook = reapply;
+            }
+          } catch (e) {
+            window.log?.warn?.("layer", "per-frame reapply hook 등록 실패", { error: String(e) });
+          }
           // 모델 stage bounds 진단 — 0×0 이면 알파/visible 문제, 음수 좌표면 stage 밖.
           try {
             const b = model.getBounds?.();
