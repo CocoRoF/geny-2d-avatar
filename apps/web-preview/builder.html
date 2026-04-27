@@ -162,6 +162,7 @@
         <button type="button" data-app-tab="inpaint">🎯 Inpaint</button>
         <button type="button" data-app-tab="history">📜 History</button>
         <button type="button" data-app-tab="slot">🧩 Slot</button>
+        <button type="button" id="go-btn-quick" disabled style="margin-left: auto; background: #2a6df4; color: #fff; border-radius: 6px; border: 1px solid #1e50c2; font-weight: 600;" title="현재 preset + 텍스처 → Cubism 번들 zip 다운로드">💾 Save</button>
       </nav>
       <div class="app-tab-pane active" data-app-tab="setup">
     <style>
@@ -244,7 +245,10 @@
       }
       .preset-card .thumb {
         width: 100%;
-        aspect-ratio: 1 / 1;
+        /* 카드 thumb 가 1:1 정사각이라 카드 전체가 425px 이상으로 비대해지던 문제 →
+           높이 cap. atlas preview 비율이 다양해도 일정 max-height 유지. */
+        max-height: 140px;
+        aspect-ratio: 16 / 9;
         background: repeating-linear-gradient(45deg, #f2f2f4 0 6px, #fff 6px 12px);
         border-radius: 4px;
         display: flex;
@@ -311,41 +315,51 @@
     </style>
 
     <section>
-      <h2>2 · Texture 소스</h2>
-      <div class="tabs" style="display: flex; gap: 2px; margin-bottom: 12px; border-bottom: 1px solid #ddd;">
-        <button class="tab-btn active" data-tab="upload" disabled>A · PNG 업로드</button>
-        <button class="tab-btn" data-tab="generate" disabled>B · Mock 생성 (P3.1)</button>
+      <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
+        <h2 style="margin: 0;">2 · Save</h2>
+        <span style="font-size: 0.78rem; color: #888;">현재 preset + 텍스처(Preview/Inpaint 결과 또는 아래 직접 입력) → Cubism 번들 zip 다운로드</span>
       </div>
 
-      <div class="tab-panel" data-panel="upload">
-        <div class="form-row">
-          <label class="block" for="file-input">PNG 파일 (프리셋 atlas 와 크기 일치 필수)</label>
-          <input type="file" id="file-input" accept="image/png" disabled />
-        </div>
-      </div>
-
-      <div class="tab-panel" data-panel="generate" style="display: none;">
-        <div class="form-row">
-          <label class="block" for="prompt-input">프롬프트</label>
-          <input type="text" id="prompt-input" placeholder="예: blue-haired anime girl, pastel hoodie" disabled />
-        </div>
-        <div class="form-row inline">
-          <label class="block" for="seed-input">seed (옵션, 정수)</label>
-          <input type="text" id="seed-input" placeholder="기본: 0" disabled />
-        </div>
-        <p style="font-size: 0.82rem; color: #888; margin: 4px 0 10px;">
-          ⚠️ P3.1 Mock 생성기 — 결정론적이지만 실 AI 는 아님. 시각적 variation 확인 + 파이프라인 검증용.
-          실 벤더 통합은 P3.3 이후.
-        </p>
-      </div>
-
-      <div class="form-row inline">
+      <div class="form-row inline" style="margin-bottom: 8px;">
         <label class="block" for="bundle-name-input">bundle_name (옵션)</label>
         <input type="text" id="bundle-name-input" placeholder="기본: preset slug" disabled />
       </div>
 
-      <button id="go-btn" disabled>💾 텍스처 준비 + Save (Live2D 모델 만들기)</button>
+      <button id="go-btn" disabled style="position: sticky; bottom: 12px; z-index: 5; box-shadow: 0 2px 8px rgba(42, 109, 244, 0.25);">💾 Save (Live2D 모델 zip 만들기)</button>
       <div id="status-box" class="status info" style="display: none;"></div>
+
+      <details style="margin-top: 14px;">
+        <summary style="cursor: pointer; font-size: 0.85rem; color: #666; user-select: none;">
+          ▸ 텍스처 직접 입력 (PNG 업로드 / Mock 생성) — 보통 Preview 탭 AI 생성 사용
+        </summary>
+        <div style="padding: 10px 0 0 4px;">
+          <div class="tabs" style="display: flex; gap: 2px; margin-bottom: 12px; border-bottom: 1px solid #ddd;">
+            <button class="tab-btn active" data-tab="upload" disabled>A · PNG 업로드</button>
+            <button class="tab-btn" data-tab="generate" disabled>B · Mock 생성 (P3.1)</button>
+          </div>
+
+          <div class="tab-panel" data-panel="upload">
+            <div class="form-row">
+              <label class="block" for="file-input">PNG 파일 (프리셋 atlas 와 크기 일치 필수)</label>
+              <input type="file" id="file-input" accept="image/png" disabled />
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="generate" style="display: none;">
+            <div class="form-row">
+              <label class="block" for="prompt-input">프롬프트</label>
+              <input type="text" id="prompt-input" placeholder="예: blue-haired anime girl, pastel hoodie" disabled />
+            </div>
+            <div class="form-row inline">
+              <label class="block" for="seed-input">seed (옵션, 정수)</label>
+              <input type="text" id="seed-input" placeholder="기본: 0" disabled />
+            </div>
+            <p style="font-size: 0.82rem; color: #888; margin: 4px 0 10px;">
+              ⚠️ P3.1 Mock 생성기 — 결정론적이지만 실 AI 는 아님. 실 AI 생성은 Preview 탭 사용.
+            </p>
+          </div>
+        </div>
+      </details>
     </section>
     <style>
       .tab-btn {
@@ -1024,6 +1038,15 @@
       const seedInput = document.getElementById("seed-input");
       const bundleNameInput = document.getElementById("bundle-name-input");
       const goBtn = document.getElementById("go-btn");
+      const goBtnQuick = document.getElementById("go-btn-quick");
+      // 탭 nav 의 Save 버튼이 본 go-btn 을 trigger. 항상 viewport 안에서 접근 가능.
+      goBtnQuick.addEventListener("click", () => {
+        if (!goBtn.disabled) goBtn.click();
+      });
+      // 본 go-btn disabled state 를 quick 버튼에도 mirror — MutationObserver 로 동기화.
+      const _mirrorGoBtn = () => { goBtnQuick.disabled = goBtn.disabled; };
+      new MutationObserver(_mirrorGoBtn).observe(goBtn, { attributes: true, attributeFilter: ["disabled"] });
+      _mirrorGoBtn();
       const statusBox = document.getElementById("status-box");
       const result = document.getElementById("result");
       const tabBtns = [...document.querySelectorAll(".tab-btn")];
