@@ -119,15 +119,10 @@
     </style>
   </head>
   <body>
-    <header>
-      <h1>Builder <small style="color: #999; font-weight: normal;">· P2.4</small></h1>
-      <p>
-        프리셋 선택 → 텍스처 PNG 업로드 → 빌드 → Cubism 번들 다운로드. <code>apps/api</code> end-to-end 라운드트립.
-      </p>
-      <p style="font-size: 0.85rem; color: #888;">
-        사전 조건: <code>pnpm -F @geny/api dev</code> 로 백엔드가 기본 포트 3000 에 떠 있어야 함. 필요 시 <code>?api=http://...</code> 로 override.
-      </p>
-      <div id="adapters-banner" class="status info" style="font-size: 0.85rem; margin-top: 8px;">
+    <header style="display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 8px;">
+      <h1 style="margin: 0; font-size: 1.4rem;">Geny Builder</h1>
+      <span style="font-size: 0.78rem; color: #888;">프리셋 → 텍스처 → 빌드 → Cubism 번들. API 기본 :3000 (?api=…)</span>
+      <div id="adapters-banner" class="status info" style="font-size: 0.78rem; padding: 4px 10px; margin: 0 0 0 auto;">
         백엔드 어댑터 정보 로드 중…
       </div>
     </header>
@@ -146,15 +141,16 @@
             <input type="checkbox" id="log-autoscroll" checked /> auto-scroll
           </label>
           <button id="log-clear" type="button" class="secondary" style="padding: 3px 10px; font-size: 0.78rem;">clear</button>
-          <button id="log-toggle" type="button" class="secondary" style="padding: 3px 10px; font-size: 0.78rem;">접기</button>
+          <button id="log-toggle" type="button" class="secondary" style="padding: 3px 10px; font-size: 0.78rem;">펼치기</button>
         </div>
       </div>
       <pre id="log-output" style="
         background: #1e1e1e; color: #e6e6e6; font-size: 0.78rem;
         font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-        padding: 10px 12px; border-radius: 5px; max-height: 320px; overflow-y: auto;
+        padding: 10px 12px; border-radius: 5px; max-height: 240px; overflow-y: auto;
         margin: 0; white-space: pre-wrap; word-break: break-word;
         line-height: 1.45;
+        display: none;
       "></pre>
     </section>
 
@@ -384,12 +380,11 @@
       </div><!-- /.app-tab-pane setup -->
       <div class="app-tab-pane" data-app-tab="preview">
     <section id="live-preview-panel">
-      <h2>✨ Live2D 실시간 프리뷰 <small style="color:#999;font-weight:normal;">· runtime-preview</small></h2>
-      <p style="font-size: 0.85rem; color: #666; margin: 0 0 10px;">
-        현재 프리셋 + 최신 텍스처를 즉시 Live2D 로 렌더. 텍스처 생성/업로드/슬롯 재생성 시 자동 re-load.
-        <code>.moc3</code> 기반 프리셋 (mao_pro 등) 만 지원.
-      </p>
-      <div id="preview-status" class="status info">초기화 대기…</div>
+      <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+        <h2 style="margin: 0;">✨ Live2D 실시간 프리뷰</h2>
+        <span style="font-size: 0.78rem; color: #888;">.moc3 프리셋 (mao_pro) 만 지원 · 텍스처 변경 시 자동 re-load</span>
+      </div>
+      <div id="preview-status" class="status info" style="margin-top: 8px;">초기화 대기…</div>
       <div class="preview-layout">
         <div id="preview-stage" class="preview-stage">프리셋 선택 + 텍스처 준비 후 렌더</div>
         <div class="preview-controls">
@@ -477,7 +472,10 @@
         border: 1px solid #ddd;
         border-radius: 6px;
         background: #f7f8fa;
-        width: 100%;
+        /* viewport 안에 fit — 헤더/탭/섹션헤더 약 280px 차감 후 stage 차지.
+           width 는 aspect-ratio 3/4 로 자동 도출, max-width 로 grid 폭 침범 방지. */
+        height: min(calc(100vh - 280px), 720px);
+        min-height: 320px;
         max-width: 100%;
         aspect-ratio: 3 / 4;
         display: flex;
@@ -486,6 +484,7 @@
         color: #888;
         font-size: 0.9rem;
         overflow: hidden;
+        margin: 0 auto;
       }
       .preview-stage canvas {
         max-width: 100%;
@@ -982,7 +981,10 @@
         debug: (source, message, data) => logEmit("debug", source, message, data),
       };
       logClearBtn.addEventListener("click", () => { logOutput.innerHTML = ""; });
-      let logCollapsed = false;
+      // Default 는 collapsed 로 — 진단이 필요할 때만 펼치기. 화면 fold 위 영역
+      // 절약 (이전엔 320px 가 viewport 의 큰 부분 잡아 Preview 탭 캔버스가 fold
+      // 아래로 밀렸음).
+      let logCollapsed = true;
       logToggleBtn.addEventListener("click", () => {
         logCollapsed = !logCollapsed;
         logOutput.style.display = logCollapsed ? "none" : "";
@@ -2109,13 +2111,16 @@
           setStatus(
             previewStatus,
             "ok",
-            "✅ 렌더 성공\n" +
-              "  texture_id: " + (textureId ?? "원본 baseline") + "\n" +
-              "  raw: " + Math.round(rawW) + "×" + Math.round(rawH) +
-              " · scale: " + fitScale.toFixed(3) +
-              " · stage: " + STAGE_W + "×" + STAGE_H + "\n" +
-              "파라미터/모션/표정 컨트롤을 조작해보세요.",
+            "✅ 렌더 성공 · texture: " + (textureId ?? "baseline") +
+            " · raw " + Math.round(rawW) + "×" + Math.round(rawH) +
+            " · scale " + fitScale.toFixed(3),
           );
+          // 1.2초 후 status 박스 자동 collapse — viewport 위쪽 공간 확보.
+          setTimeout(() => {
+            if (previewStatus.classList.contains("ok")) {
+              previewStatus.style.display = "none";
+            }
+          }, 1200);
         } catch (err) {
           window.log.err("live2d", "Live2D 렌더 실패", {
             error: err && err.message ? err.message : String(err),
