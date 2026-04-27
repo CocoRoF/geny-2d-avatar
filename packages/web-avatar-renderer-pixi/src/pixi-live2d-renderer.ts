@@ -74,8 +74,12 @@ export interface Live2DModelLike {
       // ----- RX.1 drawable enumeration -----
       /** 모델의 drawable 갯수. */
       getDrawableCount?: () => number;
-      /** index → drawable id (예: "b_f_3", "back_tree_l1"). */
-      getDrawableId?: (index: number) => string;
+      /**
+       * index → drawable id. pixi-live2d-display-advanced 는 CubismIdHandle 래퍼
+       * (`{ _id: { s: "..." } }`) 를 반환할 수 있어 unknown 으로 받아 정규화 필요.
+       * Cubism Framework JS 직접 import 환경에서는 string 일 수도 있음.
+       */
+      getDrawableId?: (index: number) => string | { readonly _id?: { readonly s?: string } } | unknown;
       /** index → drawable 의 vertex UV 배열 (Float32Array, [u0,v0,u1,v1,...]). */
       getDrawableVertexUvs?: (index: number) => Float32Array;
       /** index → 사용하는 atlas texture index (multi-texture 모델 대응). */
@@ -90,8 +94,10 @@ export interface Live2DModelLike {
       getDrawableBlendMode?: (index: number) => number;
       /** part 갯수. */
       getPartCount?: () => number;
-      /** part index → id. */
-      getPartId?: (index: number) => string;
+      /**
+       * part index → id. drawable id 와 동일하게 CubismIdHandle 래퍼 가능.
+       */
+      getPartId?: (index: number) => string | { readonly _id?: { readonly s?: string } } | unknown;
       // ----- RX.1+ drawable mutation (visibility / RGB shift) -----
       /** drawable 의 multiply color 강제 override 활성. */
       setOverrideFlagForDrawableMultiplyColors?: (

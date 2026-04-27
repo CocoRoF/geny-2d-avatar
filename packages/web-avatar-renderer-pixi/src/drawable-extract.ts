@@ -126,17 +126,36 @@ function tryWrapperReader(
   let count = 0;
   try { count = cm.getDrawableCount.call(cm); } catch { return null; }
   if (!Number.isFinite(count) || count <= 0) return null;
-  const partIds: (string | null)[] = [];
+  const rawPartIds: unknown[] = [];
   if (typeof cm.getPartCount === "function" && typeof cm.getPartId === "function") {
     const pc = (cm.getPartCount.call(cm) | 0);
     for (let i = 0; i < pc; i++) {
-      try { partIds.push(cm.getPartId.call(cm, i) ?? null); } catch { partIds.push(null); }
+      try { rawPartIds.push(cm.getPartId.call(cm, i)); } catch { rawPartIds.push(null); }
     }
   }
+  // pixi-live2d-display-advanced wrapper 의 getDrawableId/getPartId 는
+  // CubismIdHandle 래퍼 ({ _id: { s: "..." } }) 또는 string 둘 다 가능.
+  // 안전하게 string 으로 정규화.
+  const idToStr = (v: unknown): string => {
+    if (typeof v === "string") return v;
+    if (v && typeof v === "object") {
+      const obj = v as Record<string, unknown>;
+      const inner = obj["_id"];
+      if (inner && typeof inner === "object") {
+        const s = (inner as Record<string, unknown>)["s"];
+        if (typeof s === "string") return s;
+      }
+      // CubismId.toString() 도 흔히 id 문자열 반환.
+      const t = (v as { toString?: () => string }).toString?.();
+      if (typeof t === "string" && t !== "[object Object]") return t;
+    }
+    return "";
+  };
+
   return {
     count,
-    partIds,
-    getId(i) { try { return cm.getDrawableId?.call(cm, i) ?? ""; } catch { return ""; } },
+    partIds: rawPartIds.map((id) => (id == null ? null : idToStr(id) || null)),
+    getId(i) { try { return idToStr(cm.getDrawableId?.call(cm, i)); } catch { return ""; } },
     getUvs(i) {
       try {
         const v = cm.getDrawableVertexUvs?.call(cm, i);
@@ -191,8 +210,10 @@ export function extractDrawables(
 ): DrawableMeta[] {
   const cm = model.internalModel?.coreModel;
   if (!cm) return [];
-  // 1차: wrapper 메서드. 2차 fallback: raw struct (getModel().drawables).
-  const reader = tryWrapperReader(cm) ?? tryRawReader(cm);
+  // **Raw struct 우선** — pixi-live2d-display-advanced 의 wrapper 는 id 를
+  // CubismIdHandle 래퍼 ({ _id: { s: "..." } }) 로 반환. raw struct (getModel().drawables.ids)
+  // 가 string 을 직접 노출하므로 안정적. wrapper 는 raw 미노출 환경에서만 fallback.
+  const reader = tryRawReader(cm) ?? tryWrapperReader(cm);
   if (!reader || reader.count <= 0) return [];
 
   const flipY = !!model.internalModel.textureFlipY;
