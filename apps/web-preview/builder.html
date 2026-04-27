@@ -587,12 +587,10 @@
       </div><!-- /.app-tab-pane preview -->
       <div class="app-tab-pane" data-app-tab="inpaint">
     <section id="inpaint-panel">
-      <h2>🎯 영역 선택 + AI 인페인팅 <small style="color:#999;font-weight:normal;">· 핵심 기능</small></h2>
-      <p style="font-size: 0.85rem; color: #666; margin: 0 0 8px;">
-        원본 텍스처 위에 변형하고 싶은 영역만 brush 로 칠하세요. AI 가 그 영역만 변형하고
-        <strong>외부는 sharp 후처리로 강제 원본 보존</strong> — atlas layout 100% 유지.
-        AI 가 mask 무시해도 우리가 합성으로 강제 복원.
-      </p>
+      <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+        <h2 style="margin: 0;">🎯 영역 선택 + AI 인페인팅</h2>
+        <span style="font-size: 0.78rem; color: #888;">brush 로 영역 선택 → AI 가 그 영역만 변형, 외부는 sharp 후처리로 원본 보존</span>
+      </div>
       <div class="inpaint-layout">
         <div class="inpaint-canvas-wrap">
           <canvas id="inpaint-bg" class="inpaint-canvas"></canvas>
@@ -663,11 +661,14 @@
         border-radius: 6px;
         overflow: hidden;
         line-height: 0;
+        /* viewport 안에 fit — inpaint 캔버스 512×512 가 너무 커지지 않게 cap. */
+        width: min(100%, calc(100vh - 280px));
+        aspect-ratio: 1 / 1;
       }
       .inpaint-canvas {
         display: block;
-        max-width: 100%;
-        height: auto;
+        width: 100%;
+        height: 100%;
         cursor: crosshair;
       }
       .inpaint-mask-overlay {
