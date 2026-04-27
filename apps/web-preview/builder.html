@@ -120,8 +120,21 @@
         border-bottom: 2px solid #fff;
         font-weight: 600;
       }
-      .app-tab-pane { display: none; }
-      .app-tab-pane.active { display: block; }
+      /* 비활성 탭 pane 은 display:none 대신 visibility:hidden + height:0 으로 처리.
+         이유: PIXI canvas 가 display:none 안에 들어가면 일부 GPU/드라이버 환경에서
+         WebGL context lost / 첫 frame 빈 buffer 가 됨. 탭 왕복 시 모델 사라짐.
+         visibility:hidden + height:0 는 layout 기여 0 이지만 render tree 유지 → WebGL 안정. */
+      .app-tab-pane {
+        visibility: hidden;
+        height: 0;
+        overflow: hidden;
+        margin: 0;
+      }
+      .app-tab-pane.active {
+        visibility: visible;
+        height: auto;
+        overflow: visible;
+      }
       header h1 { margin: 0 0 4px; }
       header p { margin: 0 0 20px; color: #666; font-size: 0.92rem; }
       section {
@@ -991,18 +1004,31 @@
       // (TDZ: 부팅 시 last tab 복원 → 이벤트 발화 시점에 pixiApp 이 let TDZ.)
       function _forceRenderOnPreviewTabActivate(ev) {
         if (ev.detail?.tab !== "preview") return;
-        requestAnimationFrame(() => {
+        // 여러 시점에 force render — 탭 왕복 시 일부 frame 손실 / WebGL 회복 시점 다양.
+        const kick = () => {
           try {
             const app = pixiApp;
             if (!app?.renderer || !app?.stage) return;
+            // ticker 가 멈춰 있으면 재시작.
+            if (app.ticker && !app.ticker.started) {
+              try { app.ticker.start(); } catch { /* ignore */ }
+            }
             const w = app.canvas?.width || 600;
             const h = app.canvas?.height || 800;
             try { app.renderer.resize(w, h); } catch { /* ignore */ }
+            // pixi-live2d-display 의 model.update() 를 강제 호출해 Cubism state 진행.
+            if (currentModel?.update) {
+              try { currentModel.update(16); } catch { /* ignore */ }
+            }
             app.renderer.render(app.stage);
           } catch (e) {
             window.log?.warn?.("preview", "force render 실패", { error: String(e) });
           }
-        });
+        };
+        requestAnimationFrame(kick);
+        setTimeout(kick, 80);
+        setTimeout(kick, 250);
+        setTimeout(kick, 600);
       }
       // 페이지 로드 시 마지막 탭 복원 (없으면 기본 setup).
       try {
@@ -2171,6 +2197,19 @@
           previewStage.innerHTML = "";
           previewStage.appendChild(app.canvas);
           pixiApp = app;
+          // WebGL context lost 감지 → 자동 복구. 일부 환경에서 탭 visibility 변화 시
+          // 컨텍스트 잃을 수 있음.
+          app.canvas.addEventListener("webglcontextlost", (e) => {
+            e.preventDefault();
+            window.log?.warn?.("live2d", "WebGL context lost — 자동 복구 예약", {});
+          }, { passive: false });
+          app.canvas.addEventListener("webglcontextrestored", () => {
+            window.log?.info?.("live2d", "WebGL context restored — 모델 재로드", {});
+            // 현재 preset/textureId 로 fresh 로드.
+            if (currentModel?.preset) {
+              requestLivePreview({ preset: currentModel.preset, textureId: textureId });
+            }
+          });
 
           const modelUrl =
             API + "/api/live2d/" + encodeURIComponent(preset.id) + "/" +
