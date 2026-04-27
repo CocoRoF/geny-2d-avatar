@@ -840,7 +840,7 @@
             <button id="layer-show-selected" type="button" class="secondary" style="font-size: 0.78rem; flex: 1;" disabled title="선택된 drawable 일괄 보임">👁 Show selected</button>
             <button id="layer-show-all" type="button" class="secondary" style="font-size: 0.78rem;" disabled title="전체 visibility 켜기">👁 all</button>
           </div>
-          <div id="layer-list" style="height: 50vh; min-height: 280px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
+          <div id="layer-list" style="height: clamp(220px, 38vh, 440px); overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
             <div style="padding: 14px; color: #999; font-size: 0.85rem; text-align: center;">모델을 로드하세요.</div>
           </div>
           <div id="layer-selected-count" style="font-size: 0.78rem; color: #666; margin-top: 4px;">선택 0 개</div>
@@ -939,6 +939,28 @@
       }
       document.querySelectorAll("#app-tabs button").forEach((b) => {
         b.addEventListener("click", () => activateAppTab(b.dataset.appTab));
+      });
+      // Preview 탭으로 전환 시 PIXI 캔버스 강제 재렌더 — 모델이 hidden 탭에서
+      // 로드되었을 때 canvas 가 비어있는 현상 방지. resize 까지 호출해 hidden 시
+      // 0×0 으로 잡혔던 framebuffer 도 갱신.
+      window.addEventListener("geny:app-tab", (ev) => {
+        if (ev.detail?.tab !== "preview") return;
+        // 다음 frame 에 force render — DOM display:block 적용 후 layout 안정화 후.
+        requestAnimationFrame(() => {
+          try {
+            const app = (typeof pixiApp !== "undefined") ? pixiApp : null;
+            if (!app?.renderer || !app?.stage) return;
+            // 캔버스가 화면에 올라와 있으면 resize 로 framebuffer 다시 잡고 render.
+            // resolution 동일하게 유지.
+            const w = app.canvas?.width || 600;
+            const h = app.canvas?.height || 800;
+            try { app.renderer.resize(w, h); } catch { /* renderer 미준비 */ }
+            app.renderer.render(app.stage);
+            window.log?.debug?.("preview", "탭 전환 후 force render", { w, h });
+          } catch (e) {
+            window.log?.warn?.("preview", "force render 실패", { error: String(e) });
+          }
+        });
       });
       // 페이지 로드 시 마지막 탭 복원 (없으면 기본 setup).
       try {
