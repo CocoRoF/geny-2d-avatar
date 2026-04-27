@@ -55,16 +55,16 @@ await page.evaluate(() => {
   }
   return "no card";
 });
+await page.waitForTimeout(500);
 
-// 5) drawables 추출 대기.
-await page.waitForFunction(() => window.__genyDrawables?.length > 0, { timeout: 30000 });
-console.log("[setup] drawables loaded");
-await page.waitForTimeout(800);
-
-// 6) Preview 탭으로 이동.
+// 5) Preview 탭으로 이동 — 새 deferred 흐름에서 모델 로드는 여기서 trigger.
 await page.evaluate(() => {
   document.querySelector('#app-tabs button[data-app-tab="preview"]').click();
 });
+
+// 6) drawables 추출 대기.
+await page.waitForFunction(() => window.__genyDrawables?.length > 0, { timeout: 30000 });
+console.log("[preview] drawables loaded after tab switch");
 await page.waitForTimeout(2000);
 
 // 7) Stage 상태 확인.
